@@ -20,6 +20,7 @@ const t = initTRPC.context<Context>().create({
 });
 
 export const createTRPCRouter = t.router;
+export const createCallerFactory = t.createCallerFactory;
 export const publicProcedure = t.procedure;
 
 /** Requires an authenticated user with a resolved account context. */

@@ -90,3 +90,52 @@ tRPC). (4) `.claude/` is git-ignored (local memory).
   IPv6 egress restrictions; the Next dev server connects fine.
 
 **Phase 1 signed off by owner. Cleared to start Phase 2.**
+
+---
+
+## Phase 2 — Trucks, Compliance Items, Dashboard, Audit — COMPLETE (2026-05-16)
+
+Owner directive: I build everything; teaching walkthrough required →
+`notes/02-phase-2-explained.md` (the what/why/how doc).
+
+**Schema (`lib/db/schema.ts`, migration `0002`).** `truck`,
+`compliance_item` (polymorphic via `item_type`), `audit_log` + 5 enums.
+Money as integer cents, dates as `date`, soft-delete via `archived_at`,
+self-FK `parent_item_id` reserved for Phase 6, indexes on account/expiry.
+
+**Audit (`0003_audit_and_rls.sql`).** `permitkeep_audit()` AFTER
+INSERT/UPDATE on truck + compliance_item writes old/new/actor;
+`permitkeep_audit_block()` BEFORE UPDATE/DELETE on audit_log raises —
+append-only for all roles incl. service. Actor passed via tx-local
+`set_config('permitkeep.actor_id')`, wrapped in `withActor()`
+(`lib/db/index.ts`). RLS + member-select policies for the 3 new tables.
+
+**API.** `lib/trpc/routers/truck.ts` + `item.ts`: list/byId/create/update/
+archive, account derived from session, ownership re-check before mutate,
+archive-only, cross-account truck check. Registered in `root.ts`.
+`lib/trpc/server.ts` server caller so RSCs reuse the same procedures.
+`lib/validators.ts` (zod, dollars→cents at the edge, per-type reminder
+defaults). `lib/status.ts` server-side RED/YELLOW/GREEN + urgency rank +
+pure `classifyItem`. `lib/audit/index.ts` read-only history. `lib/format.ts`.
+
+**UI.** trucks list/new/[id], items list/new/[id] (with live audit trail),
+dashboard (status banner + urgency-sorted list). New primitives:
+`ui/textarea`, `ui/badge`. Server reads / client mutations split.
+
+**Verification.** typecheck ✅ · lint ✅ · build ✅ (21 routes). Migrations
+applied to live Supabase. Audit trigger tested live (insert→logged w/ actor;
+UPDATE & DELETE on audit_log both rejected), all in a rolled-back tx — 0
+test rows left behind.
+
+**Deviations:** none to the stack. Scope decisions logged in
+`02-phase-2-explained.md` (reminder offsets as int[] until Phase 4; person/
+business by name until Phase 8; "unack reminder >48h" YELLOW clause deferred
+to Phase 4).
+
+**Assumptions:** (1) `item_status` is a user-facing label distinct from the
+date-derived urgency the dashboard computes. (2) Items not tied to an active
+truck but expired are YELLOW (still a problem) — RED is reserved for the
+brief's exact "expired on active truck" rule. (3) Reminder offsets entered as
+a comma-separated list in the form for now.
+
+**Awaiting owner demo + sign-off before Phase 3.**
