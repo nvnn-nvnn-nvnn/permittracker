@@ -76,3 +76,17 @@ personal account named from the email local-part; team invites come later.
 (3) Server-side account provisioning in `session.ts` is acceptable (it is
 provisioning, not a client mutation; all true data mutations still go through
 tRPC). (4) `.claude/` is git-ignored (local memory).
+
+### 2026-05-16 — Phase 1 live verification
+
+- Supabase keys added; `npm run db:migrate` applied `0000` + `0001` to the
+  live DB. Verified: 3 tables with RLS=true, 4 policies, helper fn present.
+- Owner signed up **2 separate test accounts** via the dev server; data
+  landed, auth + auto-provisioning + shell confirmed functional. UI polish
+  deferred by owner ("will change UI later") — acceptable, structural only.
+- Fixed Next workspace-root inference (a stray `package-lock.json` in the
+  home dir): set `outputFileTracingRoot` in `next.config.ts`.
+- Note: ad-hoc DB verification scripts may fail from this sandbox due to
+  IPv6 egress restrictions; the Next dev server connects fine.
+
+**Phase 1 signed off by owner. Cleared to start Phase 2.**
