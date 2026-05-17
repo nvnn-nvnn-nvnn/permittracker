@@ -138,4 +138,62 @@ truck but expired are YELLOW (still a problem) — RED is reserved for the
 brief's exact "expired on active truck" rule. (3) Reminder offsets entered as
 a comma-separated list in the form for now.
 
-**Awaiting owner demo + sign-off before Phase 3.**
+**Phase 2 demoed and signed off by owner (2026-05-16). Cleared for Phase 3.**
+
+---
+
+## Phase 3 — File upload + Claude OCR — COMPLETE (2026-05-16)
+
+Owner choices: live Anthropic (separate key recommended; owner added a key),
+Inngest + manual fallback, storage bucket via migration. Teaching doc:
+`notes/03-phase-3-explained.md`.
+
+**Deps:** `@anthropic-ai/sdk@^0.96`, `inngest@^4.4` (both in-stack — no
+deviation).
+
+**Schema (migration `0004`).** `file_attachment`, `extraction_proposal`,
+`extraction_cost` + enums `file_status`, `ocr_confidence`,
+`proposal_status`; `audit_entity` extended with `file_attachment`. Cost in
+integer micro-USD.
+
+**Custom migration `0005`.** Private `documents` Storage bucket (no
+permissive storage.objects policies — service-role + signed URLs only);
+`file_attachment_audit` trigger reusing the Phase 2 audit function; RLS +
+member-select policies for the 3 new tables.
+
+**Pipeline.** `lib/extraction/schema.ts` (one Claude tool, zod re-validation,
+defensive date/money parsers), `extract.ts` (vision call + token→micro-USD
+cost), `run.ts` (download→extract→persist proposal+cost, sets manual-review
+when expiration confidence low). Signed upload/read via `lib/storage.ts`
+(service role). `lib/trpc/routers/file.ts`: createUploadUrl / confirmUploaded
+/ runExtractionNow / latestProposal / signedReadUrl / applyProposal /
+rejectProposal — account-scoped, ownership-checked, withActor-wrapped, apply
+only fills found fields and never auto-"renews". Inngest client + job +
+`/api/inngest`. Admin cost router + `/admin` dashboard (adminProcedure,
+platform-admin only). UI: `documents-panel.tsx` on item detail (upload,
+status, manual-review banner, proposal review w/ confidence chips,
+apply/reject).
+
+**Fix logged:** client component imported `server-only` `lib/storage` for the
+bucket name → moved constant to client-safe `lib/constants.ts`. inngest v4
+API differs from v3 (no `EventSchemas` export; `createFunction(options,
+handler)` with `triggers` in options) — adjusted.
+
+**Verification.** typecheck ✅ · lint ✅ · build ✅ (24 routes incl
+`/api/inngest`). Migrations applied to live Supabase; verified: 3 tables
+RLS=true, `audit_entity` has `file_attachment`, `file_attachment_audit`
+trigger present, `documents` bucket present + private, 3 member-select
+policies. (Live network was VPN-flaky again; succeeded with VPN off.)
+
+**Deviations:** none to stack. Notable: storage has no permissive
+object policies by design (signed-URL + service-role only) — documented in
+`03-phase-3-explained.md`.
+
+**Assumptions:** (1) overall `file.ocr_confidence` = the expiration-date
+field's confidence (the decision-critical field). (2) Apply overwrites item
+fields with found values, preserves fields the OCR didn't find. (3) Real
+end-to-end OCR (actual Claude call on a real document) is exercised by the
+owner in the demo — not auto-run here to avoid spending API credit on
+synthetic input.
+
+**Awaiting owner demo + sign-off before Phase 4.**

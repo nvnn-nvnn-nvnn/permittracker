@@ -29,6 +29,20 @@
       "when": 1779045489270,
       "tag": "0003_audit_and_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779053663071,
+      "tag": "0004_yielding_doctor_octopus",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1779053690835,
+      "tag": "0005_storage_audit_rls",
+      "breakpoints": true
     }
   ]
 }

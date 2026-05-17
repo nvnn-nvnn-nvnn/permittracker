@@ -149,6 +149,7 @@ export const auditActionEnum = pgEnum("audit_action", [
 export const auditEntityEnum = pgEnum("audit_entity", [
   "truck",
   "compliance_item",
+  "file_attachment",
 ]);
 
 // --- truck -----------------------------------------------------------------
@@ -270,3 +271,151 @@ export type AuditLog = typeof auditLog.$inferSelect;
 export type ItemType = (typeof itemTypeEnum.enumValues)[number];
 export type ItemStatus = (typeof itemStatusEnum.enumValues)[number];
 export type HolderType = (typeof holderTypeEnum.enumValues)[number];
+
+// ===========================================================================
+// Phase 3 — File attachments, OCR extraction proposals, cost tracking
+// ===========================================================================
+
+export const fileStatusEnum = pgEnum("file_status", [
+  "uploading", // signed upload URL issued, bytes not confirmed yet
+  "uploaded", // bytes present, extraction not started
+  "extracting", // OCR job running
+  "extracted", // proposal produced
+  "failed", // extraction errored
+]);
+
+/** Claude's self-reported confidence per field (brief). */
+export const ocrConfidenceEnum = pgEnum("ocr_confidence", [
+  "low",
+  "medium",
+  "high",
+]);
+
+/** A proposal is a SUGGESTION. We never overwrite a ComplianceItem from OCR
+ *  alone — the user applies or rejects it (brief "never do"). */
+export const proposalStatusEnum = pgEnum("proposal_status", [
+  "pending",
+  "applied",
+  "rejected",
+]);
+
+// --- file_attachment -------------------------------------------------------
+// An uploaded document. May be attached to a ComplianceItem, or unassigned
+// (Phase 7 forward-to-inbox creates unassigned files).
+
+export const fileAttachment = pgTable(
+  "file_attachment",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    complianceItemId: uuid("compliance_item_id").references(
+      () => complianceItem.id,
+      { onDelete: "set null" },
+    ),
+    // Storage path: accounts/{account_id}/items/{item_id}/{file_id}
+    storagePath: text("storage_path").notNull(),
+    originalFilename: text("original_filename").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: integer("size_bytes"),
+    status: fileStatusEnum("status").notNull().default("uploading"),
+    // Raw text + overall confidence from OCR (populated after extraction).
+    extractedText: text("extracted_text"),
+    ocrConfidence: ocrConfidenceEnum("ocr_confidence"),
+    // Set when expiration-date confidence is low → UI review banner (brief).
+    needsManualReview: boolean("needs_manual_review")
+      .notNull()
+      .default(false),
+    extractionError: text("extraction_error"),
+    createdByUserId: uuid("created_by_user_id").references(() => appUser.id, {
+      onDelete: "set null",
+    }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    index("file_attachment_account_idx").on(t.accountId),
+    index("file_attachment_item_idx").on(t.complianceItemId),
+  ],
+);
+
+// --- extraction_proposal ---------------------------------------------------
+// Structured fields Claude extracted. Surfaced as suggestions; applying is an
+// explicit user action that writes to the ComplianceItem via tRPC.
+
+export const extractionProposal = pgTable(
+  "extraction_proposal",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => fileAttachment.id, { onDelete: "cascade" }),
+    status: proposalStatusEnum("status").notNull().default("pending"),
+    // Extracted values (nullable — Claude may not find every field).
+    documentType: text("document_type"),
+    subtype: text("subtype"),
+    jurisdiction: text("jurisdiction"),
+    identifierNumber: text("identifier_number"),
+    issueDate: date("issue_date", { mode: "date" }),
+    expirationDate: date("expiration_date", { mode: "date" }),
+    renewalFeeAmountCents: integer("renewal_fee_amount_cents"),
+    feeDueDate: date("fee_due_date", { mode: "date" }),
+    holderName: text("holder_name"),
+    // Per-field confidence map: { field: 'low'|'medium'|'high' }.
+    fieldConfidence: jsonb("field_confidence")
+      .$type<Record<string, "low" | "medium" | "high">>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    appliedByUserId: uuid("applied_by_user_id").references(
+      () => appUser.id,
+      { onDelete: "set null" },
+    ),
+    ...timestamps,
+  },
+  (t) => [
+    index("extraction_proposal_account_idx").on(t.accountId),
+    index("extraction_proposal_file_idx").on(t.fileId),
+  ],
+);
+
+// --- extraction_cost -------------------------------------------------------
+// One row per Claude call. Admin-visible cost dashboard (Phase 9 surfaces it;
+// brief requires tracking from Phase 3). Cost stored in micro-USD (1e-6 $)
+// to stay integer-exact.
+
+export const extractionCost = pgTable(
+  "extraction_cost",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id").references(() => fileAttachment.id, {
+      onDelete: "set null",
+    }),
+    model: text("model").notNull(),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    costMicroUsd: integer("cost_micro_usd").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("extraction_cost_account_idx").on(t.accountId)],
+);
+
+export type FileAttachment = typeof fileAttachment.$inferSelect;
+export type ExtractionProposal = typeof extractionProposal.$inferSelect;
+export type ExtractionCost = typeof extractionCost.$inferSelect;
+export type OcrConfidence = (typeof ocrConfidenceEnum.enumValues)[number];

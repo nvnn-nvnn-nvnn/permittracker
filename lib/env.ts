@@ -20,6 +20,11 @@ const serverSchema = z.object({
 
   // --- Anthropic (live: OCR pipeline, phase 3) ---
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  ANTHROPIC_MODEL: z.string().min(1).default("claude-sonnet-4-6"),
+
+  // --- Inngest (background jobs). Optional in local dev mode. ---
+  INNGEST_EVENT_KEY: z.string().optional(),
+  INNGEST_SIGNING_KEY: z.string().optional(),
 
   // --- Stubbed integrations (wired in later phases) ---
   STRIPE_SECRET_KEY: z.string().optional(),

@@ -5,6 +5,7 @@ import { requireAccountContext } from "@/lib/auth/session";
 import { listAuditForEntity } from "@/lib/audit";
 import { ItemForm } from "@/components/features/item-form";
 import { ArchiveButton } from "@/components/features/archive-button";
+import { DocumentsPanel } from "@/components/features/documents-panel";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -60,6 +61,8 @@ export default async function ItemDetailPage({
         item={item}
         trucks={trucks.map((t) => ({ id: t.id, name: t.name }))}
       />
+
+      <DocumentsPanel complianceItemId={item.id} />
 
       <Card>
         <CardHeader>
