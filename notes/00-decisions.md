@@ -41,6 +41,33 @@ These were confirmed with the owner before any code was written.
   every item change. Full reasoning in `04-phase-4-explained.md` §1–2.
 - **Phase 4 — reminder recipient = account owner email.** Per-member /
   per-channel routing (SMS/voice) is Phase 7–8; Phase 4 ships email only.
+- **Phase 4 (post-sign-off) — "catch-up" reminders.** Originally recompute
+  *dropped* any reminder whose computed send-time was already in the past.
+  That silently produced **zero** reminders for the most urgent case (an
+  item added late, or expiring sooner than its largest offset). Fixed: if
+  the send-time is past **but the item hasn't expired yet**, the dispatch is
+  clamped to "now" so it goes out on the next cron tick / "Run due reminders
+  now". Genuinely stale (item already expired) is still skipped — the
+  dashboard's RED/expired state owns that. Found while debugging "no emails"
+  (the row was simply scheduled 33 min in the future at the fixed 13:00 UTC
+  send time — not a bug, but it exposed this real gap).
+
+## Known caveats / limitations (revisit later)
+
+- **Resend dev sender.** `EMAIL_FROM` defaults to Resend's shared
+  `onboarding@resend.dev`, which **only delivers to the email the Resend
+  account was created with**. If that differs from the PermitKeep
+  account-owner email, reminders won't arrive. Production needs a verified
+  domain address in `EMAIL_FROM`.
+- **"sent" ≠ "delivered".** A `sent` dispatch means the email adapter
+  accepted it (Resend queued it), not that it reached an inbox. True
+  delivery/bounce needs a Resend delivery webhook — deferred to the Phase 7
+  webhook work; `dispatch_status` will gain `delivered`/`bounced` then.
+- **Stub email silently "succeeds".** With no `RESEND_API_KEY` the no-op
+  adapter returns fake success, so a dispatch is marked `sent` though
+  nothing left. Acceptable pre-key, but flagged; making the stub mark
+  `skipped` instead is a candidate cleanup.
+- Fixed-time send window is **13:00 UTC**; not yet account-timezone aware.
 
 ### Scaffold corrections (not deviations, but notable)
 

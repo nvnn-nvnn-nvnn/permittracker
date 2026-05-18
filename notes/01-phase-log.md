@@ -261,3 +261,18 @@ owner receives).
 the Phase 3 sign-off note.
 
 **Awaiting owner demo + sign-off before Phase 5 (Payments).**
+
+### Phase 4 — post-sign-off fix: catch-up reminders (2026-05-18)
+
+Owner: "not receiving any emails." Diagnosed against live DB — the dispatch
+was correctly scheduled 13:00 UTC, ~33 min in the future, so nothing was due
+yet (not a bug). But it exposed a real flaw: recompute dropped any
+already-past send-time, so late-added / soon-expiring items produced **zero**
+reminders. Fix in `lib/reminders/schedule.ts`: clamp a past-but-still-
+relevant send-time to `now` (catch-up); skip only if the item itself has
+expired. typecheck ✅ / lint ✅. Also added `notes/README.md` (per-phase
+index/TOC) and a "Known caveats" section in `00-decisions.md` (Resend dev
+sender restriction; sent≠delivered; stub silently succeeds). Full detail:
+`04-phase-4-explained.md` → "Post-sign-off fix".
+
+**Phase 4 demoed and signed off by owner (2026-05-18). Cleared for Phase 5.**

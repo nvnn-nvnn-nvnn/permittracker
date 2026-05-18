@@ -143,3 +143,50 @@ implement until reminders existed.
    with the unacknowledged reason.
 6. Optional async path: `npx inngest-cli@latest dev` → the 5-min cron runs
    on its own.
+
+---
+
+## Post-sign-off fix — "catch-up" reminders (2026-05-18)
+
+**Symptom (owner):** "Not receiving any emails." **Diagnosis:** not a bug —
+the only dispatch was correctly `scheduled` for 13:00 UTC and it was 12:26
+UTC, so "Run due reminders now" rightly skipped it (it only sends rows whose
+time has passed). But debugging it surfaced a real design flaw.
+
+**The flaw:** recompute only *created* dispatches whose send-time was in the
+**future**, and the processor only *sends* ones that are **due (past)**. So:
+
+1. A freshly-created reminder is always future → can never fire immediately
+   (bad for demo/testing).
+2. Worse — an item added *late* (or expiring sooner than its biggest offset,
+   e.g. add today, expires in 3 days, "7-days-before" selected) had its only
+   reminder time already in the past → recompute **dropped it** → the most
+   urgent item produced **zero warnings**. That contradicts the product.
+
+**The fix (`lib/reminders/schedule.ts`):** a `consider()` helper now clamps.
+For each offset:
+
+- send-time still in the future → schedule normally;
+- send-time in the past **but the item has not expired yet** → clamp
+  `scheduledFor = now` (a *catch-up* send — goes out on the next cron tick /
+  "Run due reminders now");
+- item already expired → still skip (the dashboard's RED/expired state owns
+  that; a late "expires soon" email would be wrong/noise).
+
+A non-null `expiration` local is captured after the guard so the closure
+keeps the narrowed type. `stillRelevant = expirationDay >= todayDay` (UTC,
+date-level). Dedupe vs already-sent rows is unchanged, so a catch-up that
+sends won't be recreated on the next recompute.
+
+**Net effect:** late/urgent items now warn promptly, and Phase 4 is
+demoable on demand (add an item expiring within any selected offset → Run
+due reminders now → email goes).
+
+### Caveat that will still bite
+
+`EMAIL_FROM` defaults to Resend's shared `onboarding@resend.dev`, which only
+delivers to the **Resend account's own signup email**. If that differs from
+the PermitKeep account-owner email the dispatch is marked `sent` but no mail
+arrives. Use a verified-domain sender for real delivery. Also: `sent` means
+"Resend accepted it", not "inbox delivered" — a delivery webhook is deferred
+to Phase 7. Both logged in `00-decisions.md` → Known caveats.

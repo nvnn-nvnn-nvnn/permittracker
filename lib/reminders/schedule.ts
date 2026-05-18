@@ -58,26 +58,48 @@ export async function recomputeDispatches(
     );
 
   if (item.archivedAt || !item.expirationDate) return 0;
+  // Local non-null binding so closures keep the narrowed type.
+  const expiration = item.expirationDate;
 
   const now = Date.now();
   const targets: Target[] = [];
 
+  // Is the expiration still in the future (or today)? Only then is a
+  // "missed" reminder worth a catch-up send — once the item has actually
+  // expired the dashboard's RED/expired state takes over and a late
+  // "expires soon" email would be wrong/noise.
+  const expDay = Date.UTC(
+    expiration.getUTCFullYear(),
+    expiration.getUTCMonth(),
+    expiration.getUTCDate(),
+  );
+  const today = new Date();
+  const todayDay = Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate(),
+  );
+  const stillRelevant = expDay >= todayDay;
+
+  // Build one target per offset. If its computed send-time is in the past
+  // but the item hasn't expired yet, CLAMP to "now" (catch-up) instead of
+  // dropping it — so a late-added or soon-expiring item still warns, and
+  // it's sendable on the next cron tick / "Run due reminders now". A
+  // genuinely stale reminder (item already expired) is skipped.
+  const consider = (kind: "expiry" | "fee", offset: number) => {
+    const when = atSendTime(expiration, offset);
+    if (when.getTime() > now) {
+      targets.push({ kind, offsetDays: offset, scheduledFor: when });
+    } else if (stillRelevant) {
+      targets.push({ kind, offsetDays: offset, scheduledFor: new Date() });
+    }
+  };
+
   for (const offset of item.reminderDaysBefore ?? []) {
-    const when = atSendTime(item.expirationDate, offset);
-    if (when.getTime() > now) {
-      targets.push({ kind: "expiry", offsetDays: offset, scheduledFor: when });
-    }
+    consider("expiry", offset);
   }
-  if (item.feeDueDate) {
-    const when = atSendTime(item.expirationDate, FEE_OFFSET_DAYS);
-    if (when.getTime() > now) {
-      targets.push({
-        kind: "fee",
-        offsetDays: FEE_OFFSET_DAYS,
-        scheduledFor: when,
-      });
-    }
-  }
+  if (item.feeDueDate) consider("fee", FEE_OFFSET_DAYS);
+
   if (targets.length === 0) return 0;
 
   // Skip targets already represented by a sent/failed/skipped row.
