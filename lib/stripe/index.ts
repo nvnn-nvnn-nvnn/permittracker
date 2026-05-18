@@ -52,3 +52,35 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
 };
 
 export const CONCIERGE_ONBOARDING_USD = 49;
+
+export type BillingInterval = "month" | "year";
+export const PAID_TIERS = ["starter", "pro", "fleet"] as const;
+
+/**
+ * Stable price `lookup_key`s. We resolve Stripe price IDs by these at
+ * runtime instead of storing IDs in env — so re-running stripe:setup, or a
+ * fresh Stripe account, "just works" with no config edits.
+ */
+export function priceLookupKey(
+  tier: PlanTier,
+  interval: BillingInterval,
+): string {
+  return `permitkeep_${tier}_${interval}`;
+}
+export const CONCIERGE_LOOKUP_KEY = "permitkeep_concierge_onetime";
+
+/** Reverse map (webhook): a subscription price's lookup_key → our tier. */
+export function tierFromLookupKey(key: string | null | undefined): PlanTier | null {
+  if (!key) return null;
+  for (const tier of PAID_TIERS) {
+    if (key === `permitkeep_${tier}_month` || key === `permitkeep_${tier}_year`)
+      return tier;
+  }
+  return null;
+}
+
+export function priceUsd(tier: PlanTier, interval: BillingInterval): number {
+  return interval === "month"
+    ? PLANS[tier].monthlyUsd
+    : PLANS[tier].yearlyUsd;
+}

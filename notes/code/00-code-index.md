@@ -42,6 +42,9 @@ implementations using those patterns:**
 6. [`06-reminder-scheduling-and-dispatch.md`](06-reminder-scheduling-and-dispatch.md)
    — derive a schedule instead of storing one; the send loop + catch-up
    (Phase 4).
+7. [`07-stripe-webhook-and-limits.md`](07-stripe-webhook-and-limits.md) —
+   signed webhook as source of truth, price lookup-keys, limits as
+   un-skippable tRPC middleware (Phase 5).
 
 More notes get added as phases progress (one per phase's key new pattern).
 Read 1–3 for the transferable patterns; 4+ to see them combined in anger.

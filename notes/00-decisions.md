@@ -41,6 +41,20 @@ These were confirmed with the owner before any code was written.
   every item change. Full reasoning in `04-phase-4-explained.md` §1–2.
 - **Phase 4 — reminder recipient = account owner email.** Per-member /
   per-channel routing (SMS/voice) is Phase 7–8; Phase 4 ships email only.
+- **Phase 5 — prices by `lookup_key`, not stored IDs.** No Stripe price IDs
+  in env/DB. `npm run stripe:setup` stamps stable lookup keys; runtime
+  resolves ID↔meaning and caches. Re-runnable, environment-portable.
+- **Phase 5 — webhook is the only writer of plan state.** UI never sets
+  `plan_tier`; `applySubscription`/`clearSubscription` (one reconciler,
+  shared by webhook + manual sync) do. Handler errors return 500 so Stripe
+  retries.
+- **Phase 5 — `effectiveTier` floor.** A `none`/`canceled` account is
+  enforced at Starter limits (no keeping Pro caps after cancel). Consequence:
+  limits work *before Stripe is configured at all*.
+- **Phase 5 — billing is owner-only**, and all billing actions are
+  resilient when unconfigured (friendly `PRECONDITION_FAILED`, app keeps
+  working). Local webhooks need the Stripe CLI; a manual "Sync from Stripe"
+  is the fallback (added to Known caveats).
 - **Phase 4 (post-sign-off) — "catch-up" reminders.** Originally recompute
   *dropped* any reminder whose computed send-time was already in the past.
   That silently produced **zero** reminders for the most urgent case (an
@@ -68,6 +82,14 @@ These were confirmed with the owner before any code was written.
   nothing left. Acceptable pre-key, but flagged; making the stub mark
   `skipped` instead is a candidate cleanup.
 - Fixed-time send window is **13:00 UTC**; not yet account-timezone aware.
+- **Stripe local webhooks need the Stripe CLI** (`stripe listen --forward-to
+  localhost:3000/api/webhooks/stripe`). Without it, plan changes only
+  reconcile via the manual "Sync from Stripe" button (auto-called on return
+  from Checkout). Production uses a real webhook endpoint + secret.
+- **Concierge via manual sync isn't auto-detected.** The concierge flag is
+  set by the webhook on `checkout.session.completed`; "Sync from Stripe"
+  only reconciles subscriptions, not one-time payments. Fine with the CLI
+  running; noted for dev-without-CLI.
 
 ### Scaffold corrections (not deviations, but notable)
 

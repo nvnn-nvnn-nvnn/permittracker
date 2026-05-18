@@ -67,11 +67,15 @@ now") → Resend email with a one-click, signed acknowledge link. Unacked
 "catch-up" rule ensures even a late-added, soon-expiring item still warns.
 Deep dive: [`04-phase-4-explained.md`](04-phase-4-explained.md).
 
-### ⬜ Phase 5 — Payments
+### 🟡 Phase 5 — Payments
 **For:** make it a business. Stripe Checkout for plan signup, Customer
-Portal, plan-tier webhook, an `enforceLimits` tRPC middleware (truck/item
-caps per plan), and the $49 concierge add-on. Stripe stays stubbed behind
-the adapter until keys are added.
+Portal, a signed webhook that is the source of truth for `plan_tier`, a
+`limitedProcedure` tRPC middleware (truck/item caps per plan, cancel → drops
+to Starter floor), and the $49 concierge add-on. Built live-but-resilient:
+limits enforce even before Stripe keys exist; prices resolved by stable
+`lookup_key` (no IDs in env). Deep dive:
+[`05-phase-5-explained.md`](05-phase-5-explained.md) · code:
+[`code/07-stripe-webhook-and-limits.md`](code/07-stripe-webhook-and-limits.md).
 
 ### ⬜ Phase 6 — Dependencies & commissaries
 **For:** model the real world: a food truck depends on a licensed

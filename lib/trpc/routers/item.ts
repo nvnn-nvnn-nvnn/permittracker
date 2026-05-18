@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { and, desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, protectedProcedure } from "@/lib/trpc/trpc";
+import {
+  createTRPCRouter,
+  limitedProcedure,
+  protectedProcedure,
+} from "@/lib/trpc/trpc";
 import { getDb, withActor, type DbTx } from "@/lib/db";
 import { complianceItem, truck } from "@/lib/db/schema";
 import { itemInput, defaultRemindersFor } from "@/lib/validators";
@@ -86,7 +90,7 @@ export const itemRouter = createTRPCRouter({
       return row;
     }),
 
-  create: protectedProcedure
+  create: limitedProcedure("item")
     .input(itemInput)
     .mutation(async ({ ctx, input }) => {
       return withActor(ctx.account.userId, async (tx) => {

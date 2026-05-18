@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { requireAccountContext } from "@/lib/auth/session";
 import {
   Card,
@@ -8,8 +9,10 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/auth/actions";
+import { BillingPanel } from "@/components/features/billing-panel";
 
 export const metadata = { title: "Settings · PermitKeep" };
+export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const ctx = await requireAccountContext();
@@ -34,6 +37,18 @@ export default async function SettingsPage() {
           </form>
         </CardContent>
       </Card>
+
+      <Suspense
+        fallback={
+          <Card>
+            <CardContent className="p-6 text-sm text-muted-foreground">
+              Loading billing…
+            </CardContent>
+          </Card>
+        }
+      >
+        <BillingPanel />
+      </Suspense>
     </div>
   );
 }

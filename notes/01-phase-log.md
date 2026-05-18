@@ -260,7 +260,49 @@ owner receives).
 **This commit also carries:** the Phase 3 post-sign-off enhancements and
 the Phase 3 sign-off note.
 
-**Awaiting owner demo + sign-off before Phase 5 (Payments).**
+---
+
+## Phase 5 — Payments — COMPLETE (2026-05-18)
+
+Owner choices: I generate Stripe products via script, Stripe CLI + manual
+fallback, hard-block on limit. Built live-but-resilient. Teaching:
+`05-phase-5-explained.md`; code: `code/07-stripe-webhook-and-limits.md`.
+
+**Schema (`0008`).** account + `stripe_subscription_id`, `plan_status`
+enum (none/active/trialing/past_due/canceled), `plan_interval`,
+`current_period_end`, `concierge_purchased_at`.
+
+**Stripe layer.** `lib/stripe/client.ts` lazy SDK + `isStripeConfigured`.
+`index.ts` lookup-key helpers + `tierFromLookupKey` + `effectiveTier`-feeding
+PLANS. `prices.ts` cached `lookup_key`→id. `sync.ts` getOrCreateCustomer +
+`applySubscription`/`clearSubscription` (one reconciler). `scripts/
+stripe-setup.mjs` idempotent products/prices (`npm run stripe:setup`).
+
+**API + webhook.** `billing` router: createCheckout / createConciergeCheckout
+/ createPortal / syncFromStripe / status (owner-gated, resilient when
+unconfigured). `/api/webhooks/stripe`: nodejs runtime, raw-body signature
+verify, handles checkout.session.completed + subscription.created/updated/
+deleted, 500-on-error for Stripe retries.
+
+**Limits.** `lib/limits.ts` `assertWithinLimit` (+ `effectiveTier` floor);
+`limitedProcedure(kind)` middleware in `trpc.ts`; applied to
+`truck.create` / `item.create`. Counts non-archived only.
+
+**UI.** `components/features/billing-panel.tsx` in Settings (plan badge,
+monthly/yearly toggle, choose plan, manage billing, concierge, sync;
+auto-syncs on return from Checkout). Settings page `force-dynamic` +
+`<Suspense>` (useSearchParams).
+
+**Verification.** typecheck ✅ · lint ✅ · clean build ✅. Migration `0008`
+applied to live DB and verified (5 billing cols + `plan_status` enum).
+
+**Deferred:** real Stripe keys/products are owner-supplied at demo
+(`stripe:setup` + CLI). Concierge not auto-detected by manual sync (webhook
+only) — logged in caveats. Team-seat enforcement (Fleet) beyond counts →
+later.
+
+**Awaiting owner demo + sign-off before Phase 6 (Dependencies &
+commissaries).**
 
 ### Phase 4 — post-sign-off fix: catch-up reminders (2026-05-18)
 

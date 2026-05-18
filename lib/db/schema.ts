@@ -30,6 +30,16 @@ import {
 // --- Enums -----------------------------------------------------------------
 
 export const planTierEnum = pgEnum("plan_tier", ["starter", "pro", "fleet"]);
+
+/** Stripe subscription health. `none` = never subscribed (limits still
+ *  enforced at the starter floor). Mirrors Stripe subscription.status. */
+export const planStatusEnum = pgEnum("plan_status", [
+  "none",
+  "active",
+  "trialing",
+  "past_due",
+  "canceled",
+]);
 export const membershipRoleEnum = pgEnum("membership_role", [
   "owner",
   "manager",
@@ -69,7 +79,16 @@ export const account = pgTable("account", {
   name: text("name").notNull(),
   slug: text("slug").notNull(),
   planTier: planTierEnum("plan_tier").notNull().default("starter"),
+  // --- Billing (Phase 5) ---
   stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  planStatus: planStatusEnum("plan_status").notNull().default("none"),
+  // "month" | "year" | null — drives the displayed price, not authorization.
+  planInterval: text("plan_interval"),
+  currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+  conciergePurchasedAt: timestamp("concierge_purchased_at", {
+    withTimezone: true,
+  }),
   // Nullable to avoid a circular FK at insert time; set after owner exists.
   ownerUserId: uuid("owner_user_id").references(() => appUser.id, {
     onDelete: "set null",
@@ -108,6 +127,7 @@ export type Account = typeof account.$inferSelect;
 export type Membership = typeof membership.$inferSelect;
 export type MembershipRole = (typeof membershipRoleEnum.enumValues)[number];
 export type PlanTier = (typeof planTierEnum.enumValues)[number];
+export type PlanStatus = (typeof planStatusEnum.enumValues)[number];
 
 // ===========================================================================
 // Phase 2 — Trucks, Compliance Items, Audit Log

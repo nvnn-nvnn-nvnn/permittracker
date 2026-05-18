@@ -2,6 +2,7 @@ import "server-only";
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { getAccountContext, type AccountContext } from "@/lib/auth/session";
+import { assertWithinLimit } from "@/lib/limits";
 
 /**
  * tRPC context. The account context is derived from the authenticated
@@ -30,6 +31,18 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   }
   return next({ ctx: { account: ctx.account satisfies AccountContext } });
 });
+
+/**
+ * A protected procedure that also enforces the account's plan limit for
+ * `kind` BEFORE the handler runs (brief: enforce limits at the tRPC layer).
+ * Used by truck.create / item.create.
+ */
+export function limitedProcedure(kind: "truck" | "item") {
+  return protectedProcedure.use(async ({ ctx, next }) => {
+    await assertWithinLimit(ctx.account.accountId, kind);
+    return next();
+  });
+}
 
 /** Requires the platform-admin flag (gates the /admin app). */
 export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {

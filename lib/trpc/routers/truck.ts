@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { and, desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, protectedProcedure } from "@/lib/trpc/trpc";
+import {
+  createTRPCRouter,
+  limitedProcedure,
+  protectedProcedure,
+} from "@/lib/trpc/trpc";
 import { getDb, withActor } from "@/lib/db";
 import { truck } from "@/lib/db/schema";
 import { truckInput } from "@/lib/validators";
@@ -40,7 +44,7 @@ export const truckRouter = createTRPCRouter({
       return row;
     }),
 
-  create: protectedProcedure
+  create: limitedProcedure("truck")
     .input(truckInput)
     .mutation(async ({ ctx, input }) => {
       return withActor(ctx.account.userId, async (tx) => {
