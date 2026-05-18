@@ -77,11 +77,14 @@ limits enforce even before Stripe keys exist; prices resolved by stable
 [`05-phase-5-explained.md`](05-phase-5-explained.md) · code:
 [`code/07-stripe-webhook-and-limits.md`](code/07-stripe-webhook-and-limits.md).
 
-### ⬜ Phase 6 — Dependencies & commissaries
+### 🟡 Phase 6 — Dependencies & commissaries
 **For:** model the real world: a food truck depends on a licensed
-commissary. If the commissary's permit lapses, every dependent truck is
-flagged. Parent/child ComplianceItems; the status engine follows the chain.
-(Schema already reserves `parent_item_id` + holder model from Phase 2.)
+commissary. A lapsed commissary permit/contract → dependent **active**
+trucks go RED; an expired **parent** ComplianceItem makes its children
+inherit that urgency (chains propagate). Status engine = compute → fixpoint
+propagate → count. Deep dive:
+[`06-phase-6-explained.md`](06-phase-6-explained.md) · code:
+[`code/08-cascade-status-engine.md`](code/08-cascade-status-engine.md).
 
 ### ⬜ Phase 7 — Inbound email + SMS
 **For:** forward a renewal notice to a per-account inbox address; Postmark

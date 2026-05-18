@@ -22,6 +22,7 @@ export default async function TruckDetailPage({
     if (e instanceof TRPCError && e.code === "NOT_FOUND") notFound();
     throw e;
   }
+  const commissaries = await api.commissary.list();
 
   return (
     <div className="space-y-8">
@@ -46,7 +47,13 @@ export default async function TruckDetailPage({
           )}
         </div>
       </div>
-      <TruckForm truck={truck} />
+      <TruckForm
+        truck={truck}
+        commissaries={commissaries.map((c) => ({
+          id: c.id,
+          name: c.name,
+        }))}
+      />
     </div>
   );
 }

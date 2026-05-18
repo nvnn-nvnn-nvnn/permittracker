@@ -308,8 +308,48 @@ build→wipe→restart `.next` gap (dev log showed middleware compiling fine;
 Logged in `00-decisions.md` → Known caveats with the persistent-vs-transient
 distinction + process to flag the build step beforehand.
 
-**Awaiting owner demo + sign-off before Phase 6 (Dependencies &
-commissaries).**
+**Phase 5 demoed and signed off by owner (2026-05-18). Cleared for
+Phase 6 (Dependencies & commissaries).**
+
+---
+
+## Phase 6 — Dependencies & commissaries — COMPLETE (2026-05-18)
+
+Owner choices: commissary = dedicated date columns; commissary lapse →
+RED; parent→child inherits urgency. Teaching: `06-phase-6-explained.md` +
+`code/08-cascade-status-engine.md`.
+
+**Schema (`0009` + custom `0010`).** `commissary` table (name, address,
+permit_expiration, contract_expiration); `truck.commissary_id` FK
+(set-null); `audit_entity += commissary`; commissary audit trigger (reuses
+generic fn) + RLS member-select.
+
+**Validators/API.** `commissaryInput`; `truckInput.commissaryId`,
+`itemInput.parentItemId` (+ shared `optionalUuid`). `commissary` tRPC
+router (CRUD, account-scoped, withActor, archive-only).
+`assertCommissaryInAccount` (truck) + `assertParentItem` (item, blocks
+self-ref, `selfId` on update).
+
+**Status engine.** Rewrote `computeAccountStatus` to 3 passes: base
+urgency → bounded fixpoint parent→child propagation → count. Commissary
+cascade via in-memory invert (commissaryId→truckNames); expired→RED,
+≤30d→YELLOW; returns `commissaryAlerts` + per-item `blockedBy`.
+
+**UI.** Commissaries list/new/[id] + form; sidebar nav (Warehouse);
+truck-form commissary select; item-form parent select (excludes self);
+dashboard "Commissary cascade" card + ⛔ blocked-by line; ArchiveButton
+gained `commissary`.
+
+**Verification.** typecheck ✅ · lint ✅ · clean build ✅. `0009`/`0010`
+applied to live DB and verified (commissary table RLS=true,
+`truck.commissary_id`, `audit_entity` has commissary, trigger + policy
+present).
+
+**Deferred:** deep parent cycle (A→B→A) prevention — only self-ref blocked,
+fixpoint loop bounded so a cycle is harmless (Known caveats). Person/venue
+entities → Phase 8.
+
+**Awaiting owner demo + sign-off before Phase 7 (Inbound email + SMS).**
 
 ### Phase 4 — post-sign-off fix: catch-up reminders (2026-05-18)
 

@@ -6,9 +6,34 @@ import {
   limitedProcedure,
   protectedProcedure,
 } from "@/lib/trpc/trpc";
-import { getDb, withActor } from "@/lib/db";
-import { truck } from "@/lib/db/schema";
+import { getDb, withActor, type DbTx } from "@/lib/db";
+import { commissary, truck } from "@/lib/db/schema";
 import { truckInput } from "@/lib/validators";
+
+/** A linked commissary must belong to the same account. */
+async function assertCommissaryInAccount(
+  tx: DbTx,
+  commissaryId: string | undefined,
+  accountId: string,
+) {
+  if (!commissaryId) return;
+  const [c] = await tx
+    .select({ id: commissary.id })
+    .from(commissary)
+    .where(
+      and(
+        eq(commissary.id, commissaryId),
+        eq(commissary.accountId, accountId),
+      ),
+    )
+    .limit(1);
+  if (!c) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Commissary not found in this account",
+    });
+  }
+}
 
 /** Every query/mutation is scoped to ctx.account.accountId (from session). */
 export const truckRouter = createTRPCRouter({
@@ -48,6 +73,11 @@ export const truckRouter = createTRPCRouter({
     .input(truckInput)
     .mutation(async ({ ctx, input }) => {
       return withActor(ctx.account.userId, async (tx) => {
+        await assertCommissaryInAccount(
+          tx,
+          input.commissaryId,
+          ctx.account.accountId,
+        );
         const [row] = await tx
           .insert(truck)
           .values({
@@ -56,6 +86,7 @@ export const truckRouter = createTRPCRouter({
             plateOrVin: input.plateOrVin,
             jurisdiction: input.jurisdiction,
             isActive: input.isActive ?? true,
+            commissaryId: input.commissaryId ?? null,
             notes: input.notes,
             createdByUserId: ctx.account.userId,
           })
@@ -82,6 +113,11 @@ export const truckRouter = createTRPCRouter({
       if (!owned) throw new TRPCError({ code: "NOT_FOUND" });
 
       return withActor(ctx.account.userId, async (tx) => {
+        await assertCommissaryInAccount(
+          tx,
+          input.data.commissaryId,
+          ctx.account.accountId,
+        );
         const [row] = await tx
           .update(truck)
           .set({
@@ -89,6 +125,7 @@ export const truckRouter = createTRPCRouter({
             plateOrVin: input.data.plateOrVin,
             jurisdiction: input.data.jurisdiction,
             isActive: input.data.isActive ?? true,
+            commissaryId: input.data.commissaryId ?? null,
             notes: input.data.notes,
             updatedAt: new Date(),
           })

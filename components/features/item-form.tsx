@@ -25,12 +25,16 @@ function dayLabel(d: number): string {
   return `${d} day${d === 1 ? "" : "s"} before`;
 }
 
+type ParentOption = { id: string; label: string };
+
 export function ItemForm({
   item,
   trucks,
+  parentOptions = [],
 }: {
   item?: ComplianceItem;
   trucks: TruckOption[];
+  parentOptions?: ParentOption[];
 }) {
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -129,6 +133,7 @@ export function ItemForm({
         | "business",
       holderTruckId: String(fd.get("holderTruckId") ?? ""),
       holderName: String(fd.get("holderName") ?? ""),
+      parentItemId: String(fd.get("parentItemId") ?? ""),
       notes: String(fd.get("notes") ?? ""),
       reminderDaysBefore: reminders,
     };
@@ -271,6 +276,23 @@ export function ItemForm({
             name="holderName"
             defaultValue={item?.holderName ?? ""}
           />
+        </Field>
+        <Field label="Depends on (parent item)" htmlFor="parentItemId">
+          <select
+            id="parentItemId"
+            name="parentItemId"
+            className={selectCls}
+            defaultValue={item?.parentItemId ?? ""}
+          >
+            <option value="">— none —</option>
+            {parentOptions
+              .filter((p) => p.id !== item?.id)
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+          </select>
         </Field>
       </div>
 

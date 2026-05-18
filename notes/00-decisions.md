@@ -55,6 +55,16 @@ These were confirmed with the owner before any code was written.
   resilient when unconfigured (friendly `PRECONDITION_FAILED`, app keeps
   working). Local webhooks need the Stripe CLI; a manual "Sync from Stripe"
   is the fallback (added to Known caveats).
+- **Phase 6 — commissary = dedicated date columns**, not ComplianceItems.
+  `permit_expiration` + `contract_expiration` on a `commissary` table
+  (matches the brief's wording; lighter than full items).
+- **Phase 6 — commissary lapse cascades to RED** for dependent *active*
+  trucks (legally can't operate); expiring ≤30d → YELLOW. Inactive trucks
+  don't trigger it.
+- **Phase 6 — parent→child inherits urgency**, propagated by a bounded
+  fixpoint loop so multi-level chains cascade. Deep cycle (A→B→A)
+  *prevention* is deferred — only self-reference is blocked; the loop is
+  capped so a cycle can't hang the request (added to Known caveats).
 - **Phase 4 (post-sign-off) — "catch-up" reminders.** Originally recompute
   *dropped* any reminder whose computed send-time was already in the past.
   That silently produced **zero** reminders for the most urgent case (an
@@ -82,6 +92,10 @@ These were confirmed with the owner before any code was written.
   nothing left. Acceptable pre-key, but flagged; making the stub mark
   `skipped` instead is a candidate cleanup.
 - Fixed-time send window is **13:00 UTC**; not yet account-timezone aware.
+- **Parent-item deep cycles not prevented.** Only direct self-reference is
+  blocked. An A→B→A chain is possible via the API; the status fixpoint loop
+  is bounded (`items.length + 1`) so it can't hang — it just yields a
+  bounded, non-meaningful result. A proper acyclic check is future work.
 - **Stripe local webhooks need the Stripe CLI** (`stripe listen --forward-to
   localhost:3000/api/webhooks/stripe`). Without it, plan changes only
   reconcile via the manual "Sync from Stripe" button (auto-called on return

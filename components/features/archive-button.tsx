@@ -5,15 +5,15 @@ import { trpc } from "@/lib/trpc/react";
 import { Button } from "@/components/ui/button";
 
 /**
- * Archive (soft-delete) a truck or item. Never hard-deletes — the row stays
- * for the audit trail; the trigger logs action='archive'.
+ * Archive (soft-delete) a truck, item, or commissary. Never hard-deletes —
+ * the row stays for the audit trail; the trigger logs action='archive'.
  */
 export function ArchiveButton({
   kind,
   id,
   redirectTo,
 }: {
-  kind: "truck" | "item";
+  kind: "truck" | "item" | "commissary";
   id: string;
   redirectTo?: string;
 }) {
@@ -22,19 +22,26 @@ export function ArchiveButton({
   const [confirming, setConfirming] = useState(false);
 
   const onSuccess = async () => {
-    await (kind === "truck"
-      ? utils.truck.list.invalidate()
-      : utils.item.list.invalidate());
+    if (kind === "truck") await utils.truck.list.invalidate();
+    else if (kind === "item") await utils.item.list.invalidate();
+    else await utils.commissary.list.invalidate();
     if (redirectTo) router.push(redirectTo);
     router.refresh();
   };
   const truckArchive = trpc.truck.archive.useMutation({ onSuccess });
   const itemArchive = trpc.item.archive.useMutation({ onSuccess });
-  const pending = truckArchive.isPending || itemArchive.isPending;
+  const commissaryArchive = trpc.commissary.archive.useMutation({
+    onSuccess,
+  });
+  const pending =
+    truckArchive.isPending ||
+    itemArchive.isPending ||
+    commissaryArchive.isPending;
 
   function go() {
     if (kind === "truck") truckArchive.mutate({ id });
-    else itemArchive.mutate({ id });
+    else if (kind === "item") itemArchive.mutate({ id });
+    else commissaryArchive.mutate({ id });
   }
 
   if (!confirming) {

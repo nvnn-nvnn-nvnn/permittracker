@@ -17,14 +17,30 @@ const optionalTrimmed = (max: number) =>
     z.string().trim().max(max).optional(),
   );
 
+// "" / null → undefined, else must be a uuid (form selects send "").
+const optionalUuid = z.preprocess(
+  (v) => (v === "" || v === null ? undefined : v),
+  z.string().uuid().optional(),
+);
+
 export const truckInput = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
   plateOrVin: optionalTrimmed(60),
   jurisdiction: optionalTrimmed(120),
   isActive: z.boolean().default(true),
+  commissaryId: optionalUuid,
   notes: optionalTrimmed(2000),
 });
 export type TruckInput = z.input<typeof truckInput>;
+
+export const commissaryInput = z.object({
+  name: z.string().trim().min(1, "Name is required").max(160),
+  address: optionalTrimmed(240),
+  permitExpiration: optionalDate,
+  contractExpiration: optionalDate,
+  notes: optionalTrimmed(2000),
+});
+export type CommissaryInput = z.input<typeof commissaryInput>;
 
 export const itemTypeValues = [
   "permit",
@@ -72,6 +88,8 @@ export const itemInput = z.object({
     z.string().uuid().optional(),
   ),
   holderName: optionalTrimmed(160),
+  // Optional dependency on another item (Phase 6 parent→child cascade).
+  parentItemId: optionalUuid,
   notes: optionalTrimmed(2000),
   reminderDaysBefore: z.array(z.number().int().min(0).max(365)).optional(),
 });

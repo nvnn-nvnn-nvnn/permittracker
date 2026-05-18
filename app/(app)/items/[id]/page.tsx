@@ -35,8 +35,9 @@ export default async function ItemDetailPage({
     throw e;
   }
 
-  const [trucks, history] = await Promise.all([
+  const [trucks, items, history] = await Promise.all([
     api.truck.list(),
+    api.item.list(),
     listAuditForEntity(ctx.accountId, "compliance_item", item.id),
   ]);
   const badge = classifyItem(item);
@@ -61,6 +62,10 @@ export default async function ItemDetailPage({
       <ItemForm
         item={item}
         trucks={trucks.map((t) => ({ id: t.id, name: t.name }))}
+        parentOptions={items.map((i) => ({
+          id: i.id,
+          label: `${i.itemType} — ${i.subtype ?? i.identifier ?? "item"}`,
+        }))}
       />
 
       <DocumentsPanel complianceItemId={item.id} />

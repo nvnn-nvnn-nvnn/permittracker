@@ -45,6 +45,9 @@ implementations using those patterns:**
 7. [`07-stripe-webhook-and-limits.md`](07-stripe-webhook-and-limits.md) —
    signed webhook as source of truth, price lookup-keys, limits as
    un-skippable tRPC middleware (Phase 5).
+8. [`08-cascade-status-engine.md`](08-cascade-status-engine.md) —
+   multi-pass fixpoint: compute → propagate dependencies → count;
+   commissary + parent→child cascades (Phase 6).
 
 More notes get added as phases progress (one per phase's key new pattern).
 Read 1–3 for the transferable patterns; 4+ to see them combined in anger.

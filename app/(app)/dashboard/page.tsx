@@ -69,6 +69,30 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
+      {result.commissaryAlerts.length > 0 && (
+        <Card className="border-status-red/40">
+          <CardHeader>
+            <CardTitle className="text-base">
+              Commissary cascade ({result.commissaryAlerts.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            {result.commissaryAlerts.map((a, i) => (
+              <p key={i} className="text-muted-foreground">
+                <span
+                  className={
+                    a.expired ? "text-status-red" : "text-status-yellow"
+                  }
+                >
+                  {a.name} {a.kind} {a.expired ? "expired" : `in ${a.days}d`}
+                </span>{" "}
+                — blocks {a.truckNames.join(", ")}
+              </p>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <div>
         <h2 className="mb-3 text-sm font-medium text-muted-foreground">
           Sorted by urgency
@@ -100,6 +124,11 @@ export default async function DashboardPage() {
                         {u.truckName ?? u.item.holderName ?? u.item.holderType}{" "}
                         · exp {fmtDate(u.item.expirationDate)}
                       </p>
+                      {u.blockedBy && (
+                        <p className="truncate text-xs text-status-red">
+                          ⛔ {u.blockedBy}
+                        </p>
+                      )}
                     </div>
                     <Badge
                       variant={

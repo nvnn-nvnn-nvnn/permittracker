@@ -30,6 +30,7 @@ function toColumns(input: z.infer<typeof itemInput>) {
     holderType: input.holderType,
     holderTruckId: input.holderTruckId ?? null,
     holderName: input.holderName,
+    parentItemId: input.parentItemId ?? null,
     notes: input.notes,
     reminderDaysBefore:
       input.reminderDaysBefore ??
@@ -53,6 +54,39 @@ async function assertTruckInAccount(
     throw new TRPCError({
       code: "BAD_REQUEST",
       message: "Truck not found in this account",
+    });
+  }
+}
+
+/** Parent item must be in this account and not the item itself (no
+ *  self-dependency). Deep-cycle prevention is deferred (documented). */
+async function assertParentItem(
+  tx: DbTx,
+  parentItemId: string | undefined,
+  accountId: string,
+  selfId?: string,
+) {
+  if (!parentItemId) return;
+  if (selfId && parentItemId === selfId) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "An item can't depend on itself",
+    });
+  }
+  const [p] = await tx
+    .select({ id: complianceItem.id })
+    .from(complianceItem)
+    .where(
+      and(
+        eq(complianceItem.id, parentItemId),
+        eq(complianceItem.accountId, accountId),
+      ),
+    )
+    .limit(1);
+  if (!p) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Parent item not found in this account",
     });
   }
 }
@@ -99,6 +133,11 @@ export const itemRouter = createTRPCRouter({
           input.holderTruckId,
           ctx.account.accountId,
         );
+        await assertParentItem(
+          tx,
+          input.parentItemId,
+          ctx.account.accountId,
+        );
         const [row] = await tx
           .insert(complianceItem)
           .values({
@@ -133,6 +172,12 @@ export const itemRouter = createTRPCRouter({
           tx,
           input.data.holderTruckId,
           ctx.account.accountId,
+        );
+        await assertParentItem(
+          tx,
+          input.data.parentItemId,
+          ctx.account.accountId,
+          input.id,
         );
         const [row] = await tx
           .update(complianceItem)

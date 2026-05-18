@@ -1,8 +1,17 @@
 import "server-only";
 import { and, eq, isNull, lt } from "drizzle-orm";
 import { getDb } from "@/lib/db";
-import { complianceItem, reminderDispatch, truck } from "@/lib/db/schema";
-import type { ComplianceItem, Truck } from "@/lib/db/schema";
+import {
+  commissary,
+  complianceItem,
+  reminderDispatch,
+  truck,
+} from "@/lib/db/schema";
+import type {
+  Commissary,
+  ComplianceItem,
+  Truck,
+} from "@/lib/db/schema";
 
 export type AccountStatus = "red" | "yellow" | "green";
 
@@ -19,12 +28,24 @@ export interface ItemUrgency {
   /** Lower = more urgent (drives dashboard sort). */
   rank: number;
   contributesRed: boolean;
+  /** Set when this item's urgency was inherited from its parent (Phase 6). */
+  blockedBy: string | null;
+}
+
+export interface CommissaryAlert {
+  commissaryId: string;
+  name: string;
+  kind: "permit" | "contract";
+  expired: boolean;
+  days: number | null;
+  truckNames: string[];
 }
 
 export interface AccountStatusResult {
   status: AccountStatus;
   reasons: string[];
   items: ItemUrgency[];
+  commissaryAlerts: CommissaryAlert[];
   counts: { red: number; yellow: number; green: number; total: number };
 }
 
@@ -95,19 +116,33 @@ export async function computeAccountStatus(
       ),
     );
 
+  const commissaries: Commissary[] = await db
+    .select()
+    .from(commissary)
+    .where(eq(commissary.accountId, accountId));
+  const commById = new Map(commissaries.map((c) => [c.id, c]));
+
   const reasons: string[] = [];
   let red = 0;
   let yellow = 0;
   let green = 0;
 
-  const urgencies: ItemUrgency[] = items
+  function rankOf(u: ItemUrgency): number {
+    if (u.contributesRed) return 0;
+    if (u.isExpired) return 10;
+    if (u.expiringSoon) return 20 + (u.daysToExpiry ?? 0);
+    if (u.feeDueSoon) return 60 + (u.daysToFeeDue ?? 0);
+    return 100;
+  }
+
+  // Pass 1 — base urgency per non-archived item (no counting yet).
+  const base: ItemUrgency[] = items
     .filter((i) => i.archivedAt === null)
     .map((item) => {
       const t = item.holderTruckId
         ? (truckById.get(item.holderTruckId) ?? null)
         : null;
       const truckActive = t ? t.isActive && t.archivedAt === null : false;
-
       const daysToExpiry = dayDiff(item.expirationDate);
       const daysToFeeDue = dayDiff(item.feeDueDate);
       const isExpired = daysToExpiry !== null && daysToExpiry < 0;
@@ -115,28 +150,7 @@ export async function computeAccountStatus(
         daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 30;
       const feeDueSoon =
         daysToFeeDue !== null && daysToFeeDue >= 0 && daysToFeeDue <= 14;
-
-      const contributesRed =
-        isExpired && item.holderType === "truck" && truckActive;
-
-      let rank = 100;
-      if (contributesRed) rank = 0;
-      else if (isExpired) rank = 10;
-      else if (expiringSoon) rank = 20 + (daysToExpiry ?? 0);
-      else if (feeDueSoon) rank = 60 + (daysToFeeDue ?? 0);
-
-      if (contributesRed) {
-        red++;
-        reasons.push(
-          `${item.itemType} "${item.identifier ?? "—"}" expired on active truck ${t?.name ?? ""}`.trim(),
-        );
-      } else if (isExpired || expiringSoon || feeDueSoon) {
-        yellow++;
-      } else {
-        green++;
-      }
-
-      return {
+      const u: ItemUrgency = {
         item,
         truckName: t?.name ?? null,
         truckActive,
@@ -145,11 +159,109 @@ export async function computeAccountStatus(
         isExpired,
         expiringSoon,
         feeDueSoon,
-        rank,
-        contributesRed,
+        rank: 100,
+        contributesRed:
+          isExpired && item.holderType === "truck" && truckActive,
+        blockedBy: null,
       };
-    })
-    .sort((a, b) => a.rank - b.rank);
+      u.rank = rankOf(u);
+      return u;
+    });
+  const byId = new Map(base.map((u) => [u.item.id, u]));
+
+  // Pass 2 — parent→child inheritance. Iterate until stable so chains
+  // (grandparent→parent→child) fully propagate. Only non-archived parents
+  // exist in `byId`, so an archived parent stops the cascade.
+  for (let iter = 0; iter < base.length + 1; iter++) {
+    let changed = false;
+    for (const u of base) {
+      const parentId = u.item.parentItemId;
+      if (!parentId) continue;
+      const p = byId.get(parentId);
+      if (!p) continue;
+      if (p.isExpired && !u.isExpired) {
+        u.isExpired = true;
+        u.blockedBy = `parent ${p.item.itemType} expired`;
+        u.contributesRed =
+          u.item.holderType === "truck" && u.truckActive;
+        u.rank = rankOf(u);
+        changed = true;
+      } else if (p.expiringSoon && !u.expiringSoon && !u.isExpired) {
+        u.expiringSoon = true;
+        u.blockedBy = `parent ${p.item.itemType} expiring soon`;
+        u.rank = rankOf(u);
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+
+  // Pass 3 — count + reasons.
+  for (const u of base) {
+    if (u.contributesRed) {
+      red++;
+      reasons.push(
+        `${u.item.itemType} "${u.item.identifier ?? "—"}" ${
+          u.blockedBy ? `(${u.blockedBy})` : "expired"
+        } on active truck ${u.truckName ?? ""}`.trim(),
+      );
+    } else if (u.isExpired || u.expiringSoon || u.feeDueSoon) {
+      yellow++;
+    } else {
+      green++;
+    }
+  }
+  const urgencies = base.sort((a, b) => a.rank - b.rank);
+
+  // Commissary cascade — a lapsed commissary blocks every active truck
+  // based there (brief). Expired → RED; expiring ≤30d → YELLOW.
+  const commissaryAlerts: CommissaryAlert[] = [];
+  const activeTrucks = trucks.filter(
+    (t) => t.isActive && t.archivedAt === null && t.commissaryId,
+  );
+  const dependents = new Map<string, string[]>();
+  for (const t of activeTrucks) {
+    const list = dependents.get(t.commissaryId!) ?? [];
+    list.push(t.name);
+    dependents.set(t.commissaryId!, list);
+  }
+  for (const [commId, truckNames] of dependents) {
+    const c = commById.get(commId);
+    if (!c || c.archivedAt) continue;
+    for (const kind of ["permit", "contract"] as const) {
+      const d = dayDiff(
+        kind === "permit" ? c.permitExpiration : c.contractExpiration,
+      );
+      if (d === null) continue;
+      if (d < 0) {
+        red++;
+        commissaryAlerts.push({
+          commissaryId: c.id,
+          name: c.name,
+          kind,
+          expired: true,
+          days: d,
+          truckNames,
+        });
+        reasons.push(
+          `Commissary "${c.name}" ${kind} expired — blocks ${truckNames.join(", ")}`,
+        );
+      } else if (d <= 30) {
+        yellow++;
+        commissaryAlerts.push({
+          commissaryId: c.id,
+          name: c.name,
+          kind,
+          expired: false,
+          days: d,
+          truckNames,
+        });
+        reasons.push(
+          `Commissary "${c.name}" ${kind} expires in ${d}d — affects ${truckNames.join(", ")}`,
+        );
+      }
+    }
+  }
 
   // YELLOW clause (deferred from Phase 2, wired now): a reminder that was
   // sent > 48h ago and still hasn't been acknowledged, on a live item.
@@ -189,6 +301,7 @@ export async function computeAccountStatus(
     status,
     reasons,
     items: urgencies,
+    commissaryAlerts,
     counts: { red, yellow, green, total: urgencies.length },
   };
 }

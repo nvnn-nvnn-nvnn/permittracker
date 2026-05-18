@@ -9,7 +9,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { MN_JURISDICTIONS } from "@/lib/jurisdictions";
 import type { Truck } from "@/lib/db/schema";
 
-export function TruckForm({ truck }: { truck?: Truck }) {
+type CommissaryOption = { id: string; name: string };
+
+const selectCls =
+  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+export function TruckForm({
+  truck,
+  commissaries = [],
+}: {
+  truck?: Truck;
+  commissaries?: CommissaryOption[];
+}) {
   const router = useRouter();
   const utils = trpc.useUtils();
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +44,7 @@ export function TruckForm({ truck }: { truck?: Truck }) {
       plateOrVin: String(fd.get("plateOrVin") ?? ""),
       jurisdiction: String(fd.get("jurisdiction") ?? ""),
       isActive: fd.get("isActive") === "on",
+      commissaryId: String(fd.get("commissaryId") ?? ""),
       notes: String(fd.get("notes") ?? ""),
     };
     const handler = (e2: unknown) =>
@@ -85,6 +97,21 @@ export function TruckForm({ truck }: { truck?: Truck }) {
         />
         Currently operating (active)
       </label>
+      <Field label="Commissary (dependency)" htmlFor="commissaryId">
+        <select
+          id="commissaryId"
+          name="commissaryId"
+          className={selectCls}
+          defaultValue={truck?.commissaryId ?? ""}
+        >
+          <option value="">— none —</option>
+          {commissaries.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </Field>
       <Field label="Notes" htmlFor="notes">
         <Textarea id="notes" name="notes" defaultValue={truck?.notes ?? ""} />
       </Field>

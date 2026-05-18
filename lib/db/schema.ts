@@ -170,7 +170,36 @@ export const auditEntityEnum = pgEnum("audit_entity", [
   "truck",
   "compliance_item",
   "file_attachment",
+  "commissary",
 ]);
+
+// --- commissary ------------------------------------------------------------
+// A third-party licensed kitchen a truck operates out of. Its OWN permit /
+// contract expiry cascades onto dependent trucks (Phase 6).
+
+export const commissary = pgTable(
+  "commissary",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    address: text("address"),
+    // The two dates that cascade onto dependent trucks (brief).
+    permitExpiration: date("permit_expiration", { mode: "date" }),
+    contractExpiration: date("contract_expiration", { mode: "date" }),
+    notes: text("notes"),
+    createdByUserId: uuid("created_by_user_id").references(() => appUser.id, {
+      onDelete: "set null",
+    }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("commissary_account_idx").on(t.accountId)],
+);
 
 // --- truck -----------------------------------------------------------------
 
@@ -188,6 +217,10 @@ export const truck = pgTable(
     jurisdiction: text("jurisdiction"),
     // Active = currently operating. Drives RED status (brief).
     isActive: boolean("is_active").notNull().default(true),
+    // Optional commissary dependency (Phase 6 cascade).
+    commissaryId: uuid("commissary_id").references(() => commissary.id, {
+      onDelete: "set null",
+    }),
     notes: text("notes"),
     createdByUserId: uuid("created_by_user_id").references(() => appUser.id, {
       onDelete: "set null",
@@ -285,6 +318,7 @@ export const auditLog = pgTable(
 
 export type Truck = typeof truck.$inferSelect;
 export type NewTruck = typeof truck.$inferInsert;
+export type Commissary = typeof commissary.$inferSelect;
 export type ComplianceItem = typeof complianceItem.$inferSelect;
 export type NewComplianceItem = typeof complianceItem.$inferInsert;
 export type AuditLog = typeof auditLog.$inferSelect;
