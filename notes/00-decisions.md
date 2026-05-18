@@ -90,6 +90,16 @@ These were confirmed with the owner before any code was written.
   set by the webhook on `checkout.session.completed`; "Sync from Stripe"
   only reconciles subscriptions, not one-time payments. Fine with the CLI
   running; noted for dev-without-CLI.
+- **"Cannot find the middleware module" during a phase-boundary build.**
+  Verifying a phase ends with one clean `next build`, which requires
+  stopping `next dev` and wiping `.next`. Any browser request that lands in
+  that ~few-second gap shows `Cannot find the middleware module` (Next's
+  compiled middleware bundle momentarily doesn't exist). It is **transient
+  and self-clears** on the next dev compile — not a code defect.
+  Mitigation/process: the build→wipe→restart only happens at phase
+  boundaries; we flag it before running it, then hard-refresh after. A
+  persistent occurrence (survives a clean `rm -rf .next` + restart) WOULD
+  indicate a real middleware import error and should be investigated.
 
 ### Scaffold corrections (not deviations, but notable)
 

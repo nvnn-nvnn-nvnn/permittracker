@@ -301,6 +301,13 @@ applied to live DB and verified (5 billing cols + `plan_status` enum).
 only) — logged in caveats. Team-seat enforcement (Fleet) beyond counts →
 later.
 
+**Ops note (2026-05-18):** owner hit `Cannot find the middleware module`
+right after the Phase 5 verification build. Diagnosed as the transient
+build→wipe→restart `.next` gap (dev log showed middleware compiling fine;
+`/login` `/dashboard` 200 after a clean restart). Not a code defect.
+Logged in `00-decisions.md` → Known caveats with the persistent-vs-transient
+distinction + process to flag the build step beforehand.
+
 **Awaiting owner demo + sign-off before Phase 6 (Dependencies &
 commissaries).**
 
