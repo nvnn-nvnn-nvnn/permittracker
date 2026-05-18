@@ -49,6 +49,17 @@ implementations using those patterns:**
 More notes get added as phases progress (one per phase's key new pattern).
 Read 1–3 for the transferable patterns; 4+ to see them combined in anger.
 
+## Playbooks (concept-first — rebuild from memory)
+
+Deeper, provider-conceptual write-ups for systems worth reconstructing
+without notes. The numbered notes show *our lines*; a playbook teaches the
+*model*.
+
+- [`stripe-billing-playbook.md`](stripe-billing-playbook.md) — subscription
+  billing from first principles: the seven nouns, the canonical flow, the
+  four hard rules, the `lookup_key` trick, a rebuild-from-scratch checklist.
+  Pair with `07-stripe-webhook-and-limits.md`.
+
 ## Prerequisites (just enough to follow along)
 
 - **TypeScript basics:** types, generics (`Foo<T>`), `async/await`. You don't
