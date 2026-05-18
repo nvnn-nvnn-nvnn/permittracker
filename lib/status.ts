@@ -1,7 +1,7 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, lt } from "drizzle-orm";
 import { getDb } from "@/lib/db";
-import { complianceItem, truck } from "@/lib/db/schema";
+import { complianceItem, reminderDispatch, truck } from "@/lib/db/schema";
 import type { ComplianceItem, Truck } from "@/lib/db/schema";
 
 export type AccountStatus = "red" | "yellow" | "green";
@@ -151,10 +151,35 @@ export async function computeAccountStatus(
     })
     .sort((a, b) => a.rank - b.rank);
 
+  // YELLOW clause (deferred from Phase 2, wired now): a reminder that was
+  // sent > 48h ago and still hasn't been acknowledged, on a live item.
+  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+  const staleUnacked = await db
+    .select({ id: reminderDispatch.id })
+    .from(reminderDispatch)
+    .innerJoin(
+      complianceItem,
+      eq(complianceItem.id, reminderDispatch.complianceItemId),
+    )
+    .where(
+      and(
+        eq(reminderDispatch.accountId, accountId),
+        eq(reminderDispatch.status, "sent"),
+        isNull(reminderDispatch.acknowledgedAt),
+        lt(reminderDispatch.sentAt, cutoff),
+        isNull(complianceItem.archivedAt),
+      ),
+    )
+    .limit(1);
+  const hasStaleUnacked = staleUnacked.length > 0;
+
   let status: AccountStatus = "green";
   if (red > 0) status = "red";
-  else if (yellow > 0) status = "yellow";
+  else if (yellow > 0 || hasStaleUnacked) status = "yellow";
 
+  if (hasStaleUnacked) {
+    reasons.push("A sent reminder is unacknowledged after 48 hours");
+  }
   if (status === "yellow" && reasons.length === 0) {
     reasons.push("Items expiring within 30 days or fees due soon");
   }

@@ -28,7 +28,7 @@ export default async function AdminPage() {
   const { totals, recent } = await api.admin.extractionCostSummary();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
 
       <div className="grid gap-3 sm:grid-cols-3">

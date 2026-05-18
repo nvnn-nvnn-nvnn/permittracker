@@ -28,6 +28,20 @@ These were confirmed with the owner before any code was written.
 
 (none — building the brief's stack as written)
 
+## Data-model scope decisions (not stack deviations)
+
+- **Phase 2 — reminder offsets on the item, not a separate table.** The
+  brief's ReminderSchedule defaults are stored as `compliance_item
+  .reminder_days_before` (int[]). Rationale: avoid a near-empty table that
+  duplicates per-item config.
+- **Phase 4 — no `ReminderSchedule` table.** Reaffirms the above: the item's
+  offsets *are* the schedule. We added only `reminder_dispatch` (rows
+  actually sent/attempted). `reminder_dispatch` has no audit trigger — the
+  brief explicitly allows hard-deleting dispatches and we recompute them on
+  every item change. Full reasoning in `04-phase-4-explained.md` §1–2.
+- **Phase 4 — reminder recipient = account owner email.** Per-member /
+  per-channel routing (SMS/voice) is Phase 7–8; Phase 4 ships email only.
+
 ### Scaffold corrections (not deviations, but notable)
 
 - **2026-05-16 — Pinned Next.js to 15, not 16.** `create-next-app@latest`

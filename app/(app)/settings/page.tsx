@@ -14,7 +14,7 @@ export const metadata = { title: "Settings · PermitKeep" };
 export default async function SettingsPage() {
   const ctx = await requireAccountContext();
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
       <Card>
         <CardHeader>

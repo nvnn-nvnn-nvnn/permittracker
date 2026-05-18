@@ -30,6 +30,10 @@ const serverSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
+  // Sender for outbound email. Resend's shared test sender only delivers to
+  // the Resend account owner — fine for dev. Real sending needs a verified
+  // domain address here.
+  EMAIL_FROM: z.string().min(1).default("PermitKeep <onboarding@resend.dev>"),
   POSTMARK_SERVER_TOKEN: z.string().optional(),
   POSTMARK_INBOUND_SECRET: z.string().optional(),
   TWILIO_ACCOUNT_SID: z.string().optional(),

@@ -45,7 +45,7 @@ export function TruckForm({ truck }: { truck?: Truck }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex max-w-lg flex-col gap-4">
+    <form onSubmit={onSubmit} className="flex max-w-lg flex-col gap-5">
       <Field label="Truck name" htmlFor="name">
         <Input
           id="name"

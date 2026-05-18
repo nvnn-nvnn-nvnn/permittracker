@@ -49,7 +49,7 @@ export function AppShell({
   }
 
   const navList = (
-    <nav className="flex flex-col gap-1">
+    <nav className="flex flex-col gap-1.5">
       {nav.map((item) => {
         const active =
           pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -59,7 +59,7 @@ export function AppShell({
             href={item.href}
             onClick={() => setOpen(false)}
             className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors [&_svg]:size-4",
+              "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors [&_svg]:size-4",
               active
                 ? "bg-accent text-accent-foreground"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
@@ -74,12 +74,12 @@ export function AppShell({
   );
 
   const sidebarInner = (
-    <div className="flex h-full flex-col gap-6 p-4">
-      <div>
-        <p className="px-3 text-sm font-semibold tracking-tight">
+    <div className="flex h-full flex-col gap-8 p-5">
+      <div className="space-y-0.5 px-3 pt-1">
+        <p className="text-base font-semibold tracking-tight">
           Permit<span className="text-status-green">Keep</span>
         </p>
-        <p className="truncate px-3 text-xs text-muted-foreground">
+        <p className="truncate text-xs text-muted-foreground">
           {accountName}
         </p>
       </div>
@@ -138,7 +138,9 @@ export function AppShell({
             Permit<span className="text-status-green">Keep</span>
           </span>
         </header>
-        <main className="min-w-0 flex-1 p-4 md:p-8">{children}</main>
+        <main className="min-w-0 flex-1 px-4 py-6 md:px-10 md:py-10">
+          <div className="mx-auto w-full max-w-5xl">{children}</div>
+        </main>
       </div>
     </div>
   );

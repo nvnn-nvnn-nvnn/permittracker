@@ -139,3 +139,56 @@ enum value in the same transaction it's created.)
 5. Click **Apply to item** → the item's fields fill in (and an audit row is
    written). Or **Reject**.
 6. As a platform admin, open **/admin** → see the extraction cost tally.
+
+---
+
+## Post-sign-off enhancements (2026-05-16, owner-requested)
+
+Phase 3 was signed off, then the owner requested four UX refinements. No
+schema or stack changes — all additive.
+
+### A. Reject → Retry extraction
+A rejected proposal used to be a dead end (file stays `extracted`, so the
+"Run extraction now" button never reappeared). Now a rejected proposal shows
+a **Retry extraction** button that re-runs the *same* `runExtractionNow`
+path → a fresh `pending` proposal. Each retry still writes an
+`extraction_cost` row (re-running isn't free — the admin tally stays honest).
+File: `components/features/documents-panel.tsx`.
+
+### B. Reminder schedule rework (`components/features/item-form.tsx`)
+Replaced the raw comma-separated text input with:
+- **Preset chips** — one-tap toggles: 90 / 60 / 30 / 14 / 7 / 3 / 1 days
+  before, and "Day of". Per-type sensible defaults are pre-selected and
+  refresh when the item type changes on a *new* item (unless the user has
+  already customised — tracked via `remindersTouched`).
+- **Custom add** — number field + Add (or Enter); custom values show as
+  removable chips.
+- **Use-case flag** — a 🔔 help callout explaining these are the advance
+  email/SMS warnings before expiry (and other deadlines like a fee due).
+- **Soft "catch" (not an error)** — if the custom box has an unadded value,
+  or zero reminders are selected, the first save **does not submit**; an
+  amber notice appears and the button relabels to "Add/Save anyway".
+  Clicking again proceeds deliberately. Nothing is thrown or lost — it just
+  prevents accidental empty/half-filled submissions. Reminder values now come
+  from React state, not `FormData`. The Type `<select>` became controlled
+  (`value={type}`) so it stays in sync with the defaults logic.
+
+### C. Inline document preview
+Added a declarative `file.viewUrl` **query** (account-scoped + ownership-
+checked, 10-min signed URL, cached ~9 min < expiry) so previews load without
+re-minting URLs. `documents-panel.tsx` now renders **images inline** as
+thumbnails, **PDFs in an embedded frame**, with a Hide/Preview toggle
+(previews on by default). Plain `<img>` is used intentionally for the
+short-lived signed URL (next/image can't optimize it) — documented inline.
+
+### D. UI spacing pass
+- App shell (`components/features/app-shell.tsx`): main content is now a
+  centered `max-w-5xl` container with roomier padding
+  (`px-4 py-6 md:px-10 md:py-10`); sidebar rhythm loosened (gap-8, p-5,
+  nav `py-2.5`, gap-1.5; larger brand).
+- All nine authenticated pages: top wrapper `space-y-6` → `space-y-8`.
+- Forms: item-form `gap-6` outer / `gap-5` grid; truck-form `gap-5`.
+
+Verification: typecheck ✅ · lint ✅ (production `build` intentionally NOT
+run here — it would corrupt the running dev server's shared `.next`; lesson
+from Phase 3 startup. One clean `build` is done at phase boundaries.)

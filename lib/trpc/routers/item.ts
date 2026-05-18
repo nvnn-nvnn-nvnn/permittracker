@@ -5,6 +5,7 @@ import { createTRPCRouter, protectedProcedure } from "@/lib/trpc/trpc";
 import { getDb, withActor, type DbTx } from "@/lib/db";
 import { complianceItem, truck } from "@/lib/db/schema";
 import { itemInput, defaultRemindersFor } from "@/lib/validators";
+import { recomputeDispatches } from "@/lib/reminders/schedule";
 import type { ItemType } from "@/lib/db/schema";
 
 /** Map the validated form input onto DB columns (dollars → cents, etc.). */
@@ -102,6 +103,7 @@ export const itemRouter = createTRPCRouter({
             ...toColumns(input),
           })
           .returning();
+        if (row) await recomputeDispatches(tx, row);
         return row;
       });
     }),
@@ -133,6 +135,7 @@ export const itemRouter = createTRPCRouter({
           .set({ ...toColumns(input.data), updatedAt: new Date() })
           .where(eq(complianceItem.id, input.id))
           .returning();
+        if (row) await recomputeDispatches(tx, row);
         return row;
       });
     }),
@@ -160,6 +163,8 @@ export const itemRouter = createTRPCRouter({
           .set({ archivedAt: new Date(), updatedAt: new Date() })
           .where(eq(complianceItem.id, input.id))
           .returning();
+        // Archiving clears pending reminders for this item.
+        if (row) await recomputeDispatches(tx, row);
         return row;
       });
     }),

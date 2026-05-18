@@ -18,7 +18,7 @@ export default async function TrucksPage() {
   const trucks = await api.truck.list();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Trucks</h1>
         <Link href="/trucks/new" className={buttonVariants({ size: "sm" })}>

@@ -196,4 +196,68 @@ end-to-end OCR (actual Claude call on a real document) is exercised by the
 owner in the demo — not auto-run here to avoid spending API credit on
 synthetic input.
 
-**Awaiting owner demo + sign-off before Phase 4.**
+**Phase 3 demoed and signed off by owner (2026-05-16). Cleared for Phase 4.**
+
+### Phase 3 — post-sign-off enhancements (2026-05-16, owner-requested)
+
+Additive UX refinements after sign-off; no schema/stack change. Full detail
+in `03-phase-3-explained.md` → "Post-sign-off enhancements".
+
+- **Reject → Retry extraction** — rejected proposals now offer a Retry
+  button (reuses `runExtractionNow`; each retry logs a cost row).
+- **Reminder rework** — preset day chips + custom add + 🔔 use-case help
+  text + soft non-blocking confirm ("catch") on empty/unadded reminders;
+  reminder values now from React state; Type select made controlled.
+- **Inline preview** — new `file.viewUrl` query; images render as
+  thumbnails, PDFs in an embedded frame, Hide/Preview toggle.
+- **UI spacing pass** — centered `max-w-5xl` content container + roomier
+  padding in app shell; sidebar rhythm; all 9 app pages `space-y-8`; form
+  gaps widened.
+
+Verified typecheck ✅ / lint ✅. Bundled into the Phase 4 commit.
+
+---
+
+## Phase 4 — Reminders — COMPLETE (2026-05-16)
+
+Owner choices: reuse item offsets as the schedule, Inngest cron + manual
+fallback, Resend wired live (owner added `RESEND_API_KEY`). Teaching doc:
+`notes/04-phase-4-explained.md`. Scope decisions in `00-decisions.md`.
+
+**Schema (`0006`, `0007`).** `reminder_dispatch` + enums
+`reminder_channel` / `reminder_kind` / `dispatch_status`; RLS member-select
+policy. No audit trigger (dispatches are hard-deletable + recomputed).
+
+**Logic.** `lib/reminders/schedule.ts` recomputes dispatch rows from the
+item's own offsets + 45-day fee rule, inside the item write transaction
+(create/update/archive in `item.ts`, and OCR Apply in `file.ts`); only
+future sends, history preserved, no dupes. `lib/reminders/token.ts`
+stateless HMAC acknowledge tokens (14-day expiry, `timingSafeEqual`).
+`lib/reminders/dispatch.ts` send loop (owner email, skip archived, mark
+sent/failed/skipped) + `acknowledgeDispatch`. `lib/email/index.ts` now
+Resend-or-noop (lazy). `lib/reminders/email.ts` mobile-first email.
+
+**Wiring.** Inngest `*/5 * * * *` cron (`inngest/functions/reminders.ts`,
+registered in `/api/inngest`); tRPC `reminder.runDueNow` (same fn, account-
+scoped) + `reminder.listForItem`. REST `/api/reminders/acknowledge` (token
+→ ack; never auto — brief). `lib/status.ts` now applies the deferred
+Phase 2 clause: sent + unacked > 48h on a live item → YELLOW.
+UI: `components/features/reminders-panel.tsx` on the item page.
+
+**Verification.** typecheck ✅ · lint ✅ · clean production `build` ✅
+(25 routes incl `/api/reminders/acknowledge`). Migrations applied to live
+Supabase and verified (`reminder_dispatch` RLS=true, 3 enums, policy).
+Live network was VPN-flaky again mid-migrate; succeeded once direct.
+
+**Env added:** `RESEND_API_KEY` (owner), `EMAIL_FROM` (defaulted),
+`REMINDER_TOKEN_SECRET` (generated locally, value not echoed).
+
+**Deferred:** SMS/voice channels + per-member routing → Phase 7–8 (schema
+already has the `reminder_channel` enum). Real verified-domain sender for
+production email (dev uses Resend's shared sender → only the Resend account
+owner receives).
+
+**This commit also carries:** the Phase 3 post-sign-off enhancements and
+the Phase 3 sign-off note.
+
+**Awaiting owner demo + sign-off before Phase 5 (Payments).**

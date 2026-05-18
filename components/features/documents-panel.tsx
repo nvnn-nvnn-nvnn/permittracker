@@ -123,12 +123,71 @@ type FileRowProps = {
   file: {
     id: string;
     originalFilename: string;
+    mimeType: string;
     status: string;
     needsManualReview: boolean;
     extractionError: string | null;
   };
   complianceItemId: string;
 };
+
+/** Inline preview: images render directly, PDFs in a framed viewer. */
+function FilePreview({
+  fileId,
+  mimeType,
+  filename,
+}: {
+  fileId: string;
+  mimeType: string;
+  filename: string;
+}) {
+  const view = trpc.file.viewUrl.useQuery(
+    { fileId },
+    { staleTime: 9 * 60 * 1000, refetchOnWindowFocus: false },
+  );
+
+  if (view.isLoading)
+    return (
+      <div className="mt-2 h-40 animate-pulse rounded-md bg-muted" />
+    );
+  if (view.error || !view.data)
+    return (
+      <p className="mt-2 text-xs text-destructive">
+        Couldn&apos;t load preview.
+      </p>
+    );
+
+  if (mimeType.startsWith("image/")) {
+    return (
+      // Signed, short-lived Storage URL; next/image can't optimize it.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={view.data.url}
+        alt={filename}
+        className="mt-2 max-h-80 w-auto rounded-md border object-contain"
+      />
+    );
+  }
+  if (mimeType === "application/pdf") {
+    return (
+      <iframe
+        title={filename}
+        src={view.data.url}
+        className="mt-2 h-96 w-full rounded-md border"
+      />
+    );
+  }
+  return (
+    <a
+      href={view.data.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-2 inline-block text-sm underline"
+    >
+      Open {filename}
+    </a>
+  );
+}
 
 function FileRow({ file, complianceItemId }: FileRowProps) {
   const router = useRouter();
@@ -139,6 +198,7 @@ function FileRow({ file, complianceItemId }: FileRowProps) {
   const reject = trpc.file.rejectProposal.useMutation();
   const signed = trpc.file.signedReadUrl.useMutation();
   const [msg, setMsg] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(true);
 
   const refresh = async () => {
     await Promise.all([
@@ -160,10 +220,27 @@ function FileRow({ file, complianceItemId }: FileRowProps) {
         >
           {file.originalFilename}
         </button>
-        <Badge variant={STATUS_VARIANT[file.status] ?? "outline"}>
-          {file.status}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+            onClick={() => setShowPreview((v) => !v)}
+          >
+            {showPreview ? "Hide" : "Preview"}
+          </button>
+          <Badge variant={STATUS_VARIANT[file.status] ?? "outline"}>
+            {file.status}
+          </Badge>
+        </div>
       </div>
+
+      {showPreview && (
+        <FilePreview
+          fileId={file.id}
+          mimeType={file.mimeType}
+          filename={file.originalFilename}
+        />
+      )}
 
       {file.needsManualReview && (
         <p className="mt-2 rounded-md bg-status-yellow/15 px-3 py-2 text-xs text-status-yellow">
@@ -278,9 +355,34 @@ function FileRow({ file, complianceItemId }: FileRowProps) {
         </div>
       )}
       {proposal.data && proposal.data.status !== "pending" && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Proposal {proposal.data.status}.
-        </p>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">
+            Proposal {proposal.data.status}.
+            {proposal.data.status === "rejected" &&
+              " Re-run OCR to get a fresh suggestion."}
+          </p>
+          {proposal.data.status === "rejected" && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={runNow.isPending}
+              onClick={async () => {
+                setMsg(null);
+                try {
+                  await runNow.mutateAsync({ fileId: file.id });
+                  await refresh();
+                } catch (e) {
+                  setMsg(
+                    e instanceof Error ? e.message : "Extraction failed",
+                  );
+                }
+              }}
+            >
+              {runNow.isPending ? "Retrying…" : "Retry extraction"}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );

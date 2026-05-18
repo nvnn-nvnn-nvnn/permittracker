@@ -43,6 +43,20 @@
       "when": 1779053690835,
       "tag": "0005_storage_audit_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1779077854991,
+      "tag": "0006_pink_longshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779077857368,
+      "tag": "0007_reminder_rls",
+      "breakpoints": true
     }
   ]
 }

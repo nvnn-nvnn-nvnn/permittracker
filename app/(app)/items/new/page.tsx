@@ -8,7 +8,7 @@ export default async function NewItemPage() {
   const api = await serverApi();
   const trucks = await api.truck.list();
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <h1 className="text-2xl font-semibold tracking-tight">
         Add compliance item
       </h1>

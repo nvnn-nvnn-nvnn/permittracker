@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { MN_JURISDICTIONS } from "@/lib/jurisdictions";
 import { defaultRemindersFor, itemTypeValues } from "@/lib/validators";
 import { dateInputValue } from "@/lib/format";
@@ -15,6 +16,14 @@ type TruckOption = { id: string; name: string };
 
 const selectCls =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+/** Standard reminder offsets offered as one-tap chips (days before expiry). */
+const REMINDER_PRESETS = [90, 60, 30, 14, 7, 3, 1, 0];
+
+function dayLabel(d: number): string {
+  if (d === 0) return "Day of";
+  return `${d} day${d === 1 ? "" : "s"} before`;
+}
 
 export function ItemForm({
   item,
@@ -29,6 +38,19 @@ export function ItemForm({
   const [error, setError] = useState<string | null>(null);
   const [type, setType] = useState(item?.itemType ?? "permit");
 
+  // Reminder offsets are managed as state (chips + custom add), not raw text.
+  const [reminderDays, setReminderDays] = useState<number[]>(() =>
+    item?.reminderDaysBefore?.length
+      ? [...item.reminderDaysBefore].sort((a, b) => b - a)
+      : defaultRemindersFor(
+          (item?.itemType ?? "permit") as (typeof itemTypeValues)[number],
+        ),
+  );
+  const [remindersTouched, setRemindersTouched] = useState(false);
+  const [customDay, setCustomDay] = useState("");
+  // Soft, non-blocking confirmation (a "catch", not an error).
+  const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
+
   const onDone = async () => {
     await utils.item.list.invalidate();
     router.push(item ? `/items/${item.id}` : "/items");
@@ -38,20 +60,56 @@ export function ItemForm({
   const update = trpc.item.update.useMutation({ onSuccess: onDone });
   const pending = create.isPending || update.isPending;
 
-  const reminderDefault = (
-    item?.reminderDaysBefore?.length
-      ? item.reminderDaysBefore
-      : defaultRemindersFor(type as (typeof itemTypeValues)[number])
-  ).join(", ");
+  const sortDesc = (xs: number[]) => [...new Set(xs)].sort((a, b) => b - a);
+
+  function toggleDay(d: number) {
+    setRemindersTouched(true);
+    setConfirmMsg(null);
+    setReminderDays((prev) =>
+      prev.includes(d) ? prev.filter((x) => x !== d) : sortDesc([...prev, d]),
+    );
+  }
+  function addCustomDay() {
+    const n = parseInt(customDay.trim(), 10);
+    if (!Number.isFinite(n) || n < 0 || n > 365) return;
+    setRemindersTouched(true);
+    setConfirmMsg(null);
+    setReminderDays((prev) => sortDesc([...prev, n]));
+    setCustomDay("");
+  }
+  // When the type changes on a NEW item and the user hasn't customised
+  // reminders yet, refresh to that type's sensible defaults.
+  function onTypeChange(next: (typeof itemTypeValues)[number]) {
+    setType(next);
+    if (!isEdit && !remindersTouched) {
+      setReminderDays(defaultRemindersFor(next));
+    }
+  }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+
+    // --- Soft "catch": warn (don't error) on empty / unfilled additions ---
+    let warning: string | null = null;
+    if (customDay.trim() !== "") {
+      warning = `You typed a custom reminder ("${customDay.trim()}") but didn't add it with “Add”. It won't be saved.`;
+    } else if (reminderDays.length === 0) {
+      warning =
+        "No reminders set — PermitKeep won't warn you before this expires.";
+    }
+    if (warning) {
+      if (confirmMsg !== warning) {
+        // First attempt: show the catch, do NOT submit. No error thrown.
+        setConfirmMsg(warning);
+        return;
+      }
+      // Second attempt with the same warning shown = user confirmed.
+    }
+    setConfirmMsg(null);
+
     const fd = new FormData(e.currentTarget);
-    const reminders = String(fd.get("reminderDaysBefore") ?? "")
-      .split(",")
-      .map((s) => parseInt(s.trim(), 10))
-      .filter((n) => Number.isFinite(n) && n >= 0);
+    const reminders = reminderDays;
     const data = {
       itemType: String(fd.get("itemType")) as (typeof itemTypeValues)[number],
       subtype: String(fd.get("subtype") ?? ""),
@@ -81,16 +139,16 @@ export function ItemForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex max-w-2xl flex-col gap-4">
-      <div className="grid gap-4 sm:grid-cols-2">
+    <form onSubmit={onSubmit} className="flex max-w-2xl flex-col gap-6">
+      <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Type" htmlFor="itemType">
           <select
             id="itemType"
             name="itemType"
             className={selectCls}
-            defaultValue={item?.itemType ?? "permit"}
+            value={type}
             onChange={(e) =>
-              setType(
+              onTypeChange(
                 e.target.value as (typeof itemTypeValues)[number],
               )
             }
@@ -216,14 +274,79 @@ export function ItemForm({
         </Field>
       </div>
 
-      <Field label="Reminder days before expiry (comma-separated)" htmlFor="reminderDaysBefore">
-        <Input
-          id="reminderDaysBefore"
-          name="reminderDaysBefore"
-          key={reminderDefault}
-          defaultValue={reminderDefault}
-        />
-      </Field>
+      <div className="flex flex-col gap-2">
+        <Label>Reminder schedule</Label>
+        <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+          🔔 These are the advance notices PermitKeep sends (email/SMS) to
+          warn you about upcoming permit expiry — and other deadlines like a
+          fee due — so nothing lapses while you&apos;re between services. Pick
+          the standard offsets or add a custom one.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {REMINDER_PRESETS.map((d) => {
+            const on = reminderDays.includes(d);
+            return (
+              <button
+                type="button"
+                key={d}
+                onClick={() => toggleDay(d)}
+                aria-pressed={on}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs transition-colors",
+                  on
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "bg-background text-muted-foreground hover:bg-accent",
+                )}
+              >
+                {dayLabel(d)}
+              </button>
+            );
+          })}
+          {reminderDays
+            .filter((d) => !REMINDER_PRESETS.includes(d))
+            .map((d) => (
+              <button
+                type="button"
+                key={d}
+                onClick={() => toggleDay(d)}
+                className="rounded-full border border-primary bg-primary px-3 py-1 text-xs text-primary-foreground"
+                title="Remove custom reminder"
+              >
+                {dayLabel(d)} ✕
+              </button>
+            ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            min="0"
+            max="365"
+            inputMode="numeric"
+            placeholder="Custom days"
+            value={customDay}
+            onChange={(e) => setCustomDay(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addCustomDay();
+              }
+            }}
+            className="h-9 w-36"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addCustomDay}
+          >
+            Add
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {reminderDays.length} reminder
+            {reminderDays.length === 1 ? "" : "s"} set
+          </span>
+        </div>
+      </div>
       <Field label="Notes" htmlFor="notes">
         <Textarea id="notes" name="notes" defaultValue={item?.notes ?? ""} />
       </Field>
@@ -237,9 +360,28 @@ export function ItemForm({
         </p>
       )}
 
+      {confirmMsg && (
+        <p
+          role="status"
+          className="rounded-md bg-status-yellow/15 px-3 py-2 text-sm text-status-yellow"
+        >
+          ⚠ {confirmMsg} Adjust it above, or click{" "}
+          <strong>“{isEdit ? "Save anyway" : "Add anyway"}”</strong> to
+          continue.
+        </p>
+      )}
+
       <div className="flex gap-3">
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : isEdit ? "Save changes" : "Add item"}
+          {pending
+            ? "Saving…"
+            : confirmMsg
+              ? isEdit
+                ? "Save anyway"
+                : "Add anyway"
+              : isEdit
+                ? "Save changes"
+                : "Add item"}
         </Button>
         <Button
           type="button"

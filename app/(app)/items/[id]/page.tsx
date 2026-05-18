@@ -6,6 +6,7 @@ import { listAuditForEntity } from "@/lib/audit";
 import { ItemForm } from "@/components/features/item-form";
 import { ArchiveButton } from "@/components/features/archive-button";
 import { DocumentsPanel } from "@/components/features/documents-panel";
+import { RemindersPanel } from "@/components/features/reminders-panel";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -41,7 +42,7 @@ export default async function ItemDetailPage({
   const badge = classifyItem(item);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="truncate text-2xl font-semibold tracking-tight">
@@ -63,6 +64,8 @@ export default async function ItemDetailPage({
       />
 
       <DocumentsPanel complianceItemId={item.id} />
+
+      <RemindersPanel complianceItemId={item.id} />
 
       <Card>
         <CardHeader>

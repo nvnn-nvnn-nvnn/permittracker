@@ -24,7 +24,7 @@ export default async function TruckDetailPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between gap-3">
         <h1 className="truncate text-2xl font-semibold tracking-tight">
           {truck.name}

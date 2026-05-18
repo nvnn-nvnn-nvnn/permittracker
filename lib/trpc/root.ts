@@ -3,6 +3,7 @@ import { accountRouter } from "./routers/account";
 import { truckRouter } from "./routers/truck";
 import { itemRouter } from "./routers/item";
 import { fileRouter } from "./routers/file";
+import { reminderRouter } from "./routers/reminder";
 import { adminRouter } from "./routers/admin";
 
 export const appRouter = createTRPCRouter({
@@ -10,6 +11,7 @@ export const appRouter = createTRPCRouter({
   truck: truckRouter,
   item: itemRouter,
   file: fileRouter,
+  reminder: reminderRouter,
   admin: adminRouter,
 });
 

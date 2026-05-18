@@ -14,6 +14,7 @@ import {
   createSignedUploadUrl,
 } from "@/lib/storage";
 import { runExtractionForFile } from "@/lib/extraction/run";
+import { recomputeDispatches } from "@/lib/reminders/schedule";
 import { inngest } from "@/inngest/client";
 
 const ALLOWED_MIME = new Set([
@@ -167,6 +168,20 @@ export const fileRouter = createTRPCRouter({
       return { url: await createSignedReadUrl(file.storagePath) };
     }),
 
+  /** Declarative variant for inline previews (cacheable, account-scoped). */
+  viewUrl: protectedProcedure
+    .input(z.object({ fileId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const file = await assertOwnedFile(
+        ctx.account.accountId,
+        input.fileId,
+      );
+      return {
+        url: await createSignedReadUrl(file.storagePath, 600),
+        mimeType: file.mimeType,
+      };
+    }),
+
   /**
    * Apply a proposal to its file's ComplianceItem. EXPLICIT user action —
    * OCR never writes the item itself. Only non-null suggested fields are
@@ -218,7 +233,7 @@ export const fileRouter = createTRPCRouter({
         if (proposal.feeDueDate) set.feeDueDate = proposal.feeDueDate;
         if (proposal.holderName) set.holderName = proposal.holderName;
 
-        await tx
+        const [updatedItem] = await tx
           .update(complianceItem)
           .set(set)
           .where(
@@ -226,7 +241,10 @@ export const fileRouter = createTRPCRouter({
               eq(complianceItem.id, itemId),
               eq(complianceItem.accountId, ctx.account.accountId),
             ),
-          );
+          )
+          .returning();
+        // Applying OCR can change expiry/fee → recompute reminders.
+        if (updatedItem) await recomputeDispatches(tx, updatedItem);
 
         await tx
           .update(extractionProposal)

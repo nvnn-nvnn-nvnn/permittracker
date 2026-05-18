@@ -419,3 +419,68 @@ export type FileAttachment = typeof fileAttachment.$inferSelect;
 export type ExtractionProposal = typeof extractionProposal.$inferSelect;
 export type ExtractionCost = typeof extractionCost.$inferSelect;
 export type OcrConfidence = (typeof ocrConfidenceEnum.enumValues)[number];
+
+// ===========================================================================
+// Phase 4 — Reminder dispatches
+// ===========================================================================
+//
+// SCOPE DECISION (logged in notes): the brief lists a ReminderSchedule
+// entity, but the per-item offsets already live on compliance_item
+// (reminder_days_before, Phase 2/3). We treat THAT as the schedule and only
+// add reminder_dispatch (the rows actually sent/attempted) to avoid
+// duplicating the offsets. Dispatches are hard-deletable (brief allows it)
+// and recomputed when the item changes — so no audit trigger here.
+
+export const reminderChannelEnum = pgEnum("reminder_channel", [
+  "email",
+  "sms",
+  "voice",
+]);
+
+/** Why this reminder fires: upcoming expiry, or an upcoming fee due date. */
+export const reminderKindEnum = pgEnum("reminder_kind", ["expiry", "fee"]);
+
+export const dispatchStatusEnum = pgEnum("dispatch_status", [
+  "scheduled", // due in the future, not yet sent
+  "sent", // delivered to the channel adapter
+  "failed", // adapter threw
+  "skipped", // e.g. item archived before send
+]);
+
+export const reminderDispatch = pgTable(
+  "reminder_dispatch",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    complianceItemId: uuid("compliance_item_id")
+      .notNull()
+      .references(() => complianceItem.id, { onDelete: "cascade" }),
+    channel: reminderChannelEnum("channel").notNull().default("email"),
+    kind: reminderKindEnum("kind").notNull().default("expiry"),
+    // Days before the target date this reminder represents (0 = day-of).
+    offsetDays: integer("offset_days").notNull(),
+    scheduledFor: timestamp("scheduled_for", { withTimezone: true }).notNull(),
+    status: dispatchStatusEnum("status").notNull().default("scheduled"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    // Only the user sets this (via the signed acknowledge link). Never auto.
+    acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("reminder_dispatch_account_idx").on(t.accountId),
+    index("reminder_dispatch_item_idx").on(t.complianceItemId),
+    // Cron query: due & still scheduled.
+    index("reminder_dispatch_due_idx").on(t.status, t.scheduledFor),
+  ],
+);
+
+export type ReminderDispatch = typeof reminderDispatch.$inferSelect;
+export type ReminderChannel = (typeof reminderChannelEnum.enumValues)[number];
+export type DispatchStatus = (typeof dispatchStatusEnum.enumValues)[number];
