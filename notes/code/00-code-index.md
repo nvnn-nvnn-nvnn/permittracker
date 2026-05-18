@@ -32,7 +32,19 @@ If you're newer to this stack, read in this order — each builds on the last:
    what runs on the server, what runs in the browser, and how a page hands
    data from one to the other.
 
+**Foundations (1–3) teach the patterns. The next ones dissect real feature
+implementations using those patterns:**
+
+4. [`04-ocr-extraction-pipeline.md`](04-ocr-extraction-pipeline.md) — force
+   an LLM into a typed form, then distrust every field (Phase 3).
+5. [`05-signed-tokens.md`](05-signed-tokens.md) — HMAC-signed,
+   stateless one-click links; prove a click without a login (Phase 4).
+6. [`06-reminder-scheduling-and-dispatch.md`](06-reminder-scheduling-and-dispatch.md)
+   — derive a schedule instead of storing one; the send loop + catch-up
+   (Phase 4).
+
 More notes get added as phases progress (one per phase's key new pattern).
+Read 1–3 for the transferable patterns; 4+ to see them combined in anger.
 
 ## Prerequisites (just enough to follow along)
 
