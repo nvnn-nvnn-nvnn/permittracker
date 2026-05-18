@@ -15,9 +15,16 @@ expire.
 | [`README.md`](README.md) | This index — per-phase purpose + status. |
 | [`00-decisions.md`](00-decisions.md) | Binding decisions, scope calls, caveats. The "why we deviated" log. |
 | [`01-phase-log.md`](01-phase-log.md) | Append-only build journal — what changed, when, verification. |
-| `0N-phase-N-explained.md` | Teaching deep-dive for that phase (the *what/why/how*). |
+| `0N-phase-N-explained.md` | Teaching deep-dive for that phase (the *what/why/how* — the **reasoning**). |
+| [`code/`](code/00-code-index.md) | **Code track** — the same features explained at the *code* level, line by line, to learn to build it yourself. Start at [`code/00-code-index.md`](code/00-code-index.md). |
 
 Status legend: ✅ done & signed off · 🟡 built, awaiting sign-off · ⬜ planned.
+
+> **Two tracks, on purpose.** `0N-phase-N-explained.md` = *why* (design,
+> trade-offs, product reasoning). `code/` = *how* (the actual code,
+> annotated, with build-it-yourself exercises). Read the phase explainer
+> first, then the matching code note. The code track grows ~one note per
+> phase as new patterns appear.
 
 ---
 
