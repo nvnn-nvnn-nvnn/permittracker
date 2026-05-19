@@ -430,8 +430,18 @@ triggers, item person_id/venue_id).
 **Deferred:** real Twilio voice creds/A2P (live on key-add); no separate
 venue cascade by design (expired COI already RED via item rule).
 
-**Awaiting owner demo + sign-off before Phase 9 (Admin & concierge
-tooling).**
+**Phase 8 demoed and signed off by owner (2026-05-19). Cleared for
+Phase 9 (Admin & concierge tooling).**
+
+### UI — brand-forward polish + dashboard redesign (2026-05-19)
+
+Owner-requested global UI pass: warm terracotta brand palette + warm
+neutrals/elevation tokens (`globals.css`), refined primitives (button/card/
+input/textarea), app-shell rework (brand mark, active-nav pill, warm
+sidebar). Then a dashboard redesign for clean info display: status hero with
+metric tiles, "why this status" list, commissary cascade block, single
+divided-row urgency list. Token/primitive pass committed `e7d24dd`;
+dashboard redesign committed next. No logic/stack changes.
 
 ### Phase 4 — post-sign-off fix: catch-up reminders (2026-05-18)
 
