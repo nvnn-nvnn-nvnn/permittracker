@@ -58,7 +58,7 @@ Deep dive: [`03-phase-3-explained.md`](03-phase-3-explained.md)
 (incl. post-sign-off UX: reject→retry, reminder chips, inline preview,
 spacing).
 
-### 🟡 Phase 4 — Reminders
+### ✅ Phase 4 — Reminders
 **For:** the promise in the tagline — warn *before* expiry. Per-item
 schedule → `reminder_dispatch` rows → Inngest 5-min cron (or manual "run
 now") → Resend email with a one-click, signed acknowledge link. Unacked
@@ -86,7 +86,7 @@ propagate → count. Deep dive:
 [`06-phase-6-explained.md`](06-phase-6-explained.md) · code:
 [`code/08-cascade-status-engine.md`](code/08-cascade-status-engine.md).
 
-### 🟡 Phase 7 — Inbound email + SMS
+### ✅ Phase 7 — Inbound email + SMS
 **For:** forward a renewal notice to `{slug}@inbound.permitkeep.com`;
 Postmark parses it, Claude classifies it and matches to an item (or files a
 draft) — never auto-applied. SMS reminders on Pro+ via the channel-branched
@@ -94,9 +94,9 @@ dispatcher; replying "OK" acknowledges. Postmark/Twilio stay stubbed behind
 adapters with **dev simulators** that drive the real cores. Deep dive:
 [`07-phase-7-explained.md`](07-phase-7-explained.md) · code:
 [`code/09-inbound-and-multichannel.md`](code/09-inbound-and-multichannel.md).
-Built; awaiting owner sign-off.
 
-### 🟡 Phase 8 — Voice escalation + Pro features
+
+### ✅ Phase 8 — Voice escalation + Pro features
 **For:** if email/SMS go unacknowledged, a Twilio voice call ("press 1") at
 the 7-day mark (Pro+), skipped if a prior reminder was already acked. New
 entities: **Venue** (additional-insured / COI requirements, linked to COI
@@ -104,9 +104,9 @@ items) and **Person** (staff with truck assignments) — an expired person
 cert cascades RED to every active truck they work. Twilio voice stubbed +
 simulator. Deep dive: [`08-phase-8-explained.md`](08-phase-8-explained.md) ·
 code: [`code/10-voice-and-people-cascade.md`](code/10-voice-and-people-cascade.md).
-Built; awaiting owner sign-off.
 
-### ⬜ Phase 9 — Admin & concierge tooling
+
+### 🟡 Phase 9 — Admin & concierge tooling
 **For:** the internal cockpit. Concierge queue for human verification,
 extraction-accuracy and cost dashboards, dispatch monitor. (The cost
 dashboard already exists in skeleton at `/admin` from Phase 3.)

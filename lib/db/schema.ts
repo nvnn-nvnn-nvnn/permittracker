@@ -91,6 +91,10 @@ export const account = pgTable("account", {
   conciergePurchasedAt: timestamp("concierge_purchased_at", {
     withTimezone: true,
   }),
+  // Phase 9: platform-admin marks concierge onboarding done → off the queue.
+  conciergeCompletedAt: timestamp("concierge_completed_at", {
+    withTimezone: true,
+  }),
   // Nullable to avoid a circular FK at insert time; set after owner exists.
   ownerUserId: uuid("owner_user_id").references(() => appUser.id, {
     onDelete: "set null",

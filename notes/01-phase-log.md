@@ -443,6 +443,43 @@ metric tiles, "why this status" list, commissary cascade block, single
 divided-row urgency list. Token/primitive pass committed `e7d24dd`;
 dashboard redesign committed next. No logic/stack changes.
 
+---
+
+## Phase 9 — Admin & concierge tooling — COMPLETE (2026-05-19)
+
+Owner choices: cross-tenant platform view; queue = manual-review files +
+inbound drafts + concierge-onboarding accounts; read + resolve actions
+(audited as the admin). Teaching doc: `notes/09-phase-9-explained.md`.
+
+**Schema (`0014`).** `account.concierge_completed_at` (queue exit marker
+for concierge onboarding). No new RLS — admin reads via service role,
+gated by `adminProcedure` (is_platform_admin), never tenant membership.
+
+**Admin router (`lib/trpc/routers/admin.ts`).** Cross-tenant:
+`overview` (account/item counts, OCR accept-rate proxy = applied/(applied+
+rejected), dispatch counts by status + recent failures), `conciergeQueue`
+(3 feeds joined to account name), resolve mutations `markFileReviewed` /
+`resolveProposal(apply|reject, reuses field-merge + recomputeDispatches)` /
+`dismissDraft` / `markConciergeComplete` — all `withActor(adminUser)` so
+interventions hit the append-only audit log. Phase 3 `extractionCostSummary`
+kept.
+
+**UI.** `app/(app)/admin/page.tsx` server cockpit (overview tiles,
+accuracy, dispatch monitor, recent OCR) + `admin-queue.tsx` client island
+for the actionable 3-section queue (server-fetch / client-act / refresh
+pattern again).
+
+**Verification.** typecheck ✅ · lint ✅ · clean production build ✅.
+Migration `0014` applied to live DB and verified
+(`concierge_completed_at` present).
+
+**Deviations:** none. Accuracy is an explicitly-labelled *proxy*
+(accept-rate), `null` until any proposal decided — logged in
+`09-phase-9-explained.md` §2.
+
+**Phase 9 demoed and signed off by owner (2026-05-19). Cleared for
+Phase 10 (Inspection-prep digest) — the final phase.**
+
 ### Phase 4 — post-sign-off fix: catch-up reminders (2026-05-18)
 
 Owner: "not receiving any emails." Diagnosed against live DB — the dispatch

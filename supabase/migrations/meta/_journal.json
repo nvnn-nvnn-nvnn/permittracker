@@ -99,6 +99,13 @@
       "when": 1779150493673,
       "tag": "0013_venue_person_audit_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1779195372339,
+      "tag": "0014_white_supreme_intelligence",
+      "breakpoints": true
     }
   ]
 }

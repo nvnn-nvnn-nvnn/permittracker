@@ -1,0 +1,1 @@
+ALTER TABLE "account" ADD COLUMN "concierge_completed_at" timestamp with time zone;
