@@ -40,6 +40,8 @@ just turns it on, exactly like SMS in Phase 7:
   authenticated path into the one idempotent `acknowledgeDispatch` — the
   "only the user, never auto" guarantee holds across all three channels.
 
+
+
 ## 2. Venue — requirements live with the venue, not copied onto COIs
 
 `venue` holds `additional_insured_text` + `coi_requirements`. A COI

@@ -65,12 +65,15 @@ export function AppShell({
             href={item.href}
             onClick={() => setOpen(false)}
             className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors [&_svg]:size-4",
+              "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all [&_svg]:size-4 [&_svg]:transition-colors",
               active
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                ? "bg-primary/10 text-foreground [&_svg]:text-primary"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
             )}
           >
+            {active && (
+              <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
+            )}
             {item.icon}
             {item.label}
           </Link>
@@ -81,11 +84,14 @@ export function AppShell({
 
   const sidebarInner = (
     <div className="flex h-full flex-col gap-8 p-5">
-      <div className="space-y-0.5 px-3 pt-1">
-        <p className="text-base font-semibold tracking-tight">
-          Permit<span className="text-status-green">Keep</span>
+      <div className="space-y-1 px-2 pt-1">
+        <p className="flex items-center gap-2 text-base font-semibold tracking-tight">
+          <span className="grid size-7 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-[var(--shadow-soft)]">
+            P
+          </span>
+          Permit<span className="text-primary">Keep</span>
         </p>
-        <p className="truncate text-xs text-muted-foreground">
+        <p className="truncate pl-9 text-xs text-muted-foreground">
           {accountName}
         </p>
       </div>
@@ -112,7 +118,7 @@ export function AppShell({
   return (
     <div className="flex min-h-dvh">
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 border-r md:block">
+      <aside className="hidden w-60 shrink-0 border-r border-border/70 bg-secondary/40 md:block">
         {sidebarInner}
       </aside>
 
@@ -131,7 +137,7 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Mobile top bar */}
-        <header className="flex items-center gap-3 border-b px-4 py-3 md:hidden">
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border/70 bg-background/80 px-4 py-3 backdrop-blur-md md:hidden">
           <Button
             variant="ghost"
             size="icon"
@@ -140,8 +146,11 @@ export function AppShell({
           >
             {open ? <X /> : <Menu />}
           </Button>
-          <span className="text-sm font-semibold">
-            Permit<span className="text-status-green">Keep</span>
+          <span className="flex items-center gap-2 text-sm font-semibold">
+            <span className="grid size-6 place-items-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
+              P
+            </span>
+            Permit<span className="text-primary">Keep</span>
           </span>
         </header>
         <main className="min-w-0 flex-1 px-4 py-6 md:px-10 md:py-10">

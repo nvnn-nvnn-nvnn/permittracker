@@ -41,6 +41,17 @@ These were confirmed with the owner before any code was written.
   every item change. Full reasoning in `04-phase-4-explained.md` §1–2.
 - **Phase 4 — reminder recipient = account owner email.** Per-member /
   per-channel routing (SMS/voice) is Phase 7–8; Phase 4 ships email only.
+- **2026-05-19 — UI direction: brand-forward / warm, global polish pass.**
+  Owner asked for a more sophisticated UI. Chosen direction (asked, not
+  assumed): warm terracotta brand + warm neutrals (not clinical grey),
+  applied as a *token + primitive* pass (no layout rewrites, low risk):
+  rewrote `globals.css` (oklch warm palette, `--brand`, `--shadow-soft/pop`,
+  radius 0.75rem, tighter heading tracking); refined `button` (brand shadow,
+  hover lift, ring offset, active press), `card` (soft shadow), `input`/
+  `textarea` (4px brand focus ring), and the app shell (brand "P" mark,
+  active-nav pill + accent bar, warm sidebar, sticky blurred mobile bar);
+  unified the wordmark to the brand color in auth/marketing. No stack/scope
+  change; every screen improves via the shared tokens.
 - **Phase 8 — voice = third reminder channel; cascades extended.** Voice
   is one escalation dispatch at the 7-day expiry mark (Pro+, phone set),
   skipped at send time if any prior reminder for the item was acknowledged
