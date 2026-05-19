@@ -6,6 +6,7 @@ import { itemRouter } from "./routers/item";
 import { fileRouter } from "./routers/file";
 import { reminderRouter } from "./routers/reminder";
 import { billingRouter } from "./routers/billing";
+import { inboundRouter } from "./routers/inbound";
 import { adminRouter } from "./routers/admin";
 
 export const appRouter = createTRPCRouter({
@@ -16,6 +17,7 @@ export const appRouter = createTRPCRouter({
   file: fileRouter,
   reminder: reminderRouter,
   billing: billingRouter,
+  inbound: inboundRouter,
   admin: adminRouter,
 });
 

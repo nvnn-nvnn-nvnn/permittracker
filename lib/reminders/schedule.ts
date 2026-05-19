@@ -1,8 +1,9 @@
 import "server-only";
 import { and, eq, inArray } from "drizzle-orm";
 import type { DbTx } from "@/lib/db";
-import { reminderDispatch } from "@/lib/db/schema";
+import { account, reminderDispatch } from "@/lib/db/schema";
 import type { ComplianceItem } from "@/lib/db/schema";
+import { PLANS } from "@/lib/stripe";
 
 /** Fee reminder fires this many days before expiration (brief default). */
 const FEE_OFFSET_DAYS = 45;
@@ -102,9 +103,23 @@ export async function recomputeDispatches(
 
   if (targets.length === 0) return 0;
 
+  // Channels: email always; SMS additionally on Pro+ (brief), and only if
+  // the account has a phone number set.
+  const [acct] = await tx
+    .select({ planTier: account.planTier, smsPhone: account.smsPhone })
+    .from(account)
+    .where(eq(account.id, item.accountId))
+    .limit(1);
+  const channels: ("email" | "sms")[] = ["email"];
+  if (acct && PLANS[acct.planTier].sms && acct.smsPhone) {
+    channels.push("sms");
+  }
+
   // Skip targets already represented by a sent/failed/skipped row.
+  // Key includes channel so email & sms for the same kind+offset coexist.
   const existing = await tx
     .select({
+      channel: reminderDispatch.channel,
       kind: reminderDispatch.kind,
       offsetDays: reminderDispatch.offsetDays,
     })
@@ -115,19 +130,23 @@ export async function recomputeDispatches(
         inArray(reminderDispatch.status, ["sent", "failed", "skipped"]),
       ),
     );
-  const taken = new Set(existing.map((e) => `${e.kind}:${e.offsetDays}`));
+  const taken = new Set(
+    existing.map((e) => `${e.channel}:${e.kind}:${e.offsetDays}`),
+  );
 
-  const rows = targets
-    .filter((t) => !taken.has(`${t.kind}:${t.offsetDays}`))
-    .map((t) => ({
-      accountId: item.accountId,
-      complianceItemId: item.id,
-      channel: "email" as const,
-      kind: t.kind,
-      offsetDays: t.offsetDays,
-      scheduledFor: t.scheduledFor,
-      status: "scheduled" as const,
-    }));
+  const rows = channels.flatMap((channel) =>
+    targets
+      .filter((t) => !taken.has(`${channel}:${t.kind}:${t.offsetDays}`))
+      .map((t) => ({
+        accountId: item.accountId,
+        complianceItemId: item.id,
+        channel,
+        kind: t.kind,
+        offsetDays: t.offsetDays,
+        scheduledFor: t.scheduledFor,
+        status: "scheduled" as const,
+      })),
+  );
 
   if (rows.length > 0) await tx.insert(reminderDispatch).values(rows);
   return rows.length;

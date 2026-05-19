@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, lte } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, lte } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import {
   account,
@@ -9,8 +9,10 @@ import {
 } from "@/lib/db/schema";
 import { serverEnv } from "@/lib/env";
 import { getEmailAdapter } from "@/lib/email";
+import { getSmsAdapter } from "@/lib/sms";
 import { createAcknowledgeToken } from "./token";
 import { buildReminderEmail } from "./email";
+import { fmtDate } from "@/lib/format";
 
 export interface DispatchSummary {
   processed: number;
@@ -49,6 +51,7 @@ export async function processDueDispatches(opts?: {
       dispatch: reminderDispatch,
       item: complianceItem,
       ownerEmail: appUser.email,
+      smsPhone: account.smsPhone,
     })
     .from(reminderDispatch)
     .innerJoin(
@@ -69,6 +72,15 @@ export async function processDueDispatches(opts?: {
   };
   const appUrl = serverEnv().APP_URL;
   const email = getEmailAdapter();
+  const sms = getSmsAdapter();
+
+  const markSkipped = async (id: string, reason: string) => {
+    await db
+      .update(reminderDispatch)
+      .set({ status: "skipped", sentAt: now, error: reason })
+      .where(eq(reminderDispatch.id, id));
+    summary.skipped++;
+  };
 
   for (const row of due) {
     summary.processed++;
@@ -83,30 +95,43 @@ export async function processDueDispatches(opts?: {
       summary.skipped++;
       continue;
     }
-    if (!row.ownerEmail) {
-      await db
-        .update(reminderDispatch)
-        .set({
-          status: "failed",
-          sentAt: now,
-          error: "No account owner email",
-        })
-        .where(eq(reminderDispatch.id, d.id));
-      summary.failed++;
-      continue;
-    }
-
-    const { subject, html, text } = buildReminderEmail({
-      item: row.item,
-      dispatch: d,
-      acknowledgeUrl: `${appUrl}/api/reminders/acknowledge?token=${createAcknowledgeToken(
-        d.id,
-      )}`,
-      itemUrl: `${appUrl}/items/${row.item.id}`,
-    });
+    const ackUrl = `${appUrl}/api/reminders/acknowledge?token=${createAcknowledgeToken(
+      d.id,
+    )}`;
+    const label =
+      row.item.subtype ||
+      row.item.identifier ||
+      row.item.itemType.toUpperCase();
 
     try {
-      await email.send({ to: row.ownerEmail, subject, html, text });
+      if (d.channel === "sms") {
+        if (!row.smsPhone) {
+          await markSkipped(d.id, "No SMS phone on account");
+          continue;
+        }
+        const body =
+          `PermitKeep: ${label} ${
+            d.kind === "fee" ? "fee due" : "expires"
+          } ${fmtDate(row.item.expirationDate)}. ` +
+          `Reply OK to acknowledge, or: ${ackUrl}`;
+        await sms.send({ to: row.smsPhone, body });
+      } else {
+        if (!row.ownerEmail) {
+          await db
+            .update(reminderDispatch)
+            .set({ status: "failed", sentAt: now, error: "No owner email" })
+            .where(eq(reminderDispatch.id, d.id));
+          summary.failed++;
+          continue;
+        }
+        const { subject, html, text } = buildReminderEmail({
+          item: row.item,
+          dispatch: d,
+          acknowledgeUrl: ackUrl,
+          itemUrl: `${appUrl}/items/${row.item.id}`,
+        });
+        await email.send({ to: row.ownerEmail, subject, html, text });
+      }
       await db
         .update(reminderDispatch)
         .set({ status: "sent", sentAt: new Date(), error: null })
@@ -152,4 +177,41 @@ export async function acknowledgeDispatch(dispatchId: string): Promise<
     .set({ updatedAt: new Date() })
     .where(eq(complianceItem.id, d.complianceItemId));
   return { ok: true, alreadyAcked: false };
+}
+
+/**
+ * Inbound SMS "OK" → acknowledge. Resolves the account by the sender's
+ * phone, then acknowledges that account's most recent sent, unacked SMS
+ * reminder. Only the user texting "OK" triggers this — never automatic.
+ */
+export async function acknowledgeBySmsReply(
+  fromPhone: string,
+  body: string,
+): Promise<{ ok: boolean; acknowledgedId?: string }> {
+  if (body.trim().toUpperCase() !== "OK") return { ok: false };
+  const db = getDb();
+  const [acct] = await db
+    .select({ id: account.id })
+    .from(account)
+    .where(eq(account.smsPhone, fromPhone))
+    .limit(1);
+  if (!acct) return { ok: false };
+
+  const [d] = await db
+    .select({ id: reminderDispatch.id })
+    .from(reminderDispatch)
+    .where(
+      and(
+        eq(reminderDispatch.accountId, acct.id),
+        eq(reminderDispatch.channel, "sms"),
+        eq(reminderDispatch.status, "sent"),
+        isNull(reminderDispatch.acknowledgedAt),
+      ),
+    )
+    .orderBy(desc(reminderDispatch.sentAt))
+    .limit(1);
+  if (!d) return { ok: false };
+
+  await acknowledgeDispatch(d.id);
+  return { ok: true, acknowledgedId: d.id };
 }

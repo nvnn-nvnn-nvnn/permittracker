@@ -49,6 +49,18 @@ export async function createSignedReadUrl(path: string, expiresSec = 600) {
   return data.signedUrl;
 }
 
+/** Upload bytes server-side (used by inbound email → unassigned files). */
+export async function uploadBytes(
+  path: string,
+  bytes: Buffer,
+  contentType: string,
+): Promise<void> {
+  const { error } = await admin()
+    .storage.from(DOCUMENTS_BUCKET)
+    .upload(path, bytes, { contentType, upsert: false });
+  if (error) throw error;
+}
+
 /** Download bytes server-side (used by the extraction job). */
 export async function downloadBytes(
   path: string,

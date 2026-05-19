@@ -67,7 +67,7 @@ now") → Resend email with a one-click, signed acknowledge link. Unacked
 "catch-up" rule ensures even a late-added, soon-expiring item still warns.
 Deep dive: [`04-phase-4-explained.md`](04-phase-4-explained.md).
 
-### 🟡 Phase 5 — Payments
+### ✅ Phase 5 — Payments
 **For:** make it a business. Stripe Checkout for plan signup, Customer
 Portal, a signed webhook that is the source of truth for `plan_tier`, a
 `limitedProcedure` tRPC middleware (truck/item caps per plan, cancel → drops
@@ -77,7 +77,7 @@ limits enforce even before Stripe keys exist; prices resolved by stable
 [`05-phase-5-explained.md`](05-phase-5-explained.md) · code:
 [`code/07-stripe-webhook-and-limits.md`](code/07-stripe-webhook-and-limits.md).
 
-### 🟡 Phase 6 — Dependencies & commissaries
+### ✅ Phase 6 — Dependencies & commissaries
 **For:** model the real world: a food truck depends on a licensed
 commissary. A lapsed commissary permit/contract → dependent **active**
 trucks go RED; an expired **parent** ComplianceItem makes its children
@@ -86,10 +86,15 @@ propagate → count. Deep dive:
 [`06-phase-6-explained.md`](06-phase-6-explained.md) · code:
 [`code/08-cascade-status-engine.md`](code/08-cascade-status-engine.md).
 
-### ⬜ Phase 7 — Inbound email + SMS
-**For:** forward a renewal notice to a per-account inbox address; Postmark
-parses it, Claude classifies/matches it to an item. Twilio SMS reminders;
-replying "OK" acknowledges.
+### 🟡 Phase 7 — Inbound email + SMS
+**For:** forward a renewal notice to `{slug}@inbound.permitkeep.com`;
+Postmark parses it, Claude classifies it and matches to an item (or files a
+draft) — never auto-applied. SMS reminders on Pro+ via the channel-branched
+dispatcher; replying "OK" acknowledges. Postmark/Twilio stay stubbed behind
+adapters with **dev simulators** that drive the real cores. Deep dive:
+[`07-phase-7-explained.md`](07-phase-7-explained.md) · code:
+[`code/09-inbound-and-multichannel.md`](code/09-inbound-and-multichannel.md).
+Built; awaiting owner sign-off.
 
 ### ⬜ Phase 8 — Voice escalation + Pro features
 **For:** if SMS/email go unacknowledged, a Twilio voice call ("press 1 to

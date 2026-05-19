@@ -1,0 +1,1 @@
+ALTER TABLE "account" ADD COLUMN "sms_phone" text;

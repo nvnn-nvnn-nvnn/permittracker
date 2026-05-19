@@ -41,6 +41,14 @@ These were confirmed with the owner before any code was written.
   every item change. Full reasoning in `04-phase-4-explained.md` §1–2.
 - **Phase 4 — reminder recipient = account owner email.** Per-member /
   per-channel routing (SMS/voice) is Phase 7–8; Phase 4 ships email only.
+- **Phase 7 — inbound transport stubbed, cores real.** Postmark/Twilio
+  webhooks are implemented but exercised in dev via tRPC simulators that
+  call the identical core functions (no tunneling / no A2P 10DLC wait).
+  SMS recipient = single `account.sms_phone` (per-member routing later).
+  Body-only renewal emails create/annotate a draft but skip the
+  `extraction_proposal` (its `file_id` FK requires an attachment).
+  Postmark inbound auth = shared `?secret=` (Postmark doesn't sign inbound);
+  Twilio request-signature validation deferred until live creds.
 - **Phase 5 — prices by `lookup_key`, not stored IDs.** No Stripe price IDs
   in env/DB. `npm run stripe:setup` stamps stable lookup keys; runtime
   resolves ID↔meaning and caches. Re-runnable, environment-portable.

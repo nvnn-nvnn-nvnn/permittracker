@@ -349,7 +349,48 @@ present).
 fixpoint loop bounded so a cycle is harmless (Known caveats). Person/venue
 entities → Phase 8.
 
-**Awaiting owner demo + sign-off before Phase 7 (Inbound email + SMS).**
+**Phase 6 demoed and signed off by owner (2026-05-18). Cleared for
+Phase 7 (Inbound email + SMS).**
+
+---
+
+## Phase 7 — Inbound email + SMS — COMPLETE (2026-05-18)
+
+Owner choices: stub-resilient + dev simulators; built-in simulator route;
+wire SMS channel now (stubbed). Teaching: `notes/07-phase-7-explained.md`.
+
+**Schema (`0011`).** `account.sms_phone` (SMS recipient; null → SMS skipped).
+No new enum (reminder_channel already had email|sms|voice from Phase 4).
+
+**Inbound email.** `lib/inbound/classify.ts` (Claude tool, zod-validated,
+neutral fallback if no key) + `process.ts` (store attachments via new
+`uploadBytes`, match by identifier or jurisdiction+type, else create
+`pending` DRAFT; renewal → `extraction_proposal` for confirm — never
+auto-apply). `app/api/webhooks/postmark-inbound` real endpoint (slug
+routing, `?secret=` gate, unknown→200).
+
+**SMS.** `lib/sms/index.ts` Twilio-via-REST-or-noop adapter +
+`isSmsConfigured`. `schedule.ts` adds an `sms` dispatch when
+`PLANS[tier].sms` && `sms_phone` set (dedupe key now channel-aware).
+`dispatch.ts` channel-branched send (SMS body = label + ack link + "Reply
+OK"; no phone → skipped). `acknowledgeBySmsReply` + `/api/webhooks/
+twilio-inbound` (empty TwiML). Only "OK" by the user acks — never auto.
+
+**Simulators / UI.** `inbound` tRPC router (`simulateEmail`,
+`simulateSmsOk`) calls the same cores as the webhooks; `account`
+(`notificationSettings`, `setSmsPhone`); `components/features/
+notifications-panel.tsx` in Settings (inbound address, phone, simulators).
+
+**Verification.** typecheck ✅ · lint ✅ · clean build ✅ (routes incl
+`/api/webhooks/postmark-inbound`, `/twilio-inbound`). `0011` applied to
+live DB; `account.sms_phone` confirmed present.
+
+**Deferred:** real Postmark/Twilio creds + A2P 10DLC (live on key add,
+adapters unchanged); Twilio request-signature validation (added with live
+creds); body-only renewals skip the proposal (needs a file FK); voice
+channel → Phase 8.
+
+**Awaiting owner demo + sign-off before Phase 8 (Voice + Pro features).**
 
 ### Phase 4 — post-sign-off fix: catch-up reminders (2026-05-18)
 

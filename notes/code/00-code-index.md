@@ -43,6 +43,12 @@ implementations using those patterns:**
    — derive a schedule instead of storing one; the send loop + catch-up
    (Phase 4).
 7. [`07-stripe-webhook-and-limits.md`](07-stripe-webhook-and-limits.md) —
+   the webhook as source of truth + the limits middleware (Phase 5).
+8. [`08-cascade-status-engine.md`](08-cascade-status-engine.md) —
+   fixpoint propagation for commissary/parent cascades (Phase 6).
+9. [`09-inbound-and-multichannel.md`](09-inbound-and-multichannel.md) —
+   webhook-as-thin-shell + adding a 2nd dispatch channel (Phase 7).
+7. [`07-stripe-webhook-and-limits.md`](07-stripe-webhook-and-limits.md) —
    signed webhook as source of truth, price lookup-keys, limits as
    un-skippable tRPC middleware (Phase 5).
 8. [`08-cascade-status-engine.md`](08-cascade-status-engine.md) —

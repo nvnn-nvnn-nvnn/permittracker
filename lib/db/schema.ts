@@ -80,6 +80,8 @@ export const account = pgTable("account", {
   slug: text("slug").notNull(),
   planTier: planTierEnum("plan_tier").notNull().default("starter"),
   // --- Billing (Phase 5) ---
+  // SMS reminder recipient (Phase 7). Null → SMS dispatches are skipped.
+  smsPhone: text("sms_phone"),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   planStatus: planStatusEnum("plan_status").notNull().default("none"),

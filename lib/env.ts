@@ -38,6 +38,7 @@ const serverSchema = z.object({
   POSTMARK_INBOUND_SECRET: z.string().optional(),
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_FROM_NUMBER: z.string().optional(),
 
   // --- App ---
   APP_URL: z.string().url().default("http://localhost:3000"),
