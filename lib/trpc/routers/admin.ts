@@ -9,9 +9,11 @@ import {
   extractionCost,
   extractionProposal,
   fileAttachment,
+  jurisdictionDigest,
   reminderDispatch,
 } from "@/lib/db/schema";
 import { recomputeDispatches } from "@/lib/reminders/schedule";
+import { runMonthlyDigests } from "@/lib/digest/run";
 
 /**
  * Platform-admin only (adminProcedure enforces is_platform_admin).
@@ -286,6 +288,43 @@ export const adminRouter = createTRPCRouter({
         .update(account)
         .set({ conciergeCompletedAt: new Date(), updatedAt: new Date() })
         .where(eq(account.id, input.accountId));
+      return { ok: true };
+    }),
+
+  // --- Phase 10: inspection-prep digest ops ---
+  digestList: adminProcedure.query(async () => {
+    const db = getDb();
+    return db
+      .select()
+      .from(jurisdictionDigest)
+      .orderBy(desc(jurisdictionDigest.period))
+      .limit(50);
+  }),
+
+  generateAndSendDigests: adminProcedure.mutation(async () => {
+    return runMonthlyDigests();
+  }),
+
+  editDigest: adminProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        title: z.string().trim().min(1).max(200),
+        contentMarkdown: z.string().trim().min(1).max(20_000),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = getDb();
+      await db
+        .update(jurisdictionDigest)
+        .set({
+          title: input.title,
+          contentMarkdown: input.contentMarkdown,
+          status: "published",
+          editedByUserId: ctx.account.userId,
+          updatedAt: new Date(),
+        })
+        .where(eq(jurisdictionDigest.id, input.id));
       return { ok: true };
     }),
 });

@@ -647,3 +647,42 @@ export const personTruck = pgTable(
 export type Venue = typeof venue.$inferSelect;
 export type Person = typeof person.$inferSelect;
 export type PersonTruck = typeof personTruck.$inferSelect;
+
+// ===========================================================================
+// Phase 10 — Inspection-prep digest
+// ===========================================================================
+//
+// Platform content, NOT tenant-scoped: one digest per (jurisdiction, period)
+// shared by every account in that jurisdiction. Claude-generated, then
+// admin-editable. RLS = readable by any authenticated user (shared
+// reference content), writes via service/admin only — see migration.
+
+export const digestStatusEnum = pgEnum("digest_status", [
+  "draft",
+  "published",
+]);
+
+export const jurisdictionDigest = pgTable(
+  "jurisdiction_digest",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    jurisdiction: text("jurisdiction").notNull(),
+    // Month key, e.g. "2026-05" — one digest per jurisdiction per month.
+    period: text("period").notNull(),
+    title: text("title").notNull(),
+    contentMarkdown: text("content_markdown").notNull(),
+    generatedByModel: text("generated_by_model"),
+    status: digestStatusEnum("status").notNull().default("draft"),
+    editedByUserId: uuid("edited_by_user_id").references(() => appUser.id, {
+      onDelete: "set null",
+    }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("jurisdiction_digest_uniq").on(t.jurisdiction, t.period),
+  ],
+);
+
+export type JurisdictionDigest = typeof jurisdictionDigest.$inferSelect;

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { requireAccountContext } from "@/lib/auth/session";
 import { computeAccountStatus } from "@/lib/status";
+import { digestsForAccount } from "@/lib/digest/resolve";
+import { currentPeriod } from "@/lib/digest/period";
 import { fmtDate, fmtDaysLeft } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,6 +51,7 @@ function severityOf(u: {
 export default async function DashboardPage() {
   const ctx = await requireAccountContext();
   const result = await computeAccountStatus(ctx.accountId);
+  const digests = await digestsForAccount(ctx.accountId, currentPeriod());
   const s = STATUS[result.status];
   const { counts } = result;
 
@@ -226,6 +229,37 @@ export default async function DashboardPage() {
           </Card>
         )}
       </div>
+
+      {digests.length > 0 && (
+        <Card>
+          <CardContent className="p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Inspection prep · your area
+              </p>
+              <Link
+                href="/digest"
+                className="text-xs text-primary hover:underline"
+              >
+                Read all
+              </Link>
+            </div>
+            <ul className="space-y-2 text-sm">
+              {digests.slice(0, 3).map((dg) => (
+                <li key={dg.id} className="flex gap-2.5">
+                  <span className="mt-1.5 inline-block size-1.5 shrink-0 rounded-full bg-primary" />
+                  <Link href="/digest" className="hover:underline">
+                    <span className="font-medium">{dg.title}</span>{" "}
+                    <span className="text-muted-foreground">
+                      · {dg.jurisdiction}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { serverApi } from "@/lib/trpc/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AdminQueue } from "@/components/features/admin-queue";
+import { DigestAdmin } from "@/components/features/digest-admin";
 
 export const metadata = { title: "Admin · PermitKeep" };
 export const dynamic = "force-dynamic";
@@ -82,6 +83,8 @@ export default async function AdminPage() {
       </div>
 
       <AdminQueue queue={queue} />
+
+      <DigestAdmin />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

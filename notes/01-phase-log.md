@@ -480,6 +480,59 @@ Migration `0014` applied to live DB and verified
 **Phase 9 demoed and signed off by owner (2026-05-19). Cleared for
 Phase 10 (Inspection-prep digest) — the final phase.**
 
+---
+
+## Phase 10 — Inspection-prep digest — COMPLETE (2026-05-19)
+
+Owner choices: Claude-generated + stored + admin-editable; monthly cron +
+manual trigger; scoped by the account's jurisdictions. Teaching doc:
+`notes/10-phase-10-explained.md`.
+
+**Schema (`0015`, `0016`).** `jurisdiction_digest` — shared content, NO
+account_id, unique `(jurisdiction, period)`. RLS = read-to-authenticated
+(`USING (true)`); writes service/admin; no audit trigger (regenerated, not
+a tenant record).
+
+**Pipeline.** `lib/digest/generate.ts` idempotent per (jurisdiction,
+period) — existing row kept (preserves admin edits / saves tokens), else
+forced-tool Claude → constrained markdown, stored `published`; graceful
+`skipped:no-key`. `resolve.ts` `accountJurisdictions` (UNION over
+non-archived trucks+items) + `digestsForAccount`. `run.ts` generate-all →
+email each account its set (owner email, Resend-or-noop). Inngest monthly
+cron (`0 13 1 * *`, registered) + admin `generateAndSendDigests` call the
+same path. `digest.forMyAccount` (protected) feeds the UI; admin
+`digestList`/`editDigest` for ops.
+
+**UI.** `/digest` read page + dashboard "Inspection prep · your area"
+widget + sidebar nav + `/admin` "Generate & send now". Tiny dependency-free
+markdown renderer. Advisory ("not legal advice") labelled in app + email.
+
+**Verification.** typecheck ✅ · lint ✅ · clean production build ✅.
+Migrations `0015`/`0016` applied to live DB and verified
+(`jurisdiction_digest` RLS on, read policy present).
+
+**Deviations:** none. Content is explicitly advisory (logged in
+`10-phase-10-explained.md` §4).
+
+---
+
+## 🏁 Project complete — all 10 phases built (2026-05-19)
+
+Phases 1–10 implemented, verified (typecheck/lint/clean build + live
+migrations each), documented (per-phase explainer + code track), committed,
+and owner-signed-off in sequence. The brief is fully realized.
+
+**Live integrations:** Supabase (DB/Auth/Storage), Anthropic (OCR +
+classification + digests), Resend (email), Stripe (billing).
+**Stubbed behind adapters (live on key-add, dev simulators exist):**
+Twilio SMS + Voice, Postmark inbound. Sentry/PostHog not wired (deferred —
+see `00-decisions.md` caveats).
+
+**Before production:** wire Twilio (A2P 10DLC in progress) + Postmark, a
+verified Resend sending domain, Sentry/PostHog, real Stripe products via
+`stripe:setup`, and run the full migration set on the production database.
+All tracked in `00-decisions.md` → Known caveats. No surprises.
+
 ### Phase 4 — post-sign-off fix: catch-up reminders (2026-05-18)
 
 Owner: "not receiving any emails." Diagnosed against live DB — the dispatch

@@ -9,6 +9,7 @@ import {
   MapPin,
   Users,
   FileCheck2,
+  BookOpen,
   Settings,
   ShieldCheck,
   Menu,
@@ -48,6 +49,7 @@ export function AppShell({
     { href: "/venues", label: "Venues", icon: <MapPin /> },
     { href: "/people", label: "People", icon: <Users /> },
     { href: "/items", label: "Items", icon: <FileCheck2 /> },
+    { href: "/digest", label: "Inspection prep", icon: <BookOpen /> },
     { href: "/settings", label: "Settings", icon: <Settings /> },
   ];
   if (isPlatformAdmin) {

@@ -8,6 +8,12 @@ a dedicated explainer.
 and COI that can shut a food truck down" — and remind operators before things
 expire.
 
+> **🏁 Status: all 10 phases built, verified, signed off (2026-05-19).**
+> Live: Supabase, Anthropic, Resend, Stripe. Stubbed behind adapters
+> (dev simulators exist): Twilio SMS/Voice, Postmark inbound. Pre-production
+> checklist + caveats in [`00-decisions.md`](00-decisions.md). Build journal:
+> [`01-phase-log.md`](01-phase-log.md) → "Project complete".
+
 ## How these notes are organized
 
 | File | What it is |
@@ -106,12 +112,12 @@ simulator. Deep dive: [`08-phase-8-explained.md`](08-phase-8-explained.md) ·
 code: [`code/10-voice-and-people-cascade.md`](code/10-voice-and-people-cascade.md).
 
 
-### 🟡 Phase 9 — Admin & concierge tooling
+### ✅ Phase 9 — Admin & concierge tooling
 **For:** the internal cockpit. Concierge queue for human verification,
 extraction-accuracy and cost dashboards, dispatch monitor. (The cost
 dashboard already exists in skeleton at `/admin` from Phase 3.)
 
-### ⬜ Phase 10 — Inspection-prep digest
+### ✅ Phase 10 — Inspection-prep digest
 **For:** retention value beyond reminders — a monthly per-jurisdiction
 digest ("top violations in your area"), scoped to the Twin Cities, MN
 launch metro. In-app widget + Resend email.
