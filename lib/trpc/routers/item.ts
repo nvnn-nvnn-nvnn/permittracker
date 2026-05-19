@@ -31,6 +31,8 @@ function toColumns(input: z.infer<typeof itemInput>) {
     holderTruckId: input.holderTruckId ?? null,
     holderName: input.holderName,
     parentItemId: input.parentItemId ?? null,
+    personId: input.personId ?? null,
+    venueId: input.venueId ?? null,
     notes: input.notes,
     reminderDaysBefore:
       input.reminderDaysBefore ??

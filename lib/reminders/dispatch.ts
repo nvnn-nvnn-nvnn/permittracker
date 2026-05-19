@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, isNull, lte } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, lte } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import {
   account,
@@ -10,6 +10,7 @@ import {
 import { serverEnv } from "@/lib/env";
 import { getEmailAdapter } from "@/lib/email";
 import { getSmsAdapter } from "@/lib/sms";
+import { getVoiceAdapter, buildEscalationTwiml } from "@/lib/voice";
 import { createAcknowledgeToken } from "./token";
 import { buildReminderEmail } from "./email";
 import { fmtDate } from "@/lib/format";
@@ -73,6 +74,7 @@ export async function processDueDispatches(opts?: {
   const appUrl = serverEnv().APP_URL;
   const email = getEmailAdapter();
   const sms = getSmsAdapter();
+  const voice = getVoiceAdapter();
 
   const markSkipped = async (id: string, reason: string) => {
     await db
@@ -104,7 +106,36 @@ export async function processDueDispatches(opts?: {
       row.item.itemType.toUpperCase();
 
     try {
-      if (d.channel === "sms") {
+      if (d.channel === "voice") {
+        if (!row.smsPhone) {
+          await markSkipped(d.id, "No phone for voice escalation");
+          continue;
+        }
+        // Brief: voice only if NO prior reminder was acknowledged.
+        const [prior] = await db
+          .select({ id: reminderDispatch.id })
+          .from(reminderDispatch)
+          .where(
+            and(
+              eq(reminderDispatch.complianceItemId, d.complianceItemId),
+              isNotNull(reminderDispatch.acknowledgedAt),
+            ),
+          )
+          .limit(1);
+        if (prior) {
+          await markSkipped(d.id, "Prior reminder already acknowledged");
+          continue;
+        }
+        const twiml = buildEscalationTwiml({
+          spoken: `This is PermitKeep. ${label} ${
+            d.kind === "fee" ? "has a fee due" : "expires"
+          } ${fmtDate(row.item.expirationDate)}.`,
+          actionUrl: `${appUrl}/api/webhooks/twilio-voice?token=${createAcknowledgeToken(
+            d.id,
+          )}`,
+        });
+        await voice.call({ to: row.smsPhone, twiml });
+      } else if (d.channel === "sms") {
         if (!row.smsPhone) {
           await markSkipped(d.id, "No SMS phone on account");
           continue;

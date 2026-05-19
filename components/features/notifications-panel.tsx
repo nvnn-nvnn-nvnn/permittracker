@@ -18,6 +18,7 @@ export function NotificationsPanel() {
   const setPhone = trpc.account.setSmsPhone.useMutation();
   const simEmail = trpc.inbound.simulateEmail.useMutation();
   const simOk = trpc.inbound.simulateSmsOk.useMutation();
+  const simVoice = trpc.inbound.simulateVoicePressOne.useMutation();
   const [phone, setPhone_] = useState<string | null>(null);
   const [subject, setSubject] = useState(
     "Your Mobile Food Unit License renewal",
@@ -141,6 +142,26 @@ export function NotificationsPanel() {
               }}
             >
               {simOk.isPending ? "…" : 'Simulate SMS "OK"'}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={simVoice.isPending}
+              onClick={async () => {
+                setMsg(null);
+                try {
+                  await simVoice.mutateAsync();
+                  setMsg(
+                    "Voice press-1 → acknowledged most recent voice escalation.",
+                  );
+                  await utils.reminder.invalidate();
+                } catch (e) {
+                  setMsg(e instanceof Error ? e.message : "Failed");
+                }
+              }}
+            >
+              {simVoice.isPending ? "…" : 'Simulate voice "press 1"'}
             </Button>
           </div>
         </div>

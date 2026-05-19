@@ -35,9 +35,11 @@ export default async function ItemDetailPage({
     throw e;
   }
 
-  const [trucks, items, history] = await Promise.all([
+  const [trucks, items, people, venues, history] = await Promise.all([
     api.truck.list(),
     api.item.list(),
+    api.person.list(),
+    api.venue.list(),
     listAuditForEntity(ctx.accountId, "compliance_item", item.id),
   ]);
   const badge = classifyItem(item);
@@ -66,6 +68,8 @@ export default async function ItemDetailPage({
           id: i.id,
           label: `${i.itemType} — ${i.subtype ?? i.identifier ?? "item"}`,
         }))}
+        people={people.map((p) => ({ id: p.id, name: p.name }))}
+        venues={venues.map((v) => ({ id: v.id, name: v.name }))}
       />
 
       <DocumentsPanel complianceItemId={item.id} />

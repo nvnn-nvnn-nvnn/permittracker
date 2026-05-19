@@ -42,6 +42,25 @@ export const commissaryInput = z.object({
 });
 export type CommissaryInput = z.input<typeof commissaryInput>;
 
+export const venueInput = z.object({
+  name: z.string().trim().min(1, "Name is required").max(160),
+  address: optionalTrimmed(240),
+  additionalInsuredText: optionalTrimmed(2000),
+  coiRequirements: optionalTrimmed(2000),
+  notes: optionalTrimmed(2000),
+});
+export type VenueInput = z.input<typeof venueInput>;
+
+export const personInput = z.object({
+  name: z.string().trim().min(1, "Name is required").max(160),
+  email: optionalTrimmed(160),
+  role: optionalTrimmed(80),
+  notes: optionalTrimmed(2000),
+  // Trucks this person works (drives the cross-truck cert cascade).
+  truckIds: z.array(z.string().uuid()).default([]),
+});
+export type PersonInput = z.input<typeof personInput>;
+
 export const itemTypeValues = [
   "permit",
   "inspection",
@@ -90,6 +109,8 @@ export const itemInput = z.object({
   holderName: optionalTrimmed(160),
   // Optional dependency on another item (Phase 6 parent→child cascade).
   parentItemId: optionalUuid,
+  personId: optionalUuid,
+  venueId: optionalUuid,
   notes: optionalTrimmed(2000),
   reminderDaysBefore: z.array(z.number().int().min(0).max(365)).optional(),
 });

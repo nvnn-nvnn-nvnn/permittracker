@@ -41,6 +41,16 @@ These were confirmed with the owner before any code was written.
   every item change. Full reasoning in `04-phase-4-explained.md` §1–2.
 - **Phase 4 — reminder recipient = account owner email.** Per-member /
   per-channel routing (SMS/voice) is Phase 7–8; Phase 4 ships email only.
+- **Phase 8 — voice = third reminder channel; cascades extended.** Voice
+  is one escalation dispatch at the 7-day expiry mark (Pro+, phone set),
+  skipped at send time if any prior reminder for the item was acknowledged
+  (brief). Venue has no own cascade (an expired COI is already RED via the
+  item rule) — it carries additional-insured / COI-requirement text. Person
+  certs cascade cross-truck to assigned ACTIVE trucks: expired → RED,
+  expiring ≤30d → YELLOW (commissary-consistent). `person_truck` is a
+  hard-deletable join, re-synced per person save → no audit trigger (like
+  reminder_dispatch); venue/person are audited. Twilio voice stubbed
+  (adapter + simulator) until creds/A2P.
 - **Phase 7 — inbound transport stubbed, cores real.** Postmark/Twilio
   webhooks are implemented but exercised in dev via tRPC simulators that
   call the identical core functions (no tunneling / no A2P 10DLC wait).

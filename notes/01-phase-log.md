@@ -390,7 +390,48 @@ adapters unchanged); Twilio request-signature validation (added with live
 creds); body-only renewals skip the proposal (needs a file FK); voice
 channel → Phase 8.
 
-**Awaiting owner demo + sign-off before Phase 8 (Voice + Pro features).**
+**Phase 7 demoed and signed off by owner (2026-05-18). Cleared for
+Phase 8 (Voice escalation + Pro features).**
+
+---
+
+## Phase 8 — Voice escalation + Pro features — COMPLETE (2026-05-18)
+
+Owner choices: wire voice stubbed + simulator; full Venue/Person entities +
+cascade; expired person cert → assigned active trucks RED. Teaching:
+`notes/08-phase-8-explained.md`.
+
+**Schema (`0012`, `0013`).** `venue`, `person`, `person_truck`;
+`compliance_item.person_id`/`venue_id`; `audit_entity` += `venue`,`person`.
+venue+person get the shared audit trigger; person_truck is a hard-deletable
+join (no audit), RLS member-select on all three.
+
+**Voice.** `lib/voice` Twilio-REST-or-noop adapter + `buildEscalationTwiml`
+(`<Gather numDigits=1>`). `schedule.ts` adds one `voice` dispatch only at
+the expiry 7-day mark when `PLANS[tier].voiceEscalation` && phone.
+`dispatch.ts` voice branch: skip if ANY prior reminder for the item was
+acknowledged (brief), else place call. `/api/webhooks/twilio-voice`
+verifies the shared signed token → `acknowledgeDispatch` (press 1).
+
+**Pro entities.** `venue`/`person` tRPC routers (CRUD, archive-only,
+audited); `person` syncs `person_truck` assignments per save. `item`
+router + validators carry `personId`/`venueId`. `lib/status.ts` adds the
+person-cert cross-truck cascade (expired → RED, expiring → YELLOW) via a
+`person_truck→person→truck` join over active trucks.
+
+**UI.** venues + people CRUD pages, sidebar nav (MapPin/Users), item form
+Person/Venue selects, person form truck-assignment checkboxes,
+ArchiveButton extended, voice simulator in Settings.
+
+**Verification.** typecheck ✅ · lint ✅ · clean build ✅. `0012`/`0013`
+applied + verified (3 tables RLS, audit enum +venue/+person, both
+triggers, item person_id/venue_id).
+
+**Deferred:** real Twilio voice creds/A2P (live on key-add); no separate
+venue cascade by design (expired COI already RED via item rule).
+
+**Awaiting owner demo + sign-off before Phase 9 (Admin & concierge
+tooling).**
 
 ### Phase 4 — post-sign-off fix: catch-up reminders (2026-05-18)
 

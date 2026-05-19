@@ -6,6 +6,8 @@ import {
   LayoutDashboard,
   Truck,
   Warehouse,
+  MapPin,
+  Users,
   FileCheck2,
   Settings,
   ShieldCheck,
@@ -43,6 +45,8 @@ export function AppShell({
     { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard /> },
     { href: "/trucks", label: "Trucks", icon: <Truck /> },
     { href: "/commissaries", label: "Commissaries", icon: <Warehouse /> },
+    { href: "/venues", label: "Venues", icon: <MapPin /> },
+    { href: "/people", label: "People", icon: <Users /> },
     { href: "/items", label: "Items", icon: <FileCheck2 /> },
     { href: "/settings", label: "Settings", icon: <Settings /> },
   ];

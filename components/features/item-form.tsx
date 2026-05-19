@@ -31,10 +31,14 @@ export function ItemForm({
   item,
   trucks,
   parentOptions = [],
+  people = [],
+  venues = [],
 }: {
   item?: ComplianceItem;
   trucks: TruckOption[];
   parentOptions?: ParentOption[];
+  people?: TruckOption[];
+  venues?: TruckOption[];
 }) {
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -134,6 +138,8 @@ export function ItemForm({
       holderTruckId: String(fd.get("holderTruckId") ?? ""),
       holderName: String(fd.get("holderName") ?? ""),
       parentItemId: String(fd.get("parentItemId") ?? ""),
+      personId: String(fd.get("personId") ?? ""),
+      venueId: String(fd.get("venueId") ?? ""),
       notes: String(fd.get("notes") ?? ""),
       reminderDaysBefore: reminders,
     };
@@ -292,6 +298,36 @@ export function ItemForm({
                   {p.label}
                 </option>
               ))}
+          </select>
+        </Field>
+        <Field label="Person (cert holder)" htmlFor="personId">
+          <select
+            id="personId"
+            name="personId"
+            className={selectCls}
+            defaultValue={item?.personId ?? ""}
+          >
+            <option value="">— none —</option>
+            {people.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Venue (for COIs)" htmlFor="venueId">
+          <select
+            id="venueId"
+            name="venueId"
+            className={selectCls}
+            defaultValue={item?.venueId ?? ""}
+          >
+            <option value="">— none —</option>
+            {venues.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name}
+              </option>
+            ))}
           </select>
         </Field>
       </div>

@@ -4,6 +4,8 @@ import { getDb } from "@/lib/db";
 import {
   commissary,
   complianceItem,
+  person,
+  personTruck,
   reminderDispatch,
   truck,
 } from "@/lib/db/schema";
@@ -260,6 +262,58 @@ export async function computeAccountStatus(
           `Commissary "${c.name}" ${kind} expires in ${d}d — affects ${truckNames.join(", ")}`,
         );
       }
+    }
+  }
+
+  // Person-certification cascade — an expired/expiring cert held by a
+  // person flags every ACTIVE truck they're assigned to (brief: cross-truck
+  // flagging). Expired → RED; expiring ≤30d → YELLOW. Same severity model
+  // as the commissary cascade.
+  const personActive = await db
+    .select({
+      personId: personTruck.personId,
+      personName: person.name,
+      truckName: truck.name,
+    })
+    .from(personTruck)
+    .innerJoin(person, eq(person.id, personTruck.personId))
+    .innerJoin(truck, eq(truck.id, personTruck.truckId))
+    .where(
+      and(
+        eq(personTruck.accountId, accountId),
+        isNull(person.archivedAt),
+        eq(truck.isActive, true),
+        isNull(truck.archivedAt),
+      ),
+    );
+  const personTrucks = new Map<
+    string,
+    { personName: string; truckNames: string[] }
+  >();
+  for (const r of personActive) {
+    const e =
+      personTrucks.get(r.personId) ??
+      { personName: r.personName, truckNames: [] };
+    e.truckNames.push(r.truckName);
+    personTrucks.set(r.personId, e);
+  }
+  for (const u of urgencies) {
+    const pid = u.item.personId;
+    if (!pid || (!u.isExpired && !u.expiringSoon)) continue;
+    const dep = personTrucks.get(pid);
+    if (!dep || dep.truckNames.length === 0) continue;
+    const who = `${dep.personName}'s ${u.item.subtype ?? "certification"}`;
+    if (u.isExpired) {
+      u.contributesRed = true;
+      red++;
+      reasons.push(
+        `${who} expired — blocks ${dep.truckNames.join(", ")}`,
+      );
+    } else {
+      yellow++;
+      reasons.push(
+        `${who} expires soon — affects ${dep.truckNames.join(", ")}`,
+      );
     }
   }
 

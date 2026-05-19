@@ -114,6 +114,11 @@ export async function recomputeDispatches(
   if (acct && PLANS[acct.planTier].sms && acct.smsPhone) {
     channels.push("sms");
   }
+  // Voice escalation: only at the 7-day mark, only on Pro+ (brief). At SEND
+  // time the dispatcher additionally skips it if a prior reminder for the
+  // item was already acknowledged.
+  const voiceEligible =
+    !!acct && PLANS[acct.planTier].voiceEscalation && !!acct.smsPhone;
 
   // Skip targets already represented by a sent/failed/skipped row.
   // Key includes channel so email & sms for the same kind+offset coexist.
@@ -134,7 +139,8 @@ export async function recomputeDispatches(
     existing.map((e) => `${e.channel}:${e.kind}:${e.offsetDays}`),
   );
 
-  const rows = channels.flatMap((channel) =>
+  const rows: (typeof reminderDispatch.$inferInsert)[] = channels.flatMap(
+    (channel) =>
     targets
       .filter((t) => !taken.has(`${channel}:${t.kind}:${t.offsetDays}`))
       .map((t) => ({
@@ -147,6 +153,27 @@ export async function recomputeDispatches(
         status: "scheduled" as const,
       })),
   );
+
+  // One voice escalation at the 7-day expiry mark (Pro+).
+  if (voiceEligible) {
+    for (const t of targets) {
+      if (
+        t.kind === "expiry" &&
+        t.offsetDays === 7 &&
+        !taken.has(`voice:expiry:7`)
+      ) {
+        rows.push({
+          accountId: item.accountId,
+          complianceItemId: item.id,
+          channel: "voice",
+          kind: t.kind,
+          offsetDays: t.offsetDays,
+          scheduledFor: t.scheduledFor,
+          status: "scheduled" as const,
+        });
+      }
+    }
+  }
 
   if (rows.length > 0) await tx.insert(reminderDispatch).values(rows);
   return rows.length;

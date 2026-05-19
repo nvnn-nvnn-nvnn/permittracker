@@ -173,6 +173,8 @@ export const auditEntityEnum = pgEnum("audit_entity", [
   "compliance_item",
   "file_attachment",
   "commissary",
+  "venue",
+  "person",
 ]);
 
 // --- commissary ------------------------------------------------------------
@@ -261,8 +263,16 @@ export const complianceItem = pgTable(
     holderTruckId: uuid("holder_truck_id").references(() => truck.id, {
       onDelete: "set null",
     }),
-    // Free-text holder for person/business until those entities exist.
+    // Free-text holder for person/business when no Person row applies.
     holderName: text("holder_name"),
+    // Phase 8: a cert can belong to a Person (cross-truck cascade), and a
+    // COI can be linked to a Venue (additional-insured tracking).
+    personId: uuid("person_id").references((): AnyPgColumn => person.id, {
+      onDelete: "set null",
+    }),
+    venueId: uuid("venue_id").references((): AnyPgColumn => venue.id, {
+      onDelete: "set null",
+    }),
     // Self-reference for dependency chains (Phase 6 cascades).
     parentItemId: uuid("parent_item_id").references(
       (): AnyPgColumn => complianceItem.id,
@@ -540,3 +550,96 @@ export const reminderDispatch = pgTable(
 export type ReminderDispatch = typeof reminderDispatch.$inferSelect;
 export type ReminderChannel = (typeof reminderChannelEnum.enumValues)[number];
 export type DispatchStatus = (typeof dispatchStatusEnum.enumValues)[number];
+
+// ===========================================================================
+// Phase 8 — Venues & People (Pro features)
+// ===========================================================================
+
+// --- venue -----------------------------------------------------------------
+// An event/location that requires a COI with specific additional-insured
+// language. COI compliance_items link to it (informational + requirements).
+
+export const venue = pgTable(
+  "venue",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    address: text("address"),
+    additionalInsuredText: text("additional_insured_text"),
+    coiRequirements: text("coi_requirements"),
+    notes: text("notes"),
+    createdByUserId: uuid("created_by_user_id").references(() => appUser.id, {
+      onDelete: "set null",
+    }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("venue_account_idx").on(t.accountId)],
+);
+
+// --- person ----------------------------------------------------------------
+// A staff member. May or may not be a User. Their certifications
+// (compliance_items with person_id) cascade to assigned active trucks.
+
+export const person = pgTable(
+  "person",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    email: text("email"),
+    role: text("role"),
+    // Optional link to an auth identity (a staff member may also log in).
+    userId: uuid("user_id").references(() => appUser.id, {
+      onDelete: "set null",
+    }),
+    notes: text("notes"),
+    createdByUserId: uuid("created_by_user_id").references(() => appUser.id, {
+      onDelete: "set null",
+    }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("person_account_idx").on(t.accountId)],
+);
+
+// --- person_truck ----------------------------------------------------------
+// Which trucks a person works. Drives the cross-truck cert cascade.
+
+export const personTruck = pgTable(
+  "person_truck",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => person.id, { onDelete: "cascade" }),
+    truckId: uuid("truck_id")
+      .notNull()
+      .references(() => truck.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("person_truck_uniq").on(t.personId, t.truckId),
+    index("person_truck_account_idx").on(t.accountId),
+  ],
+);
+
+export type Venue = typeof venue.$inferSelect;
+export type Person = typeof person.$inferSelect;
+export type PersonTruck = typeof personTruck.$inferSelect;

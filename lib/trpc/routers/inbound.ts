@@ -1,11 +1,14 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "@/lib/trpc/trpc";
 import { getDb } from "@/lib/db";
-import { account } from "@/lib/db/schema";
+import { account, reminderDispatch } from "@/lib/db/schema";
 import { processInboundEmail } from "@/lib/inbound/process";
-import { acknowledgeBySmsReply } from "@/lib/reminders/dispatch";
+import {
+  acknowledgeBySmsReply,
+  acknowledgeDispatch,
+} from "@/lib/reminders/dispatch";
 
 /**
  * Dev simulators — exercise the REAL inbound pipelines without Postmark /
@@ -65,5 +68,31 @@ export const inboundRouter = createTRPCRouter({
       });
     }
     return r;
+  }),
+
+  /** Simulate the operator pressing 1 on the escalation call. */
+  simulateVoicePressOne: protectedProcedure.mutation(async ({ ctx }) => {
+    const db = getDb();
+    const [d] = await db
+      .select({ id: reminderDispatch.id })
+      .from(reminderDispatch)
+      .where(
+        and(
+          eq(reminderDispatch.accountId, ctx.account.accountId),
+          eq(reminderDispatch.channel, "voice"),
+          eq(reminderDispatch.status, "sent"),
+          isNull(reminderDispatch.acknowledgedAt),
+        ),
+      )
+      .orderBy(desc(reminderDispatch.sentAt))
+      .limit(1);
+    if (!d) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "No unacknowledged voice call to acknowledge.",
+      });
+    }
+    await acknowledgeDispatch(d.id);
+    return { ok: true, acknowledgedId: d.id };
   }),
 });

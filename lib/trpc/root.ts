@@ -2,6 +2,8 @@ import { createTRPCRouter } from "@/lib/trpc/trpc";
 import { accountRouter } from "./routers/account";
 import { truckRouter } from "./routers/truck";
 import { commissaryRouter } from "./routers/commissary";
+import { venueRouter } from "./routers/venue";
+import { personRouter } from "./routers/person";
 import { itemRouter } from "./routers/item";
 import { fileRouter } from "./routers/file";
 import { reminderRouter } from "./routers/reminder";
@@ -13,6 +15,8 @@ export const appRouter = createTRPCRouter({
   account: accountRouter,
   truck: truckRouter,
   commissary: commissaryRouter,
+  venue: venueRouter,
+  person: personRouter,
   item: itemRouter,
   file: fileRouter,
   reminder: reminderRouter,
