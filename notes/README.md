@@ -19,6 +19,7 @@ expire.
 | File | What it is |
 |---|---|
 | [`README.md`](README.md) | This index — per-phase purpose + status. |
+| [`LAUNCH-CHECKLIST.md`](LAUNCH-CHECKLIST.md) | **Go-live checklist** — the manual, tickable path from feature-complete → production (provisioning, deploy, QA pass, tests, legal). Start here when prepping launch. |
 | [`00-decisions.md`](00-decisions.md) | Binding decisions, scope calls, caveats. The "why we deviated" log. |
 | [`01-phase-log.md`](01-phase-log.md) | Append-only build journal — what changed, when, verification. |
 | `0N-phase-N-explained.md` | Teaching deep-dive for that phase (the *what/why/how* — the **reasoning**). |
