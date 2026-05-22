@@ -91,7 +91,7 @@ export function AppShell({
           <span className="grid size-7 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-[var(--shadow-soft)]">
             P
           </span>
-          Permit<span className="text-primary">Keep</span>
+          Vend<span className="text-primary">Guard</span>
         </p>
         <p className="truncate pl-9 text-xs text-muted-foreground">
           {accountName}
