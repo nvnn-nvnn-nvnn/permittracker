@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export const metadata = { title: "Commissaries · PermitKeep" };
+export const metadata = { title: "Commissaries · VendGuard" };
 export const dynamic = "force-dynamic";
 
 export default async function CommissariesPage() {

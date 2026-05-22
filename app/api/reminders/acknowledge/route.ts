@@ -12,7 +12,7 @@ function page(title: string, body: string, ok: boolean): Response {
   return new Response(
     `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head>
      <body style="font-family:ui-sans-serif,system-ui,Arial,sans-serif;max-width:420px;margin:64px auto;padding:0 20px;color:#171717;text-align:center">
-       <p style="color:#16a34a;font-weight:600">PermitKeep</p>
+       <p style="color:#16a34a;font-weight:600">VendGuard</p>
        <h1 style="font-size:20px">${ok ? "✓ " : ""}${title}</h1>
        <p style="color:#555;font-size:14px;line-height:1.5">${body}</p>
      </body></html>`,
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   if (!dispatchId) {
     return page(
       "Link expired or invalid",
-      "This acknowledge link is no longer valid (links expire after 14 days). Open the item in PermitKeep to acknowledge there.",
+      "This acknowledge link is no longer valid (links expire after 14 days). Open the item in VendGuard to acknowledge there.",
       false,
     );
   }

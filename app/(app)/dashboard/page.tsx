@@ -12,7 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 import {serverApi} from "@/lib/trpc/server";
 
-export const metadata = { title: "Dashboard · PermitKeep" };
+export const metadata = { title: "Dashboard · VendGuard" };
 export const dynamic = "force-dynamic";
 
 const STATUS = {

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PermitKeep — Stay open.",
+  title: "VendGuard — Stay open.",
   description:
     "Compliance tracking for food trucks. We track every permit, inspection, cert, and COI that can shut you down.",
 };

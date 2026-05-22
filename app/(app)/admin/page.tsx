@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { AdminQueue } from "@/components/features/admin-queue";
 import { DigestAdmin } from "@/components/features/digest-admin";
 
-export const metadata = { title: "Admin · PermitKeep" };
+export const metadata = { title: "Admin · VendGuard" };
 export const dynamic = "force-dynamic";
 
 function usd(microUsd: number): string {

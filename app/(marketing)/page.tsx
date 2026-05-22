@@ -7,7 +7,7 @@ export default async function MarketingHome() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-8 px-5 py-16">
       <div className="space-y-3">
-        <p className="text-sm font-medium text-primary">PermitKeep</p>
+        <p className="text-sm font-medium text-primary">VendGuard</p>
         <h1 className="text-3xl font-semibold leading-tight tracking-tight">
           Stay open.
         </h1>

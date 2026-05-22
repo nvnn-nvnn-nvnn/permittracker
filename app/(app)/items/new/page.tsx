@@ -1,7 +1,7 @@
 import { serverApi } from "@/lib/trpc/server";
 import { ItemForm } from "@/components/features/item-form";
 
-export const metadata = { title: "Add item · PermitKeep" };
+export const metadata = { title: "Add item · VendGuard" };
 export const dynamic = "force-dynamic";
 
 export default async function NewItemPage() {

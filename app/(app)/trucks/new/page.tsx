@@ -1,7 +1,7 @@
 import { serverApi } from "@/lib/trpc/server";
 import { TruckForm } from "@/components/features/truck-form";
 
-export const metadata = { title: "Add truck · PermitKeep" };
+export const metadata = { title: "Add truck · VendGuard" };
 export const dynamic = "force-dynamic";
 
 export default async function NewTruckPage() {

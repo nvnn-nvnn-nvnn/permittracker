@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export const metadata = { title: "People · PermitKeep" };
+export const metadata = { title: "People · VendGuard" };
 export const dynamic = "force-dynamic";
 
 export default async function PeoplePage() {

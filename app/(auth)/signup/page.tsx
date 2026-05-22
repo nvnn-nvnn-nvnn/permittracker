@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { SignUpForm } from "@/components/features/auth-forms";
 
-export const metadata = { title: "Create account · PermitKeep" };
+export const metadata = { title: "Create account · VendGuard" };
 
 export default function SignUpPage() {
   return (

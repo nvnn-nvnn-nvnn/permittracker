@@ -12,7 +12,7 @@ import { signOut } from "@/lib/auth/actions";
 import { BillingPanel } from "@/components/features/billing-panel";
 import { NotificationsPanel } from "@/components/features/notifications-panel";
 
-export const metadata = { title: "Settings · PermitKeep" };
+export const metadata = { title: "Settings · VendGuard" };
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {

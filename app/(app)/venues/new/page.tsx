@@ -1,6 +1,6 @@
 import { VenueForm } from "@/components/features/venue-form";
 
-export const metadata = { title: "Add venue · PermitKeep" };
+export const metadata = { title: "Add venue · VendGuard" };
 
 export default function NewVenuePage() {
   return (

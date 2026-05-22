@@ -1,6 +1,6 @@
 import { CommissaryForm } from "@/components/features/commissary-form";
 
-export const metadata = { title: "Add commissary · PermitKeep" };
+export const metadata = { title: "Add commissary · VendGuard" };
 
 export default function NewCommissaryPage() {
   return (

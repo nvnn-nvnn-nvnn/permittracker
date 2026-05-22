@@ -66,7 +66,7 @@ Use **separate** prod keys — never reuse dev. All flow through
 
 ## 4. Deploy (Vercel)
 
-- [ ] Vercel project created, **all** env vars set (prod values from §1)
+- [~] Vercel project created, **all** env vars set (prod values from §1)
 - [ ] Custom domain + TLS; Supabase Auth Site URL matches it
 - [ ] Inngest prod app registered; `/api/inngest` reachable; cron jobs
       listed (reminders */5, monthly digest)
