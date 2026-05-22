@@ -1,96 +1,156 @@
-# Phase 10 — Explained (teaching walkthrough)
+# Phase 10 — Explained (plain-language walkthrough)
 
-The final phase: retention beyond reminders. A monthly, per-jurisdiction
-"inspection-prep digest" — Claude-written, admin-editable, emailed, and
-surfaced in-app, scoped to the jurisdictions an account actually operates in.
+The final feature: a monthly **inspection-prep digest**. Once a month, Claude
+writes a short guide for each jurisdiction we cover (Minneapolis Health
+Department, St. Paul Health Department, etc.). Every account that operates in
+that jurisdiction gets the guide — in the app and by email.
+
+The trick worth understanding is **how one digest serves many accounts** without
+us copying it for each one.
 
 ---
 
-## The flows
+## The big picture
 
-```
-Monthly cron (1st, 13:00 UTC) / admin "Generate & send now"
-  → for each seeded MN jurisdiction: ensureDigest(j, period)
-        existing row? keep it (admins may have edited)   [idempotent]
-        else → Claude (forced tool) → title + sections → store published
-  → for each account:
-        jurisdictions = distinct from its trucks + items
-        digests = published rows for those jurisdictions this period
-        email the owner a teaser + link            (Resend, or no-op)
+> Our script generates one digest per month, per jurisdiction, and stores it in
+> a dedicated `jurisdiction_digest` table that every account can read.
+>
+> When it's time to email or display, the script looks at each account's
+> trucks and compliance items, collects the list of jurisdictions that account
+> actually operates in, then pulls the digests where the jurisdiction matches
+> that list — and sends those to the owner.
 
-In-app: dashboard widget + /digest read the SAME digestsForAccount()
-```
+That's the whole thing. The rest of this note is just unpacking it.
 
-## 1. Shared content, not tenant data — a different table shape
+---
 
-Every prior entity carries `account_id` + RLS member scoping. A digest is
-**reference content shared across tenants**: one row per
-`(jurisdiction, period)`, no `account_id`. So:
+## 1. One digest, shared by everyone in that area
 
-- RLS is `SELECT … USING (true)` for `authenticated` (migration `0016`) —
-  everyone may read it; writes are service/admin only.
-- No audit trigger — it's regenerated monthly, not a record of tenant
-  action.
-- Personalization happens at **read time** by *resolving* which
-  jurisdictions an account touches, not by copying a digest per account.
-  `accountJurisdictions()` = `distinct(jurisdiction)` UNION over the
-  account's non-archived trucks + items. One body of content, fanned out by
-  a query — no duplication, no per-account rows to keep in sync.
+Most tables in this app are "tenant-scoped" — every row belongs to one account,
+and you can only see your own rows. Trucks, permits, reminders, all work that
+way.
 
-## 2. Idempotent generation (`ensureDigest`)
+Digests are different. A digest is **reference content**, like a help article.
+The exact same Minneapolis guide should appear for every account that has a
+truck in Minneapolis. So we built the table differently:
 
-Keyed by the unique `(jurisdiction, period)`. If a row exists it's left
-alone — so re-running the cron, or an admin clicking "generate" twice,
-never overwrites human edits or burns Claude tokens. Only a *missing*
-(jurisdiction, period) calls the model. Same "force a tool, re-validate with
-zod, store" discipline as the OCR pipeline (code note 04); content is stored
-as constrained markdown (`### Heading` + paragraphs) so the in-app renderer
-needs no markdown dependency.
+- It lives in its own table called `jurisdiction_digest`.
+- There is **no `account_id` column**. The digest doesn't belong to anyone.
+- There is exactly **one row per (jurisdiction, month)** — for example, one
+  row for "Minneapolis Health Department / 2026-05".
+- Every signed-in user is allowed to read every row. Only the system and
+  admins can write to it.
 
-If `ANTHROPIC_API_KEY` is absent the generator returns
-`{ created:false, skipped:"no-key" }` — the run still proceeds, just
-produces nothing. Resilient, like every external dependency in this build.
+Picture the table like this:
 
-## 3. One pipeline, cron + manual (the pattern, final time)
+| jurisdiction                    | period   | title       | content      | status    |
+|---------------------------------|----------|-------------|--------------|-----------|
+| Minneapolis Health Department   | 2026-05  | May prep…   | (markdown)   | published |
+| St. Paul Health Department      | 2026-05  | May prep…   | (markdown)   | published |
+| Minneapolis Health Department   | 2026-06  | June prep…  | (markdown)   | draft     |
 
-`runMonthlyDigests(period?)` does generate-then-email for all accounts. The
-Inngest monthly cron and the admin "Generate & send now" button both call
-exactly it — identical behaviour, demoable on demand without waiting for the
-1st. This is the same cron+manual seam used for OCR, reminders, SMS, and
-voice; by now it's the house style.
+No account is mentioned anywhere. That's intentional.
 
-## 4. Advisory, explicitly
+## 2. How the script figures out who gets what
 
-The prompt asks for general guidance and the UI + email both label it
-"general guidance for your area — not legal advice." A compliance product
-must not imply the AI's monthly tips are authoritative; the operator's
-jurisdiction is always the source of truth. This mirrors the brief's
-"never claim renewed from OCR" instinct — the AI assists, it doesn't
-certify.
+There's no "this account → this digest" link stored anywhere. The connection is
+worked out fresh each time, by matching jurisdiction names.
+
+For any given account, the helper `accountJurisdictions(accountId)` does this:
+
+1. Look at all of the account's non-archived trucks → collect their
+   jurisdictions.
+2. Look at all of the account's non-archived compliance items (permits, certs,
+   etc.) → collect their jurisdictions.
+3. Combine the two lists and remove duplicates.
+
+Result: a list like `["Minneapolis Health Department", "St. Paul Health Department"]`.
+
+Then `digestsForAccount(accountId, period)` does step two:
+
+> Give me every published digest for this month **where the jurisdiction is in
+> that list**.
+
+That's the filter. Same shared digest rows, different filter per account.
+
+**Why this is nice:**
+
+- Admin edits the Minneapolis digest once → every account in Minneapolis sees
+  the update immediately.
+- A user adds a new truck in St. Paul → next page load, the St. Paul digest
+  just appears for them. No backfill job.
+- Archive a truck → that jurisdiction quietly drops out of their view.
+
+No per-account copies, no sync job, nothing to keep in step.
+
+## 3. Generation: only write if it doesn't already exist
+
+The generator is keyed by `(jurisdiction, period)`. Before it calls Claude, it
+checks: does a row for this jurisdiction and this month already exist?
+
+- **Yes** → leave it alone. Don't overwrite. (An admin might have edited it,
+  and even if they didn't, there's no reason to burn API tokens regenerating
+  the same content.)
+- **No** → call Claude, get back a title and a few sections of markdown, save
+  it as `published`.
+
+This is what makes the cron safe to re-run, and the admin's "Generate now"
+button safe to click twice. Same input, same outcome — nothing gets clobbered.
+
+If `ANTHROPIC_API_KEY` isn't set, the generator just returns "skipped" and the
+rest of the run continues. The pipeline never crashes because of a missing key;
+it just produces nothing that month.
+
+## 4. One pipeline, two triggers
+
+`runMonthlyDigests(period?)` is the full pipeline: generate any missing digests
+for the month, then walk every account, work out their jurisdictions, and email
+them links to the relevant digests.
+
+Two things call it:
+
+- The **monthly Inngest cron** — runs automatically on the 1st of the month
+  at 13:00 UTC.
+- The **admin "Generate & send now" button** — same function, on demand. Lets
+  you demo it without waiting for the 1st.
+
+Same code path, identical behaviour. (This cron + manual-button pattern is the
+same one we use for OCR, reminders, SMS, and voice — house style by this point.)
+
+## 5. Advisory only, on purpose
+
+The prompt asks Claude for "general guidance" and the UI + email both label the
+content **"general guidance for your area — not legal advice."** This is a
+compliance product; we never want to imply that the AI's monthly tips are
+authoritative. The operator's actual jurisdiction is always the source of
+truth. The AI assists, it doesn't certify — same instinct as "never claim
+renewed from OCR alone."
 
 ---
 
 ## Files that matter
 
-- `lib/db/schema.ts` — `jurisdiction_digest`; `0015` + `0016` (shared-read
-  RLS).
-- `lib/digest/generate.ts` — idempotent Claude generation per (j, period).
-- `lib/digest/resolve.ts` — account→jurisdictions + digestsForAccount.
-- `lib/digest/run.ts` — generate-all-then-email pipeline.
+- `lib/db/schema.ts` — `jurisdiction_digest` table; migrations `0015` + `0016`.
+- `lib/digest/generate.ts` — Claude generation per (jurisdiction, period),
+  skips if a row already exists.
+- `lib/digest/resolve.ts` — `accountJurisdictions()` and `digestsForAccount()`.
+- `lib/digest/run.ts` — the generate-then-email pipeline.
 - `lib/digest/email.ts`, `period.ts`.
-- `inngest/functions/digest.ts` — monthly cron (registered in `/api/inngest`).
-- `lib/trpc/routers/digest.ts` — `forMyAccount`; admin `digestList` /
-  `generateAndSendDigests` / `editDigest` in `admin.ts`.
+- `inngest/functions/digest.ts` — the monthly cron.
+- `lib/trpc/routers/digest.ts` — `forMyAccount`; admin
+  `digestList` / `generateAndSendDigests` / `editDigest` in `admin.ts`.
 - `app/(app)/digest/page.tsx`, dashboard widget, sidebar nav,
   `components/features/digest-content.tsx`, `digest-admin.tsx`.
 
 ## How to demo
 
-1. Ensure a truck/item has a Twin Cities jurisdiction (e.g. "Minneapolis
-   Health Department").
-2. **/admin → Generate & send now** → digests are Claude-written for the
-   seeded MN jurisdictions; accounts get an email (Resend live, or logged).
+1. Make sure a truck or compliance item has a Twin Cities jurisdiction
+   (e.g. "Minneapolis Health Department").
+2. **/admin → Generate & send now** → digests get written by Claude for the
+   seeded MN jurisdictions; accounts receive an email (real send via Resend,
+   or just logged if no key).
 3. **Dashboard** shows the "Inspection prep · your area" widget;
-   **/digest** renders the full content for your jurisdictions.
-4. Admin can edit a digest (title/body) — it stays published, attributed to
-   the editor.
+   **/digest** renders the full content for the jurisdictions your account
+   touches.
+4. An admin can edit a digest's title or body — it stays published and the
+   edit is attributed to that admin.

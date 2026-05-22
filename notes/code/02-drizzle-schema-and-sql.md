@@ -189,6 +189,56 @@ Why this *must* be in the database, not app code:
 rights against a fixed schema, so a low-privilege caller still gets audited
 and the definer can't be tricked into a malicious `audit_log`.
 
+### c) Why writes inside `withActor` MUST use `tx`, not the global `db`
+
+The audit trigger above only works because `withActor` opens **one transaction**
+and pins the actor as a *transaction-local* Postgres setting
+(`set_config('permitkeep.actor_id', userId, true)` — the trailing `true` is
+the magic word: this value lives **only** inside that transaction, on that
+connection). The `tx` argument handed to the closure is that transaction's
+own handle:
+
+```ts
+await withActor(ctx.account.userId, async (tx) => {
+  await tx.update(complianceItem).set({ … }) …  // ✅ same transaction → audited as user
+});
+```
+
+If you mix in the global `db` inside the closure — for example
+`await getDb().update(complianceItem)…` — **three things go wrong, all of
+them silent**:
+
+1. **The audit row records the actor as `NULL` ("system did it").** The
+   sticky note only exists on the `tx` transaction's connection. A query
+   issued through `db` runs on a **different** pooled connection that has
+   no sticky note. The trigger still fires (it always does), reads an
+   empty `permitkeep.actor_id`, and stamps `actor_user_id = NULL`. Your
+   "who did this?" guarantee is gone for that row — not loudly, just
+   wrong.
+2. **The write escapes rollback.** The point of `withActor` is "all of
+   these changes commit together, or none of them do." A `db` write is a
+   separate autocommitted statement on a separate connection — it has
+   **already committed** by the time your closure throws. Rollback can't
+   reach it, so a partial state survives: e.g. an `extraction_cost` row
+   billed with no `extraction_proposal` to point at, or
+   `file.status = 'extracted'` with no proposal row beneath it.
+3. **Snapshot drift inside the closure.** Postgres gives each transaction
+   its own visibility snapshot. A `tx.insert(...)` is **invisible** to a
+   sibling `db.select(...)` until `tx` commits, so a "read what I just
+   wrote" pattern silently misses the row. You'll debug it as an
+   `await`-ordering bug for an hour before realising it's actually two
+   transactions not seeing each other.
+
+The rule, stated as a single sentence so future-you doesn't forget:
+**inside `withActor(ctx.account.userId, async (tx) => { … })`, every DB
+call in the closure must go through `tx` — never the global `db`. Reads
+too, if they need to see writes made earlier in the same closure.**
+
+The codebase enforces this by convention, not by the compiler — `db` is
+still importable inside the closure. This is exactly the kind of bug a
+test in the §7 launch-checklist suite should pin down (a deliberately-
+failing mutation that asserts the row never lands).
+
 ---
 
 ## 5. Build it yourself (exercise)

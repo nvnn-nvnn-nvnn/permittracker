@@ -62,6 +62,7 @@ export async function runExtractionForFile(fileId: string): Promise<{
       renewalFeeAmount: a.renewal_fee_amount.confidence,
       feeDueDate: a.fee_due_date_if_shown.confidence,
       holderName: a.holder_name.confidence,
+      permitClass: a.permit_class.confidence,
     };
 
     // Brief: low confidence on expiration date → flag manual review.
@@ -90,6 +91,7 @@ export async function runExtractionForFile(fileId: string): Promise<{
           ),
           feeDueDate: parseIsoDate(a.fee_due_date_if_shown.value),
           holderName: a.holder_name.value,
+          permitClass: a.permit_class.value,
           fieldConfidence,
         })
         .returning({ id: extractionProposal.id });

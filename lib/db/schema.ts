@@ -294,6 +294,8 @@ export const complianceItem = pgTable(
     }),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     ...timestamps,
+    // Permit Class
+    permitClass: text("permit_class"),
   },
   (t) => [
     index("compliance_item_account_idx").on(t.accountId),
@@ -450,6 +452,9 @@ export const extractionProposal = pgTable(
       { onDelete: "set null" },
     ),
     ...timestamps,
+
+    // permit check schema implementation
+    permitClass: text("permit_class")
   },
   (t) => [
     index("extraction_proposal_account_idx").on(t.accountId),

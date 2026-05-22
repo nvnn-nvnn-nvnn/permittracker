@@ -11,11 +11,11 @@ Source of caveats this expands on: `00-decisions.md` → Known caveats.
 
 ## 0. Pre-flight (local, before any prod work)
 
-- [ ] `npm run typecheck` clean
-- [ ] `npm run lint` clean
-- [ ] `npm run build` clean (then `rm -rf .next` before `npm run dev` again)
-- [ ] Working tree committed (`git status` clean)
-- [ ] Read `00-decisions.md` Known caveats end-to-end so nothing below is a
+- [x] `npm run typecheck` clean
+- [x] `npm run lint` clean
+- [x] `npm run build` clean (then `rm -rf .next` before `npm run dev` again)
+- [x] Working tree committed (`git status` clean)
+- [x] Read `00-decisions.md` Known caveats end-to-end so nothing below is a
       surprise
 
 ## 1. Provision production accounts + secrets
@@ -23,34 +23,34 @@ Source of caveats this expands on: `00-decisions.md` → Known caveats.
 Use **separate** prod keys — never reuse dev. All flow through
 `lib/env.ts`; this is config, not code.
 
-- [ ] **Supabase**: new *production* project created
-- [ ] `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`,
+- [x] **Supabase**: new *production* project created
+- [x] `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`,
       `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (prod)
-- [ ] Supabase → Auth → URL config: Site URL = prod domain, redirect
+- [x] Supabase → Auth → URL config: Site URL = prod domain, redirect
       `https://<domain>/auth/callback`
-- [ ] **Anthropic**: prod key in its own workspace → `ANTHROPIC_API_KEY`
+- [x] **Anthropic**: prod key in its own workspace → `ANTHROPIC_API_KEY`
 - [ ] **Resend**: verified sending domain; `EMAIL_FROM` = address on it
       (dev `onboarding@resend.dev` only mails you)
 - [ ] **Stripe**: live-mode `STRIPE_SECRET_KEY`
 - [ ] **Twilio**: A2P 10DLC **registration submitted** (weeks-long — start
       first); `TWILIO_ACCOUNT_SID/AUTH_TOKEN/FROM_NUMBER`
 - [ ] **Postmark**: inbound server + `POSTMARK_INBOUND_SECRET`
-- [ ] `REMINDER_TOKEN_SECRET` = fresh long random, **different from dev**
-- [ ] `APP_URL` = production https URL
+- [x] `REMINDER_TOKEN_SECRET` = fresh long random, **different from dev**
+- [x] `APP_URL` = production https URL
 - [ ] Inngest prod: `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`
 
 ## 2. Production database
 
-- [ ] `npm run db:migrate` against prod `DATABASE_URL` (all migrations
+- [x] `npm run db:migrate` against prod `DATABASE_URL` (all migrations
       0000→latest)
-- [ ] Verify RLS ON for every tenant table; `permitkeep_audit` triggers
+- [x] Verify RLS ON for every tenant table; `permitkeep_audit` triggers
       present; `audit_log` UPDATE/DELETE blocked (re-run the Phase 2
       append-only probe against prod)
-- [ ] Verify the digest shared-read policy + all member-select policies
-- [ ] Seed one platform admin:
+- [x] Verify the digest shared-read policy + all member-select policies
+- [x] Seed one platform admin:
       `update app_user set is_platform_admin = true where email = '<you>';`
-- [ ] Enable Supabase automated backups / PITR
-- [ ] Confirm Storage bucket `documents` exists + is **private** in prod
+- [~] Enable Supabase automated backups / PITR
+- [x] Confirm Storage bucket `documents` exists + is **private** in prod
 
 ## 3. Stripe catalog + webhook
 

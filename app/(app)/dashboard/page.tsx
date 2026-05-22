@@ -1,11 +1,16 @@
+// "use client";
+
 import Link from "next/link";
 import { requireAccountContext } from "@/lib/auth/session";
 import { computeAccountStatus } from "@/lib/status";
 import { digestsForAccount } from "@/lib/digest/resolve";
 import { currentPeriod } from "@/lib/digest/period";
 import { fmtDate, fmtDaysLeft } from "@/lib/format";
+import { Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+
+import {serverApi} from "@/lib/trpc/server";
 
 export const metadata = { title: "Dashboard · PermitKeep" };
 export const dynamic = "force-dynamic";
@@ -52,6 +57,12 @@ export default async function DashboardPage() {
   const ctx = await requireAccountContext();
   const result = await computeAccountStatus(ctx.accountId);
   const digests = await digestsForAccount(ctx.accountId, currentPeriod());
+  // const trucksCount 
+  const api = await serverApi();
+
+  const trucks = await api.truck.list();
+  const activeTrucks = trucks.filter((t) => t.isActive).length;
+
   const s = STATUS[result.status];
   const { counts } = result;
 
@@ -65,8 +76,22 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Dashboard
+            </h1>
+            <Badge
+              variant="outline"
+              className="gap-1.5 border-border/70 bg-card px-2.5 py-1 text-xs font-medium"
+            >
+              <Truck className="size-3.5 text-primary" />
+              <span className="tabular-nums">{activeTrucks}</span>
+              <span className="text-muted-foreground">
+                active {activeTrucks === 1 ? "truck" : "trucks"}
+              </span>
+            </Badge>
+          </div>
           <p className="text-sm text-muted-foreground">
             {ctx.accountName} · {ctx.planTier} plan
           </p>
@@ -159,6 +184,8 @@ export default async function DashboardPage() {
         </Card>
       )}
 
+
+
       {/* Urgency list */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -229,6 +256,26 @@ export default async function DashboardPage() {
           </Card>
         )}
       </div>
+
+      <Card>
+        <CardContent className="p-5">
+          <div className="mb-3 flex items-center justify-between">
+
+            <p className="text-md font-medium uppercase tracking-wide">
+              Trucks Count
+            </p>
+            <p>
+              {trucks.length}
+              {/* `$ trucks.length truck${trucks.length === 1? "" : "s"}` */}
+               trucks
+            </p>
+
+    
+      
+          </div>
+
+        </CardContent>
+      </Card>
 
       {digests.length > 0 && (
         <Card>

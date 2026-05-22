@@ -230,10 +230,12 @@ export async function computeAccountStatus(
   for (const [commId, truckNames] of dependents) {
     const c = commById.get(commId);
     if (!c || c.archivedAt) continue;
+  
     for (const kind of ["permit", "contract"] as const) {
       const d = dayDiff(
         kind === "permit" ? c.permitExpiration : c.contractExpiration,
       );
+      const yellowWindow = kind == "contract" ? 45:30
       if (d === null) continue;
       if (d < 0) {
         red++;
@@ -248,7 +250,7 @@ export async function computeAccountStatus(
         reasons.push(
           `Commissary "${c.name}" ${kind} expired — blocks ${truckNames.join(", ")}`,
         );
-      } else if (d <= 30) {
+      } else if (d <=  yellowWindow) {
         yellow++;
         commissaryAlerts.push({
           commissaryId: c.id,

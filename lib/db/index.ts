@@ -15,16 +15,32 @@ export type DbTx = PostgresJsDatabase<typeof schema>;
  * the database for any anon/auth connections; the app additionally filters by
  * account_id on every query (defense in depth — see brief).
  *
- * Lazily instantiated so `next build` and stubbed flows don't require a live
- * DATABASE_URL.
+ * Cached on `globalThis` so Next.js dev hot-reloads can't leak a fresh pool
+ * on every module re-evaluation (Postgres error 53300 otherwise). Capped to
+ * a small pool because Supabase free-tier connection slots are scarce; this
+ * one pool is shared by the whole process.
  */
-let _db: ReturnType<typeof drizzle<typeof schema>> | null = null;
+type Db = ReturnType<typeof drizzle<typeof schema>>;
+type Pg = ReturnType<typeof postgres>;
 
-export function getDb() {
-  if (_db) return _db;
-  const client = postgres(requireEnv("DATABASE_URL"), { prepare: false });
-  _db = drizzle(client, { schema });
-  return _db;
+const globalForDb = globalThis as unknown as {
+  __pk_pg?: Pg;
+  __pk_db?: Db;
+};
+
+export function getDb(): Db {
+  if (globalForDb.__pk_db) return globalForDb.__pk_db;
+  const client =
+    globalForDb.__pk_pg ??
+    postgres(requireEnv("DATABASE_URL"), {
+      prepare: false,
+      max: 10,
+      idle_timeout: 20,
+    });
+  globalForDb.__pk_pg = client;
+  const db = drizzle(client, { schema });
+  globalForDb.__pk_db = db;
+  return db;
 }
 
 /**

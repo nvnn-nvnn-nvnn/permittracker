@@ -18,7 +18,7 @@ const field = (desc: string) => ({
       type: ["string", "null"],
       description: desc,
     },
-    confidence: { type: "string", enum: confidenceValues },
+    confidence: { type: "string", enum: confidenceValues }
   },
   required: ["value", "confidence"],
   additionalProperties: false,
@@ -56,6 +56,9 @@ export const extractionTool = {
       holder_name: field(
         "Business / truck / person the document is issued to.",
       ),
+      permit_class: field(
+        "Permit Class or Category, e.g. 'Mobile Food Unit', 'Class A'"
+      ),
     },
     required: [
       "document_type",
@@ -67,6 +70,7 @@ export const extractionTool = {
       "renewal_fee_amount",
       "fee_due_date_if_shown",
       "holder_name",
+      "permit_class",
     ],
     additionalProperties: false,
   },
@@ -89,6 +93,7 @@ export const extractionArgsSchema = z.object({
   renewal_fee_amount: fieldSchema,
   fee_due_date_if_shown: fieldSchema,
   holder_name: fieldSchema,
+  permit_class: fieldSchema,
 });
 
 export type ExtractionArgs = z.infer<typeof extractionArgsSchema>;

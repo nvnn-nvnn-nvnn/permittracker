@@ -232,6 +232,7 @@ export const fileRouter = createTRPCRouter({
           set.feeAmountCents = proposal.renewalFeeAmountCents;
         if (proposal.feeDueDate) set.feeDueDate = proposal.feeDueDate;
         if (proposal.holderName) set.holderName = proposal.holderName;
+        if (proposal.permitClass) set.permitClass = proposal.permitClass;
 
         const [updatedItem] = await tx
           .update(complianceItem)

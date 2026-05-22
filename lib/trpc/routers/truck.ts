@@ -161,4 +161,38 @@ export const truckRouter = createTRPCRouter({
         return row;
       });
     }),
+
+
+
+  rename: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string().min(1).max(120),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Ownership re-check — does this id belong to MY account?
+      const db = getDb();
+      const [owned] = await db
+        .select({ id: truck.id })
+        .from(truck)
+        .where(
+          and(
+            eq(truck.id, input.id),
+            eq(truck.accountId, ctx.account.accountId),
+          ),
+        )
+        .limit(1);
+      if (!owned) throw new TRPCError({ code: "NOT_FOUND" });
+
+      return withActor(ctx.account.userId, async (tx) => {
+        const [row] = await tx
+          .update(truck)
+          .set({ name: input.name, updatedAt: new Date() })
+          .where(eq(truck.id, input.id))
+          .returning();
+        return row;
+      });
+    }),
 });

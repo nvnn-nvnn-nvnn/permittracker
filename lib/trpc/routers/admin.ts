@@ -247,6 +247,7 @@ export const adminRouter = createTRPCRouter({
           set.feeAmountCents = proposal.renewalFeeAmountCents;
         if (proposal.feeDueDate) set.feeDueDate = proposal.feeDueDate;
         if (proposal.holderName) set.holderName = proposal.holderName;
+        if (proposal.permitClass) set.permitClass = proposal.permitClass;
 
         const [updated] = await tx
           .update(complianceItem)
