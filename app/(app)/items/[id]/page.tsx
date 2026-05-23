@@ -24,8 +24,11 @@ export default async function ItemDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const ctx = await requireAccountContext();
-  const api = await serverApi();
+  // ctx + api share the cached account context — run them together.
+  const [ctx, api] = await Promise.all([
+    requireAccountContext(),
+    serverApi(),
+  ]);
 
   let item;
   try {

@@ -1,10 +1,13 @@
 "use client";
+import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   signInWithPassword,
   signUpWithPassword,
   signInWithMagicLink,
+  requestPasswordReset,
+  resetPassword,
   type AuthActionState,
 } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
@@ -40,10 +43,25 @@ export function PasswordSignInForm() {
     <form action={action} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" name="email" type="email" required autoComplete="email" />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          defaultValue={state.email ?? ""}
+        />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">Password</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password">Password</Label>
+          <Link
+            href="/forgot-password"
+            className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Forgot password?
+          </Link>
+        </div>
         <Input
           id="password"
           name="password"
@@ -64,11 +82,24 @@ export function SignUpForm() {
     <form action={action} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label htmlFor="fullName">Full name</Label>
-        <Input id="fullName" name="fullName" type="text" autoComplete="name" />
+        <Input
+          id="fullName"
+          name="fullName"
+          type="text"
+          autoComplete="name"
+          defaultValue={state.fullName ?? ""}
+        />
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" name="email" type="email" required autoComplete="email" />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          defaultValue={state.email ?? ""}
+        />
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">Password</Label>
@@ -100,10 +131,72 @@ export function MagicLinkForm() {
           required
           autoComplete="email"
           placeholder="you@foodtruck.com"
+          defaultValue={state.email ?? ""}
         />
       </div>
       <ErrorText state={state} />
       <SubmitButton label="Email me a magic link" />
+    </form>
+  );
+}
+
+export function ForgotPasswordForm() {
+  const [state, action] = useActionState(requestPasswordReset, initial);
+  if (state.ok) {
+    return (
+      <div className="rounded-md bg-muted px-3 py-3 text-sm">
+        If an account exists for <strong>{state.email}</strong>, a reset link is
+        on its way. Check your inbox (and spam).
+      </div>
+    );
+  }
+  return (
+    <form action={action} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="forgot-email">Email</Label>
+        <Input
+          id="forgot-email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          defaultValue={state.email ?? ""}
+        />
+      </div>
+      <ErrorText state={state} />
+      <SubmitButton label="Send reset link" />
+    </form>
+  );
+}
+
+export function ResetPasswordForm() {
+  const [state, action] = useActionState(resetPassword, initial);
+  return (
+    <form action={action} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="new-password">New password</Label>
+        <Input
+          id="new-password"
+          name="password"
+          type="password"
+          required
+          autoComplete="new-password"
+          minLength={8}
+        />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="confirm-password">Confirm new password</Label>
+        <Input
+          id="confirm-password"
+          name="confirm"
+          type="password"
+          required
+          autoComplete="new-password"
+          minLength={8}
+        />
+      </div>
+      <ErrorText state={state} />
+      <SubmitButton label="Update password" />
     </form>
   );
 }

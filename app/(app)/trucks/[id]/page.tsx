@@ -15,14 +15,20 @@ export default async function TruckDetailPage({
 }) {
   const { id } = await params;
   const api = await serverApi();
+  // Fire byId + commissary.list in parallel. byId may throw NOT_FOUND; the
+  // commissary list runs alongside it and is discarded on rejection — a
+  // 1-RTT save on the happy path, no behavioural change on the not-found case.
   let truck;
+  let commissaries;
   try {
-    truck = await api.truck.byId({ id });
+    [truck, commissaries] = await Promise.all([
+      api.truck.byId({ id }),
+      api.commissary.list(),
+    ]);
   } catch (e) {
     if (e instanceof TRPCError && e.code === "NOT_FOUND") notFound();
     throw e;
   }
-  const commissaries = await api.commissary.list();
 
   return (
     <div className="space-y-8">

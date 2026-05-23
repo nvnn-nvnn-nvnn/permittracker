@@ -54,13 +54,19 @@ function severityOf(u: {
 }
 
 export default async function DashboardPage() {
-  const ctx = await requireAccountContext();
-  const result = await computeAccountStatus(ctx.accountId);
-  const digests = await digestsForAccount(ctx.accountId, currentPeriod());
-  // const trucksCount 
-  const api = await serverApi();
+  // Auth + tRPC caller share the same cached account context (cheap call),
+  // so kicking them off together costs nothing extra.
+  const [ctx, api] = await Promise.all([
+    requireAccountContext(),
+    serverApi(),
+  ]);
 
-  const trucks = await api.truck.list();
+  // Three independent I/O calls — fire in parallel instead of waterfalled.
+  const [result, digests, trucks] = await Promise.all([
+    computeAccountStatus(ctx.accountId),
+    digestsForAccount(ctx.accountId, currentPeriod()),
+    api.truck.list(),
+  ]);
   const activeTrucks = trucks.filter((t) => t.isActive).length;
 
   const s = STATUS[result.status];
