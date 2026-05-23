@@ -89,7 +89,7 @@ export function AppShell({
       <div className="space-y-1 px-2 pt-1">
         <p className="flex items-center gap-2 text-base font-semibold tracking-tight">
           <span className="grid size-7 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-[var(--shadow-soft)]">
-            P
+            VG
           </span>
           Vend<span className="text-primary">Guard</span>
         </p>
