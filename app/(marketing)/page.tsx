@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { Logo } from "@/components/brand/logo";
 import { getAuthUser } from "@/lib/auth/session";
 
 export default async function MarketingHome() {
   const user = await getAuthUser();
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-8 px-5 py-16">
-      <div className="space-y-3">
-        <p className="text-sm font-medium text-primary">VendGuard</p>
+      <div className="space-y-4">
+        <Logo variant="lockup" graphicClassName="h-10" textClassName="h-7" />
         <h1 className="text-3xl font-semibold leading-tight tracking-tight">
           Stay open.
         </h1>

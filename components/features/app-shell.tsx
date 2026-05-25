@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/brand/logo";
 import { signOut } from "@/lib/auth/actions";
 
 interface NavItem {
@@ -87,12 +88,7 @@ export function AppShell({
   const sidebarInner = (
     <div className="flex h-full flex-col gap-8 p-5">
       <div className="space-y-1 px-2 pt-1">
-        <p className="flex items-center gap-2 text-base font-semibold tracking-tight">
-          <span className="grid size-7 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-[var(--shadow-soft)]">
-            VG
-          </span>
-          Vend<span className="text-primary">Guard</span>
-        </p>
+        <Logo variant="lockup" graphicClassName="h-7" textClassName="h-5" />
         <p className="truncate pl-9 text-xs text-muted-foreground">
           {accountName}
         </p>
@@ -148,12 +144,7 @@ export function AppShell({
           >
             {open ? <X /> : <Menu />}
           </Button>
-          <span className="flex items-center gap-2 text-sm font-semibold">
-            <span className="grid size-6 place-items-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
-              P
-            </span>
-            Permit<span className="text-primary">Keep</span>
-          </span>
+          <Logo variant="lockup" graphicClassName="h-6" textClassName="h-4" />
         </header>
         <main className="min-w-0 flex-1 px-4 py-6 md:px-10 md:py-10">
           <div className="mx-auto w-full max-w-5xl">{children}</div>
