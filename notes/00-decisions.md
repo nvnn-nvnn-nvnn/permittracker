@@ -30,6 +30,18 @@ These were confirmed with the owner before any code was written.
 
 ## Data-model scope decisions (not stack deviations)
 
+- **2026-05-26 — `compliance_item.jurisdiction` is required at the input
+  layer.** Zod (`itemInput.jurisdiction`) now enforces `min(1)`; the form
+  marks the input `required`. The DB column remains nullable for now —
+  existing rows may have NULL and we don't want a `NOT NULL` migration to
+  fail on the populated table. Follow-up: backfill + `NOT NULL` migration
+  once existing rows are audited. Rationale: every compliance item is
+  issued by some authority; an empty jurisdiction is data debt. Considered
+  and rejected: forcing child item jurisdiction to match its parent —
+  real-world parent→child chains routinely cross jurisdictions
+  (statewide MFU license → city event permit), so that rule would block
+  the common case.
+
 - **Phase 2 — reminder offsets on the item, not a separate table.** The
   brief's ReminderSchedule defaults are stored as `compliance_item
   .reminder_days_before` (int[]). Rationale: avoid a near-empty table that

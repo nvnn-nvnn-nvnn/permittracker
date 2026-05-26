@@ -547,3 +547,19 @@ sender restriction; sent≠delivered; stub silently succeeds). Full detail:
 `04-phase-4-explained.md` → "Post-sign-off fix".
 
 **Phase 4 demoed and signed off by owner (2026-05-18). Cleared for Phase 5.**
+
+---
+
+### 2026-05-26 — Item jurisdiction made required (post-Phase 6)
+
+Tightened `itemInput.jurisdiction` in [lib/validators.ts](../lib/validators.ts)
+from `optionalTrimmed(120)` to a required `string().trim().min(1).max(120)`,
+matching the existing `truckInput.jurisdiction` rule. Added `required` to the
+form input in [components/features/item-form.tsx](../components/features/item-form.tsx)
+for instant HTML5 feedback. **Did not** change `compliance_item.jurisdiction`
+to `NOT NULL` in the DB — existing rows may hold NULL and that migration
+would fail on a populated table without a backfill plan. Server-side Zod
+validation catches all *new* writes; backfill + `NOT NULL` constraint is a
+follow-up. Decision recorded in `00-decisions.md`. Rejected alternative:
+forcing parent/child jurisdictions to match (would block the common
+state-license → city-permit dependency).

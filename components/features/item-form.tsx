@@ -184,6 +184,7 @@ export function ItemForm({
             id="jurisdiction"
             name="jurisdiction"
             list="jurisdictions"
+            required
             defaultValue={item?.jurisdiction ?? ""}
           />
           <datalist id="jurisdictions">

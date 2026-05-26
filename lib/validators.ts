@@ -26,7 +26,7 @@ const optionalUuid = z.preprocess(
 export const truckInput = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
   plateOrVin: optionalTrimmed(60),
-  jurisdiction: optionalTrimmed(120),
+  jurisdiction: z.string().trim().min(1, "Jurisdiction is required").max(120),
   isActive: z.boolean().default(true),
   commissaryId: optionalUuid,
   notes: optionalTrimmed(2000),
@@ -90,7 +90,7 @@ export function defaultRemindersFor(
 export const itemInput = z.object({
   itemType: z.enum(itemTypeValues),
   subtype: optionalTrimmed(80),
-  jurisdiction: optionalTrimmed(120),
+  jurisdiction: z.string().trim().min(1, "Jurisdiction is required").max(120),
   identifier: optionalTrimmed(120),
   issueDate: optionalDate,
   expirationDate: optionalDate,
