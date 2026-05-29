@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ItemsChecklist } from "@/components/features/items-checklist";
 
 export const metadata = { title: "Compliance items · VendGuard" };
 export const dynamic = "force-dynamic";
@@ -42,6 +43,8 @@ export default async function ItemsPage() {
           Add item
         </Link>
       </div>
+
+      <ItemsChecklist items={items} />
 
       {sorted.length === 0 ? (
         <Card>

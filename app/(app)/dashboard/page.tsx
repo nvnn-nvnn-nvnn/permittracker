@@ -263,6 +263,8 @@ export default async function DashboardPage() {
         )}
       </div>
 
+  {/* 
+  
       <Card>
         <CardContent className="p-5">
           <div className="mb-3 flex items-center justify-between">
@@ -272,7 +274,7 @@ export default async function DashboardPage() {
             </p>
             <p>
               {trucks.length}
-              {/* `$ trucks.length truck${trucks.length === 1? "" : "s"}` */}
+              `$ trucks.length truck${trucks.length === 1? "" : "s"}`
                trucks
             </p>
 
@@ -282,6 +284,15 @@ export default async function DashboardPage() {
 
         </CardContent>
       </Card>
+
+  
+  
+  
+  
+  */}
+
+
+      
 
       {digests.length > 0 && (
         <Card>

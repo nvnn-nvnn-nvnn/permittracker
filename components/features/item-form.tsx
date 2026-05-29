@@ -33,25 +33,31 @@ export function ItemForm({
   parentOptions = [],
   people = [],
   venues = [],
+  initialType,
+  initialSubtype,
 }: {
   item?: ComplianceItem;
   trucks: TruckOption[];
   parentOptions?: ParentOption[];
   people?: TruckOption[];
   venues?: TruckOption[];
+  initialType?: (typeof itemTypeValues)[number];
+  initialSubtype?: string;
 }) {
   const router = useRouter();
   const utils = trpc.useUtils();
   const isEdit = Boolean(item);
   const [error, setError] = useState<string | null>(null);
-  const [type, setType] = useState(item?.itemType ?? "permit");
+  const [type, setType] = useState(
+    item?.itemType ?? initialType ?? "permit",
+  );
 
   // Reminder offsets are managed as state (chips + custom add), not raw text.
   const [reminderDays, setReminderDays] = useState<number[]>(() =>
     item?.reminderDaysBefore?.length
       ? [...item.reminderDaysBefore].sort((a, b) => b - a)
       : defaultRemindersFor(
-          (item?.itemType ?? "permit") as (typeof itemTypeValues)[number],
+          (item?.itemType ?? initialType ?? "permit") as (typeof itemTypeValues)[number],
         ),
   );
   const [remindersTouched, setRemindersTouched] = useState(false);
@@ -175,7 +181,7 @@ export function ItemForm({
           <Input
             id="subtype"
             name="subtype"
-            defaultValue={item?.subtype ?? ""}
+            defaultValue={item?.subtype ?? initialSubtype ?? ""}
             placeholder="Mobile food unit license"
           />
         </Field>
