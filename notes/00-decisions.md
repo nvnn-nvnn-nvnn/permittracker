@@ -119,6 +119,16 @@ These were confirmed with the owner before any code was written.
 
 ## Known caveats / limitations (revisit later)
 
+- **SMS / voice deferred at launch (2026-05-21).** Twilio A2P 10DLC
+  registration not yet submitted; SMS reminders and voice escalation are
+  **disabled** at launch. Email is the sole reminder channel. The
+  `reminder_dispatch.channel` enum already supports `sms`/`voice` so
+  re-enabling is configuration, not code: submit A2P, add
+  `TWILIO_ACCOUNT_SID/AUTH_TOKEN/FROM_NUMBER` to env, revert the pricing
+  copy that marks SMS/voice as "Coming soon". Until then,
+  `PLANS[tier].sms` / `voiceEscalation` flags on Pro/Fleet are advisory
+  only — the dispatcher won't create those channel rows and the no-op
+  adapter would skip them anyway.
 - **Resend dev sender.** `EMAIL_FROM` defaults to Resend's shared
   `onboarding@resend.dev`, which **only delivers to the email the Resend
   account was created with**. If that differs from the PermitKeep

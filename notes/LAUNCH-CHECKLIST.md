@@ -31,9 +31,11 @@ Use **separate** prod keys — never reuse dev. All flow through
 - [x] **Anthropic**: prod key in its own workspace → `ANTHROPIC_API_KEY`
 - [ ] **Resend**: verified sending domain; `EMAIL_FROM` = address on it
       (dev `onboarding@resend.dev` only mails you)
-- [ ] **Stripe**: live-mode `STRIPE_SECRET_KEY`
-- [ ] **Twilio**: A2P 10DLC **registration submitted** (weeks-long — start
-      first); `TWILIO_ACCOUNT_SID/AUTH_TOKEN/FROM_NUMBER`
+- [X] **Stripe**: live-mode `STRIPE_SECRET_KEY`
+- [—] **Twilio**: **DEFERRED at launch** — A2P 10DLC registration not yet
+      submitted. SMS + voice channels disabled; pricing copy marks them
+      "Coming soon". Re-enable: submit A2P, set
+      `TWILIO_ACCOUNT_SID/AUTH_TOKEN/FROM_NUMBER`, revert pricing copy.
 - [ ] **Postmark**: inbound server + `POSTMARK_INBOUND_SECRET`
 - [x] `REMINDER_TOKEN_SECRET` = fresh long random, **different from dev**
 - [x] `APP_URL` = production https URL
@@ -54,7 +56,7 @@ Use **separate** prod keys — never reuse dev. All flow through
 
 ## 3. Stripe catalog + webhook
 
-- [ ] `npm run stripe:setup` against the **live** account (creates
+- [x] `npm run stripe:setup` against the **live** account (creates
       products/prices by `lookup_key`)
 - [ ] Stripe Dashboard → Webhooks → endpoint `https://<domain>/api/webhooks/
       stripe`; set signing secret → `STRIPE_WEBHOOK_SECRET`
@@ -66,7 +68,7 @@ Use **separate** prod keys — never reuse dev. All flow through
 
 ## 4. Deploy (Vercel)
 
-- [~] Vercel project created, **all** env vars set (prod values from §1)
+- [x] Vercel project created, **all** env vars set (prod values from §1)
 - [ ] Custom domain + TLS; Supabase Auth Site URL matches it
 - [ ] Inngest prod app registered; `/api/inngest` reachable; cron jobs
       listed (reminders */5, monthly digest)
@@ -97,9 +99,11 @@ Use **separate** prod keys — never reuse dev. All flow through
       expiry confidence → manual-review banner
 - [ ] **Reminders**: item expiring soon → dispatch scheduled → "Run due
       now" → email arrives → acknowledge link works; unacked >48h → YELLOW
-- [ ] **SMS** (once Twilio live + A2P): reminder text; reply "OK" acks
-- [ ] **Voice** (once Twilio live): 7-day escalation call; press 1 acks;
-      skipped if prior reminder already acked
+- [—] **SMS**: deferred at launch (see §1 Twilio). Re-enable once A2P
+      live: reminder text; reply "OK" acks.
+- [—] **Voice**: deferred at launch (see §1 Twilio). Re-enable once A2P
+      live: 7-day escalation call; press 1 acks; skipped if prior
+      reminder already acked.
 - [ ] **Inbound email**: forward to `{slug}@inbound.permitkeep.com` →
       classified, matched or draft created (test via Settings simulator if
       Postmark not live yet)
@@ -126,7 +130,8 @@ Use **separate** prod keys — never reuse dev. All flow through
       reviewed by counsel
 - [ ] Data-deletion / account-closure process (soft-delete + audit exists;
       define the GDPR/CCPA path)
-- [ ] SMS opt-in language matches the A2P 10DLC campaign
+- [—] SMS opt-in language: deferred at launch with Twilio (see §1).
+      Required once A2P 10DLC is approved and SMS reminders go live.
 
 ---
 

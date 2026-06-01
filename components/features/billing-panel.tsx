@@ -13,10 +13,13 @@ import {
 } from "@/components/ui/card";
 
 // Display catalog — mirrors lib/stripe/index.ts PLANS (server-only there).
+// NOTE: SMS + voice channels are deferred at launch (Twilio A2P 10DLC
+// pending — see notes/00-decisions.md → Known caveats). Pricing copy
+// marks them "Coming soon"; revert once Twilio is live.
 const TIERS = [
   { tier: "starter", label: "Starter", month: 19, year: 190, blurb: "1 truck · 15 items · email reminders" },
-  { tier: "pro", label: "Pro", month: 49, year: 490, blurb: "3 trucks · unlimited items · SMS + voice" },
-  { tier: "fleet", label: "Fleet", month: 129, year: 1290, blurb: "10 trucks · team logins · commissary view" },
+  { tier: "pro", label: "Pro", month: 49, year: 490, blurb: "3 trucks · unlimited items · email reminders · SMS + voice (Coming soon)" },
+  { tier: "fleet", label: "Fleet", month: 129, year: 1290, blurb: "10 trucks · team logins · commissary view · SMS + voice (Coming soon)" },
 ] as const;
 
 type Interval = "month" | "year";

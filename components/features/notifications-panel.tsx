@@ -36,8 +36,8 @@ export function NotificationsPanel() {
       <CardHeader>
         <CardTitle>Notifications &amp; forward-to-inbox</CardTitle>
         <CardDescription>
-          SMS reminders (Pro+) and your unique email address for forwarding
-          renewal notices.
+          SMS reminders (Pro+, coming soon) and your unique email address
+          for forwarding renewal notices.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5 text-sm">
