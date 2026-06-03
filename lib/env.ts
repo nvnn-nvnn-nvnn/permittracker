@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+
 /**
  * Centralized, validated environment access.
  *
@@ -26,6 +27,9 @@ const serverSchema = z.object({
   INNGEST_EVENT_KEY: z.string().optional(),
   INNGEST_SIGNING_KEY: z.string().optional(),
 
+    // --- Sentry (observability). Optional; no-op when unset. ---
+  SENTRY_DSN: z.string().optional(),
+
   // --- Stubbed integrations (wired in later phases) ---
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
@@ -43,6 +47,7 @@ const serverSchema = z.object({
   // --- App ---
   APP_URL: z.string().url().default("http://localhost:3000"),
   REMINDER_TOKEN_SECRET: z.string().min(1).optional(),
+  
 });
 
 const publicSchema = z.object({
@@ -52,11 +57,13 @@ const publicSchema = z.object({
     .optional()
     .default("http://localhost:54321"),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional().default("anon-placeholder"),
+    NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
 });
 
 export const publicEnv = publicSchema.parse({
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
 });
 
 let _serverEnv: z.infer<typeof serverSchema> | null = null;

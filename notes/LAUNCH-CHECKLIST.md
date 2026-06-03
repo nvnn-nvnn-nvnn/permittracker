@@ -86,7 +86,7 @@ Use **separate** prod keys — never reuse dev. All flow through
 
 ## 5. Observability (currently UNWIRED — real work)
 
-- [~] Sentry wired (server + client); **scrub** permit/COI numbers &
+- [X] Sentry wired (server + client); **scrub** permit/COI numbers &
       extracted document text (brief "never log" rule)
 - [~] PostHog wired; same PII exclusion
 - [ ] Alert on `/admin` dispatch-monitor failures + webhook 5xx
@@ -132,7 +132,7 @@ Use **separate** prod keys — never reuse dev. All flow through
 
 ## 8. Legal / product
 
-- [ ] Terms of Service + Privacy Policy
+- [ ] Terms of Service + Privacy Policyy
 - [ ] "Advisory, not legal advice" disclaimer on digest/compliance copy
       reviewed by counsel
 - [ ] Data-deletion / account-closure process (soft-delete + audit exists;

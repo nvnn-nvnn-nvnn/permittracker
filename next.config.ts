@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
+import { withSentryConfig } from "@sentry/nextjs";
 
 // Pin the workspace root: a stray lockfile in the user's home dir made Next
 // infer the wrong root (affects output file tracing). Force this project dir.
@@ -10,4 +11,11 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: projectRoot,
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+});
+
