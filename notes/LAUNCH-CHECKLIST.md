@@ -36,7 +36,11 @@ Use **separate** prod keys — never reuse dev. All flow through
       submitted. SMS + voice channels disabled; pricing copy marks them
       "Coming soon". Re-enable: submit A2P, set
       `TWILIO_ACCOUNT_SID/AUTH_TOKEN/FROM_NUMBER`, revert pricing copy.
-- [ ] **Postmark**: inbound server + `POSTMARK_INBOUND_SECRET`
+- [—] **Postmark**: **DEFERRED at launch** — inbound email parsing not
+      wired in prod. The "forward to `{slug}@inbound.permitkeep.com`" channel
+      is disabled; users add items via UI + OCR upload instead. Re-enable:
+      stand up the Postmark inbound server, set `POSTMARK_INBOUND_SECRET`,
+      un-hide the inbound affordance. See `00-decisions.md` → Known caveats.
 - [x] `REMINDER_TOKEN_SECRET` = fresh long random, **different from dev**
 - [x] `APP_URL` = production https URL
 - [ ] Inngest prod: `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`
@@ -58,31 +62,33 @@ Use **separate** prod keys — never reuse dev. All flow through
 
 - [x] `npm run stripe:setup` against the **live** account (creates
       products/prices by `lookup_key`)
-- [ ] Stripe Dashboard → Webhooks → endpoint `https://<domain>/api/webhooks/
+- [x] Stripe Dashboard → Webhooks → endpoint `https://<domain>/api/webhooks/
       stripe`; set signing secret → `STRIPE_WEBHOOK_SECRET`
-- [ ] Test: real Checkout in live mode → plan tier updates via webhook
-- [ ] Test: Customer Portal opens; cancel → `plan_status` reflects it
-- [ ] Test: concierge one-time purchase → `concierge_purchased_at` set,
-      shows in `/admin` queue
-- [ ] Confirm tax/receipts/dunning settings in Stripe
+- [x] Test: real Checkout in live mode → plan tier updates via webhook
+- [x] Test: Customer Portal opens; cancel → `plan_status` reflects it
+- [—] Concierge one-time purchase: **DEFERRED at launch** (feature hidden
+      in UI; webhook + admin queue + schema preserved). Re-test once the
+      button in `billing-panel.tsx` is uncommented. See
+      `00-decisions.md` → Known caveats.
+- [x] Confirm tax/receipts/dunning settings in Stripe
 
 ## 4. Deploy (Vercel)
 
 - [x] Vercel project created, **all** env vars set (prod values from §1)
-- [ ] Custom domain + TLS; Supabase Auth Site URL matches it
-- [ ] Inngest prod app registered; `/api/inngest` reachable; cron jobs
+- [x] Custom domain + TLS; Supabase Auth Site URL matches it
+- [x] Inngest prod app registered; `/api/inngest` reachable; cron jobs
       listed (reminders */5, monthly digest)
-- [ ] Webhook routes reachable over HTTPS (Stripe/Postmark/Twilio-inbound/
+- [~] Webhook routes reachable over HTTPS (Stripe/Postmark/Twilio-inbound/
       Twilio-voice) — they use `runtime="nodejs"`; confirm raw-body sig
       verification works on Vercel
-- [ ] First prod smoke test: sign up → create truck → item → dashboard
+- [x] First prod smoke test: sign up → create truck → item → dashboard
       status renders
 
 ## 5. Observability (currently UNWIRED — real work)
 
-- [ ] Sentry wired (server + client); **scrub** permit/COI numbers &
+- [~] Sentry wired (server + client); **scrub** permit/COI numbers &
       extracted document text (brief "never log" rule)
-- [ ] PostHog wired; same PII exclusion
+- [~] PostHog wired; same PII exclusion
 - [ ] Alert on `/admin` dispatch-monitor failures + webhook 5xx
 - [ ] Uptime check on `/` and `/api/inngest`
 
@@ -104,9 +110,10 @@ Use **separate** prod keys — never reuse dev. All flow through
 - [—] **Voice**: deferred at launch (see §1 Twilio). Re-enable once A2P
       live: 7-day escalation call; press 1 acks; skipped if prior
       reminder already acked.
-- [ ] **Inbound email**: forward to `{slug}@inbound.permitkeep.com` →
-      classified, matched or draft created (test via Settings simulator if
-      Postmark not live yet)
+- [—] **Inbound email**: **deferred at launch** (see §1 Postmark). Channel
+      disabled in prod. Core still testable via the Settings simulator:
+      forward → classified, matched or draft created. Re-enable once the
+      Postmark inbound server is live.
 - [ ] **Billing limits**: Starter at cap → create blocked with upgrade
       prompt
 - [ ] **Admin** (`/admin`): only platform-admin; queue actions resolve +

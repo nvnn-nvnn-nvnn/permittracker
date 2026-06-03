@@ -30,7 +30,9 @@ export function BillingPanel() {
   const utils = trpc.useUtils();
   const status = trpc.billing.status.useQuery();
   const checkout = trpc.billing.createCheckout.useMutation();
-  const concierge = trpc.billing.createConciergeCheckout.useMutation();
+  // Concierge onboarding deferred at launch — see the commented button
+  // below + notes/00-decisions.md. Restore by uncommenting both.
+  // const concierge = trpc.billing.createConciergeCheckout.useMutation();
   const portal = trpc.billing.createPortal.useMutation();
   const sync = trpc.billing.syncFromStripe.useMutation();
 
@@ -191,27 +193,35 @@ export function BillingPanel() {
           >
             Manage billing
           </Button>
-          {!s.conciergePurchasedAt && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={
-                !s.isOwner || !s.stripeConfigured || concierge.isPending
-              }
-              onClick={async () => {
-                setMsg(null);
-                try {
-                  const r = await concierge.mutateAsync();
-                  go(r.url);
-                } catch (e) {
-                  err(e);
-                }
-              }}
-            >
-              Add concierge onboarding ($49)
-            </Button>
-          )}
+          {/*
+           * Concierge onboarding ($49 one-time) — DEFERRED at launch.
+           * Feature is intentionally hidden from the UI; the webhook +
+           * admin queue + schema columns remain so historical data is
+           * preserved and re-enabling is just uncommenting this block.
+           * See notes/00-decisions.md → Known caveats.
+           *
+           * {!s.conciergePurchasedAt && (
+           *   <Button
+           *     type="button"
+           *     size="sm"
+           *     variant="outline"
+           *     disabled={
+           *       !s.isOwner || !s.stripeConfigured || concierge.isPending
+           *     }
+           *     onClick={async () => {
+           *       setMsg(null);
+           *       try {
+           *         const r = await concierge.mutateAsync();
+           *         go(r.url);
+           *       } catch (e) {
+           *         err(e);
+           *       }
+           *     }}
+           *   >
+           *     Add concierge onboarding ($49)
+           *   </Button>
+           * )}
+           */}
           <Button
             type="button"
             size="sm"

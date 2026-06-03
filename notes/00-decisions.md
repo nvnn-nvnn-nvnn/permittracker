@@ -119,6 +119,18 @@ These were confirmed with the owner before any code was written.
 
 ## Known caveats / limitations (revisit later)
 
+- **Concierge onboarding deferred at launch (2026-05-21).** The $49
+  one-time white-glove-setup add-on is **hidden in the UI** —
+  `components/features/billing-panel.tsx` has the purchase button and its
+  `createConciergeCheckout` mutation hook commented out. Everything else
+  stays wired: the Stripe webhook still handles
+  `checkout.session.completed` with `metadata.kind === "concierge"` (so
+  any back-channel test purchase still flows through),
+  `account.conciergePurchasedAt` / `conciergeCompletedAt` columns remain,
+  `/admin` concierge queue continues to work for any historical rows, and
+  the `markConciergeComplete` admin mutation is still callable. Re-enable
+  is uncommenting **two blocks** in `billing-panel.tsx` (the `concierge`
+  hook + the button) — zero code change, no migration.
 - **SMS / voice deferred at launch (2026-05-21).** Twilio A2P 10DLC
   registration not yet submitted; SMS reminders and voice escalation are
   **disabled** at launch. Email is the sole reminder channel. The
@@ -129,6 +141,18 @@ These were confirmed with the owner before any code was written.
   `PLANS[tier].sms` / `voiceEscalation` flags on Pro/Fleet are advisory
   only — the dispatcher won't create those channel rows and the no-op
   adapter would skip them anyway.
+- **Inbound email (Postmark) deferred at launch (2026-06-03).** Inbound
+  parsing is **not wired in prod** — the "forward to
+  `{slug}@inbound.permitkeep.com`" convenience channel is disabled at
+  launch. It's an input convenience, not core compliance tracking: users
+  add items via the UI + OCR upload path instead. Nothing is removed — the
+  `/api/webhooks/postmark-inbound` route, `processInboundEmail()` core, and
+  the Settings inbound **simulator** (which calls the same core) all remain,
+  so the feature is fully demoable without Postmark live. Re-enable is
+  config, not code: stand up the Postmark inbound server, set
+  `POSTMARK_INBOUND_SECRET` (the route's shared-`?secret=` gate — Postmark
+  doesn't sign inbound), and un-hide the inbound affordance. Mirrors the
+  Twilio deferral pattern.
 - **Resend dev sender.** `EMAIL_FROM` defaults to Resend's shared
   `onboarding@resend.dev`, which **only delivers to the email the Resend
   account was created with**. If that differs from the PermitKeep
