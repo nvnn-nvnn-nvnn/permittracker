@@ -5,7 +5,7 @@ import { account } from "@/lib/db/schema";
 import { serverEnv } from "@/lib/env";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { applySubscription, clearSubscription } from "@/lib/stripe/sync";
-
+import * as Sentry from "@sentry/nextjs";
 // Stripe signature verification needs the raw body → Node runtime, no parsing.
 export const runtime = "nodejs";
 
@@ -98,6 +98,7 @@ export async function POST(req: Request): Promise<Response> {
   } catch (err) {
     // Log-and-200 would hide failures; 500 makes Stripe retry.
     const m = err instanceof Error ? err.message : "handler error";
+    Sentry.captureException(err, {tags: {type: "webhook_5xx", webhook: "stripe"}});
     return new Response(`Handler error: ${m}`, { status: 500 });
   }
 

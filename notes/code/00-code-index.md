@@ -50,6 +50,9 @@ implementations using those patterns:**
    webhook-as-thin-shell + adding a 2nd dispatch channel (Phase 7).
 10. [`10-voice-and-people-cascade.md`](10-voice-and-people-cascade.md) —
     schedule-early/decide-late, and a many-to-many cascade (Phase 8).
+11. [`11-observability-sentry.md`](11-observability-sentry.md) — wiring a
+    third-party error monitor with a PII-scrub boundary; capture, flush, and
+    the "events go to the DSN's project" gotcha (§5 launch prep).
 7. [`07-stripe-webhook-and-limits.md`](07-stripe-webhook-and-limits.md) —
    signed webhook as source of truth, price lookup-keys, limits as
    un-skippable tRPC middleware (Phase 5).

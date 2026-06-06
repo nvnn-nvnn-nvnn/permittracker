@@ -563,3 +563,139 @@ validation catches all *new* writes; backfill + `NOT NULL` constraint is a
 follow-up. Decision recorded in `00-decisions.md`. Rejected alternative:
 forcing parent/child jurisdictions to match (would block the common
 state-license → city-permit dependency).
+
+---
+
+### 2026-06-03 — Sentry wired (§5 observability, launch prep)
+
+First half of §5 in `LAUNCH-CHECKLIST.md`. Error monitoring (server + client +
+edge) now live via `@sentry/nextjs@10.56.0`. The driving constraint was the
+brief's "never log permit/COI numbers or extracted document text" rule, so the
+whole thing is configured PII-off by default with an explicit scrub on top.
+
+**Files added (4 config files at project root + 1 helper + 1 global handler):**
+- `sentry.server.config.ts`, `sentry.edge.config.ts`, `instrumentation-client.ts`
+  — each `Sentry.init` is **DSN-gated** (`enabled: !!DSN`, so a no-op when the
+  DSN is unset, e.g. local dev without keys), `sendDefaultPii: false`,
+  `tracesSampleRate: 0.1`, and `beforeSend: scrubEvent`.
+- `instrumentation.ts` — `register()` loads server/edge config per
+  `NEXT_RUNTIME`; exports `onRequestError = Sentry.captureRequestError` (the
+  App Router server-error hook). `instrumentation-client.ts` also exports
+  `onRouterTransitionStart` for navigation instrumentation.
+- `lib/observability/scrub.ts` — `scrubEvent()`, the never-log enforcer.
+- `app/global-error.tsx` — reports React render errors via `captureException`.
+- `next.config.ts` wrapped with `withSentryConfig` (org/project/authToken from
+  env; source-map upload only fires when `SENTRY_AUTH_TOKEN` is set).
+
+**Env:** `SENTRY_DSN` (server) added to `serverSchema`, `NEXT_PUBLIC_SENTRY_DSN`
+to `publicSchema` + its `.parse()` call in `lib/env.ts`; both DSN vars +
+`SENTRY_AUTH_TOKEN`/`SENTRY_ORG`/`SENTRY_PROJECT` in `.env.example` and Vercel
+prod. Note: the config files read `process.env` directly (instrumentation loads
+very early), not via the validated `serverEnv()`.
+
+**Scrub posture (what it does / doesn't — detail in `00-decisions.md`):**
+primary protection is `sendDefaultPii: false` (no bodies/cookies/IP/headers) +
+Sentry's Node SDK not capturing local variable values. `scrubEvent` is
+defense-in-depth: deletes `request.data`/`query_string`/`cookies` +
+`authorization`/`cookie` headers, and strips a denylist of sensitive keys from
+`event.extra`. **Known gaps:** does not scrub exception *messages* (rely on the
+discipline "never interpolate doc text/permit numbers into an Error") nor
+`event.contexts`. Acceptable for launch; hardening (regex over messages +
+contexts sweep) is future work.
+
+**Verification:** typecheck ✅ / lint ✅ / build ✅. Proved delivery with a
+throwaway `app/api/sentry-test/route.ts` that did `captureException` + `flush`
+and returned the eventId — got `{eventId, flushed:true, dsnPresent:true}`,
+confirming the server SDK captures and transmits. Test routes deleted after.
+
+**Gotcha worth remembering:** events go to the project that **owns the DSN** —
+`SENTRY_PROJECT` only controls source-map upload, not event routing. We burned
+time because an early DSN belonged to a stray `javascript-nextjs` project while
+the dashboard was open on `vendguard`; events were landing fine, just invisible
+in the wrong project view. Fix was swapping `NEXT_PUBLIC_SENTRY_DSN`/`SENTRY_DSN`
+to the `vendguard` project's DSN. Also: client events can be silently eaten by
+ad-blockers — server-side tests bypass that. Org/project are both `vendguard`.
+
+**Still open in §5:** PostHog (same PII-exclusion rule), `/admin` + webhook-5xx
+alerts, uptime checks on `/` and `/api/inngest`. See `LAUNCH-CHECKLIST.md`.
+
+---
+
+### 2026-06-05 — Alerting (§5 line 92), webhook-5xx half proven
+
+In progress (`[~]`). The key realization driving this: **gracefully-handled
+failures are invisible to Sentry.** Both targets on line 92 are swallowed —
+a webhook handler error becomes a returned `500` (not a thrown exception, so
+`onRequestError` never fires), and a dispatch failure is caught into a
+`reminder_dispatch` row (`status: "failed"`). Sentry sees neither unless we
+**explicitly** `captureException` at those swallow points. So the work is two
+parts: (1) instrument the captures, (2) configure Sentry alert rules.
+
+**Done + proven:** webhook-5xx capture pattern. Added `Sentry.captureException`
+with `tags: { type: "webhook_5xx", webhook: "<name>" }` in the webhook `catch`
+that returns 500. Verified end-to-end on `postmark-inbound`: a temporary
+`throw` in the `try`, POST a valid payload → `HTTP 500` → event landed in
+Sentry tagged `type:webhook_5xx`. PII-safe: tags carry only the webhook name,
+no body/recipient. (Note: leave the **400** signature-rejection branches
+un-instrumented — those are noise/attackers, not our bug.)
+
+**Testing method worth remembering:** temporary deterministic `throw` in the
+handler, reach it with a local request, confirm the tagged event, then revert
+the throw. Two gotchas hit: (a) `postmark-inbound` short-circuits to `200
+"Unknown inbox"` before the throw unless the recipient slug matches a real
+account — use a real `{slug}@inbound.permitkeep.com`; (b) **Windows PowerShell
+mangles double-quotes when passing JSON to native `curl.exe`** (interior `"`
+stripped → server sees "Bad JSON" 400). Use `Invoke-RestMethod` + `ConvertTo-
+Json`, a `-d "@file"`, or bash instead.
+
+**Remaining for line 92:** same `captureException` in the other webhook
+catches (stripe, twilio-*); the **dispatch-failure** capture in
+`lib/reminders/dispatch.ts` catch (`type: dispatch_failure`, tags = UUIDs +
+channel only, **never** `ownerEmail`/`smsPhone`); a threshold signal from the
+`dispatch-reminders` cron (`if summary.failed > 0` → `captureMessage` +
+`Sentry.flush(2000)` — serverless needs the flush); then the **Sentry alert
+rules** (Issues alerts on `type:webhook_5xx`, and `type:dispatch_failure`
+> N-in-1h to avoid noise) + a notification channel (email/Slack). The
+how-to is captured in `code/11-observability-sentry.md` §gotchas + the
+just-in-time teaching. Remember to remove any leftover `SABOTAGE` throws
+(`git diff` before commit).
+
+---
+
+### 2026-06-06 — §5 observability finished (alerts + uptime)
+
+§5 done except PostHog (postponed). Lines 89/92/93 → `[x]`.
+
+**Dispatch-monitor alerting (line 92), built + tested.** The "alert on
+`/admin` dispatch failures" is **not** on the admin page — that page only
+*displays* failures (pull-based, needs a human looking). The alert is a
+scheduled **watcher**: new `inngest/functions/dispatch-health.ts` cron
+(`*/15`) calls `recentDispatchFailures(60)` from `lib/reminders/health.ts`
+(same `status='failed'` rows the monitor shows, scoped to a 60-min window so
+it fires on *new* pile-ups, not history) and `captureMessage` +
+`Sentry.flush` when `>= FAILURE_THRESHOLD` (5). Registered in
+`app/api/inngest/route.ts` (3rd cron). Webhook-5xx capture added to the
+postmark catch (proven earlier). Tested via a throwaway route that ran the
+exact logic and curl'd it: returned `{failures: 0, flushed: true}` →
+**baseline 0 failed dispatches** (why `/admin` looked empty — healthy) and a
+real Sentry event landed tagged `type:dispatch_health`. Test artifacts
+cleaned up (throwaway route deleted, threshold restored 0→5, sabotage throw
+removed, stale `.next` type cleared). Sentry **alert rules** for the tags
+were configured directly in prod by the owner.
+
+**Uptime (line 93).** Two **Sentry Uptime monitors** on `/` and
+`/api/inngest` (the `/api/inngest` one would have caught the signing-key
+`internal_server_error` 500 from the Inngest setup). Note: Sentry's uptime
+feature was hard to find in the UI but is available on the plan. Thresholds:
+fail after ~3 consecutive, recover after 1 — low-noise. Uptime is
+**external** by necessity: a fully-down app can't report its own death, so
+the "email on all errors" issue-alert is *not* a substitute.
+
+**Admin UI nicety.** `/admin` dispatch monitor now shows an explicit
+"No recent dispatch failures." green empty-state instead of rendering nothing
+when healthy (`app/(app)/admin/page.tsx`).
+
+**Still to ship:** the dispatch-health cron + webhook capture code is in the
+working tree — **commit + deploy** so prod emits the events the (already-set)
+alert rules listen for, then confirm `dispatch-health-alert` registers in the
+Inngest prod dashboard with its `*/15` schedule.

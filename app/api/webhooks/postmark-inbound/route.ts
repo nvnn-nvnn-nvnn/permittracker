@@ -3,7 +3,7 @@ import { getDb } from "@/lib/db";
 import { account } from "@/lib/db/schema";
 import { serverEnv } from "@/lib/env";
 import { processInboundEmail, type InboundAttachment } from "@/lib/inbound/process";
-
+import * as Sentry from '@sentry/nextjs';
 export const runtime = "nodejs";
 
 /**
@@ -78,7 +78,12 @@ export async function POST(req: Request): Promise<Response> {
     });
     return Response.json({ ok: true, ...result });
   } catch (err) {
+
+    Sentry.captureException(err, { tags: { type: "webhook_5xx", webhook: "postmark" } });
+
+
     const m = err instanceof Error ? err.message : "inbound error";
+    
     return new Response(`Handler error: ${m}`, { status: 500 });
   }
 }

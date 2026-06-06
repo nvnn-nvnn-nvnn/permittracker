@@ -1,3 +1,5 @@
+import * as Sentry from "@sentry/nextjs";
+
 import { inngest } from "@/inngest/client";
 import { processDueDispatches } from "@/lib/reminders/dispatch";
 
@@ -9,6 +11,21 @@ import { processDueDispatches } from "@/lib/reminders/dispatch";
 export const dispatchRemindersCron = inngest.createFunction(
   { id: "dispatch-reminders", triggers: [{ cron: "*/5 * * * *" }] },
   async ({ step }) => {
-    return step.run("process-due", () => processDueDispatches());
+
+
+    const summary = await step.run('process-due', () => processDueDispatches());
+
+    if (summary.failed > 0 ){
+      
+      
+      Sentry.captureMessage(`Reminder dispatch: ${summary.failed} failed`, "error");
+      await Sentry.flush(2000);
+
+
+
+    } 
+
+    return summary;
+    // return step.run("process-due", () => processDueDispatches());
   },
 );

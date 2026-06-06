@@ -89,19 +89,19 @@ Use **separate** prod keys — never reuse dev. All flow through
 - [X] Sentry wired (server + client); **scrub** permit/COI numbers &
       extracted document text (brief "never log" rule)
 - [~] PostHog wired; same PII exclusion
-- [ ] Alert on `/admin` dispatch-monitor failures + webhook 5xx
-- [ ] Uptime check on `/` and `/api/inngest`
+- [X] Alert on `/admin` dispatch-monitor failures + webhook 5xx
+- [X] Uptime check on `/` and `/api/inngest`
 
 ## 6. Manual QA pass (go feature-by-feature in prod or staging)
 
-- [ ] **Auth**: email+password signup, magic link, logout, redirect gating
-- [ ] **Tenant isolation**: 2 accounts; confirm neither sees the other's
+- [X] **Auth**: email+password signup, magic link, logout, redirect gating
+- [x] **Tenant isolation**: 2 accounts; confirm neither sees the other's
       trucks/items (the core security promise)
-- [ ] **Items/Trucks/Commissary/Venue/Person CRUD** + archive (never hard
+- [X] **Items/Trucks/Commissary/Venue/Person CRUD** + archive (never hard
       delete; audit trail row appears)
-- [ ] **Dashboard** RED/YELLOW/GREEN: expired item on active truck → RED;
+- [X] **Dashboard** RED/YELLOW/GREEN: expired item on active truck → RED;
       commissary cascade; person-cert cross-truck cascade
-- [ ] **OCR**: upload a real permit → proposal → apply → fields land; low
+- [~] **OCR**: upload a real permit → proposal → apply → fields land; low
       expiry confidence → manual-review banner
 - [ ] **Reminders**: item expiring soon → dispatch scheduled → "Run due
       now" → email arrives → acknowledge link works; unacked >48h → YELLOW
@@ -116,7 +116,7 @@ Use **separate** prod keys — never reuse dev. All flow through
       Postmark inbound server is live.
 - [ ] **Billing limits**: Starter at cap → create blocked with upgrade
       prompt
-- [ ] **Admin** (`/admin`): only platform-admin; queue actions resolve +
+- [X] **Admin** (`/admin`): only platform-admin; queue actions resolve +
       audit as the admin
 - [ ] **Digest**: monthly inspection-prep digest renders + emails
 

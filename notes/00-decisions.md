@@ -153,6 +153,47 @@ These were confirmed with the owner before any code was written.
   `POSTMARK_INBOUND_SECRET` (the route's shared-`?secret=` gate — Postmark
   doesn't sign inbound), and un-hide the inbound affordance. Mirrors the
   Twilio deferral pattern.
+- **Sentry PII scrubbing — posture + known gaps (2026-06-03).** Sentry is
+  wired with the "never log permit/COI numbers or extracted document text"
+  rule enforced in layers. Primary protection: `sendDefaultPii: false` on
+  every `Sentry.init` (withholds request bodies, cookies, headers, IP) plus
+  the fact that Sentry's Node SDK doesn't capture local variable values in
+  stack frames — so OCR fields living in locals/DB rows never get collected.
+  `lib/observability/scrub.ts` (`beforeSend`) is **defense-in-depth**, not the
+  whole defense: it deletes `request.data`/`query_string`/`cookies` +
+  `authorization`/`cookie` headers and strips a denylist of sensitive keys
+  from `event.extra`. **Two deliberate gaps:** (1) it does **not** scrub
+  exception *message* strings — relying on the discipline *never interpolate
+  document text or permit numbers into an `Error(...)`* (current code is
+  clean; `lib/extraction/run.ts` only interpolates UUIDs); (2) it only sweeps
+  `event.extra`, not `event.contexts` (we don't call `setContext` with OCR
+  data). Hardening (regex redaction over messages + a contexts sweep) is
+  future work, acceptable to defer at launch. If anyone adds `Sentry.setExtra`
+  /`setContext`/error-message interpolation touching document data, revisit.
+- **Supabase direct DB connection is IPv6-only — use the pooler (2026-06-06).**
+  The direct connection host `db.<ref>.supabase.co:5432` resolves to an
+  **AAAA (IPv6) record only** — no IPv4. On any network without working IPv6
+  (a VPN was the culprit here), Node's `getaddrinfo` fails with `ENOENT` and
+  *every* DB query dies (`/admin` 500s on the `app_user` upsert, etc.). It
+  looks like a code/Sentry bug but isn't — it's pure DNS/connectivity.
+  Diagnose with `nslookup <host>` (IPv6-only address) + `ping` (can't find
+  host on IPv4). **Fix:** switch `DATABASE_URL` to the Supabase **connection
+  pooler** (`...pooler.supabase.com`, user `postgres.<ref>`), which has an
+  IPv4 address. Use the **Session pooler (port 5432)** for a clean drop-in
+  (behaves like a direct connection, prepared statements OK); the
+  **Transaction pooler (6543)** needs `prepare: false` in the postgres.js
+  driver, so reserve it for serverless/prod if needed. Applies to the Vercel
+  prod `DATABASE_URL` too. Currently dev still uses the direct connection
+  (works only with IPv6 up) — pooler swap is a pending robustness fix.
+- **Sentry event routing = DSN's project, not `SENTRY_PROJECT` (2026-06-03).**
+  Events land in whichever project **owns the DSN**; `SENTRY_PROJECT` only
+  controls build-time source-map upload. Cost us debugging time once (a stray
+  `javascript-nextjs` project's DSN vs. the dashboard open on `vendguard`).
+  Live project is **`vendguard`** (org + project both `vendguard`); the
+  `NEXT_PUBLIC_SENTRY_DSN`/`SENTRY_DSN` in env must be that project's DSN. If
+  "events aren't showing up": confirm the DSN's project matches the dashboard
+  view (env=All, last 24h), and remember client events can be silently dropped
+  by ad-blockers — test server-side (`captureException` + `flush`) to isolate.
 - **Resend dev sender.** `EMAIL_FROM` defaults to Resend's shared
   `onboarding@resend.dev`, which **only delivers to the email the Resend
   account was created with**. If that differs from the PermitKeep

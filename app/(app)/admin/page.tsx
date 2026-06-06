@@ -138,7 +138,19 @@ export default async function AdminPage() {
                 ),
               )}
             </div>
-            {overview.recentFailed.length > 0 && (
+
+            <div className="
+              border-b
+              border-border
+              mt-5
+            
+            "
+            
+            >
+
+            </div>
+
+            {overview.recentFailed.length > 0 ? (
               <div className="mt-3 space-y-1 text-xs text-muted-foreground">
                 {overview.recentFailed.map((f) => (
                   <p key={f.id} className="truncate">
@@ -147,6 +159,12 @@ export default async function AdminPage() {
                   </p>
                 ))}
               </div>
+            ) : (
+              <p className="
+              mt-3 text-xs text-status-green
+              ">
+                No recent dispatch failures.
+              </p>
             )}
           </CardContent>
         </Card>

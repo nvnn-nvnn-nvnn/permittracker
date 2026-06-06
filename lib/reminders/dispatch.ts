@@ -14,6 +14,7 @@ import { getVoiceAdapter, buildEscalationTwiml } from "@/lib/voice";
 import { createAcknowledgeToken } from "./token";
 import { buildReminderEmail } from "./email";
 import { fmtDate } from "@/lib/format";
+import * as Sentry from '@sentry/nextjs';
 
 export interface DispatchSummary {
   processed: number;
@@ -169,6 +170,11 @@ export async function processDueDispatches(opts?: {
         .where(eq(reminderDispatch.id, d.id));
       summary.sent++;
     } catch (err) {
+      Sentry.captureException(err, {
+        tags: { type: "dispatch_failure", channel: d.channel},
+        extra: {dispatchId: d.id, accountId: d.accountId},
+      });
+
       await db
         .update(reminderDispatch)
         .set({
