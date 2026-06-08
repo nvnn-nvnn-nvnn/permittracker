@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- static SVG logos; next/image adds no value for vectors and would force layout changes */
 import textLogo from "@/app/assets/Vendguardtextlogo.svg";
 import graphic from "@/app/assets/vendgaurdgraphic.svg";
 import { cn } from "@/lib/utils";

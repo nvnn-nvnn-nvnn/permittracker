@@ -10,13 +10,6 @@ import { RemindersPanel } from "@/components/features/reminders-panel";
 import { Badge } from "@/components/ui/badge";
 
 
-// Scan to create test
-
-
-import { ScanToCreate } from "@/components/features/scan-to-create";
-
-
-
 
 import {
   Card,

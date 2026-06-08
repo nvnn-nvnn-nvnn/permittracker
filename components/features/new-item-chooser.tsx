@@ -4,6 +4,8 @@ import { ScanLine, PencilLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ItemForm, type TruckOption, type ParentOption } from "./item-form";
 import { ScanToCreate } from "./scan-to-create";
+import { itemTypeValues } from "@/lib/validators";
+   
 
 type Mode = "scan" | "manual";
 
@@ -27,11 +29,19 @@ const OPTIONS: {
   },
 ];
 
-export function NewItemChooser(props: {
+export function NewItemChooser({
+
+  initialType,
+  initialSubtype,
+  ...rest
+
+}: {
   trucks: TruckOption[];
   parentOptions?: ParentOption[];
   people?: TruckOption[];
   venues?: TruckOption[];
+  initialType?: (typeof itemTypeValues)[number];
+  initialSubtype?: string
 }) {
   const [mode, setMode] = useState<Mode>("scan");
 
@@ -72,9 +82,9 @@ export function NewItemChooser(props: {
 
       <div>
         {mode === "scan" ? (
-          <ScanToCreate {...props} />
+          <ScanToCreate {...rest} />
         ) : (
-          <ItemForm {...props} />
+          <ItemForm {...rest} initialType={initialType} initialSubtype={initialSubtype} />
         )}
       </div>
     </div>
