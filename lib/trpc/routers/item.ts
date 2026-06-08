@@ -7,7 +7,7 @@ import {
   protectedProcedure,
 } from "@/lib/trpc/trpc";
 import { getDb, withActor, type DbTx } from "@/lib/db";
-import { complianceItem, truck } from "@/lib/db/schema";
+import { complianceItem, fileAttachment, truck } from "@/lib/db/schema";
 import { itemInput, defaultRemindersFor } from "@/lib/validators";
 import { recomputeDispatches } from "@/lib/reminders/schedule";
 import type { ItemType } from "@/lib/db/schema";
@@ -127,17 +127,19 @@ export const itemRouter = createTRPCRouter({
     }),
 
   create: limitedProcedure("item")
-    .input(itemInput)
+    .input(itemInput.extend({ attachFileId: z.string().uuid().optional() }))
     .mutation(async ({ ctx, input }) => {
+      // Split the optional scanned-file id off from the item fields.
+      const { attachFileId, ...itemData } = input;
       return withActor(ctx.account.userId, async (tx) => {
         await assertTruckInAccount(
           tx,
-          input.holderTruckId,
+          itemData.holderTruckId,
           ctx.account.accountId,
         );
         await assertParentItem(
           tx,
-          input.parentItemId,
+          itemData.parentItemId,
           ctx.account.accountId,
         );
         const [row] = await tx
@@ -145,9 +147,22 @@ export const itemRouter = createTRPCRouter({
           .values({
             accountId: ctx.account.accountId,
             createdByUserId: ctx.account.userId,
-            ...toColumns(input),
+            ...toColumns(itemData),
           })
           .returning();
+        // Document-first flow: link the orphan scanned file to the new item,
+        // scoped to this account so a client can't attach someone else's file.
+        if (row && attachFileId) {
+          await tx
+            .update(fileAttachment)
+            .set({ complianceItemId: row.id, updatedAt: new Date() })
+            .where(
+              and(
+                eq(fileAttachment.id, attachFileId),
+                eq(fileAttachment.accountId, ctx.account.accountId),
+              ),
+            );
+        }
         if (row) await recomputeDispatches(tx, row);
         return row;
       });

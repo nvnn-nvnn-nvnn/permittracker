@@ -4,6 +4,7 @@ import { extractDocumentJob } from "@/inngest/functions/extract";
 import { dispatchRemindersCron } from "@/inngest/functions/reminders";
 import { monthlyDigestCron } from "@/inngest/functions/digest";
 import { dispatchHealthAlert } from "@/inngest/functions/dispatch-health";
+import { orphanCleanupCron } from "@/inngest/functions/orphan-clearnup";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -12,5 +13,6 @@ export const { GET, POST, PUT } = serve({
     dispatchRemindersCron,
     monthlyDigestCron,
     dispatchHealthAlert,
+    orphanCleanupCron
   ],
 });

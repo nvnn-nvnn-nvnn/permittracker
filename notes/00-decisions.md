@@ -13,11 +13,13 @@ These were confirmed with the owner before any code was written.
    - Stripe, Twilio, Resend, Postmark are **stubbed behind typed adapter
      interfaces** with local/no-op implementations until later phases. Swapping in
      real SDKs must not require touching call sites — only the adapter binding.
+
 2. **Launch metro: Twin Cities, Minnesota** (Minneapolis + Saint Paul metro).
    - Jurisdiction seed data targets MN: Minnesota Dept of Health (MDH),
      Minnesota Dept of Agriculture (MDA), Minneapolis Health Dept,
      Saint Paul Dept of Safety & Inspections (DSI), Hennepin County,
      Ramsey County. Drives default jurisdiction options + Phase 10 content scope.
+     
 3. **Stack: follow the brief.** Deviations are permitted only when justified, and
    every deviation must be logged in the "Stack deviations" section below so the
    owner can review the what/why.

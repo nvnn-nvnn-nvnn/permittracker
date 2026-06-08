@@ -699,3 +699,79 @@ when healthy (`app/(app)/admin/page.tsx`).
 working tree — **commit + deploy** so prod emits the events the (already-set)
 alert rules listen for, then confirm `dispatch-health-alert` registers in the
 Inngest prod dashboard with its `*/15` schedule.
+
+---
+
+### 2026-06-07 — Document-first OCR flow (§6 OCR, "scan to create")
+
+New entry point: upload a permit → OCR → **pre-filled** create form → submit
+makes the item with the doc already attached. Inverts the old item-first
+order (create item → attach doc → OCR → apply onto item). Brief-compliant:
+OCR only *suggests* defaults; the user reviews and submits (OCR never
+auto-writes). **Verified end-to-end (2026-06-07):** scan → pre-filled form →
+submit → item created with the document attached (shows in its Documents
+panel). Gotcha that cost time: the Step 4 `item.create` input change
+(`attachFileId`) wasn't picked up until the **dev server was restarted** —
+until then the field was dropped from the payload and the file stayed orphan.
+Restart after changing a tRPC procedure's input schema.
+
+Files: new `app/(app)/items/new/scan/page.tsx` (RSC, fetches truck/person/
+venue lists) + `components/features/scan-to-create.tsx` (client orchestrator).
+
+**Step 1 — orphan upload + OCR.** Reuses the documents-panel upload sequence
+(`createUploadUrl` → `uploadToSignedUrl` → `confirmUploaded`) but with
+`complianceItemId: null` (the backend already allowed nullable — no change
+needed). Then calls `runExtractionNow` **synchronously** instead of relying
+on the Inngest event (async / no-op without the dev server) so the result is
+deterministic. Captures the returned `fileId` in state.
+
+**Step 2 — fetch proposal, gate the form.** `trpc.file.latestProposal.useQuery
+({ fileId }, { enabled: !!fileId })` — `enabled` keeps it dormant until the
+fileId exists. The form is rendered **only after the query settles**, because
+`ItemForm` inputs are uncontrolled (`defaultValue` is read once at mount) — if
+it mounts before the data lands, the prefill won't stick.
+
+**Step 3 — prefill.** Extended `ItemForm` with an optional `initialValues`
+object; each field default became `item?.X ?? initialValues?.X ?? ""` (edit
+value wins; else OCR value; else blank — that's why create-mode auto-uses the
+OCR data). `documentType` is a `text` column (typed `string`), so it needed a
+runtime guard (`itemTypeValues.includes(...)`) to narrow into the strict
+`initialType` union — type constraint vs runtime check. Fee needed cents→
+dollars; `identifierNumber`→`identifier` name differs; dates go through
+`dateInputValue` (handles the `??` chain + any shape).
+
+**Step 4 — attach the file on create.** `item.create` input extended via
+`itemInput.extend({ attachFileId: z.string().uuid().optional() })`. Mutation
+splits it off (`const { attachFileId, ...itemData } = input`), and after the
+insert returns `row`, links the orphan file in the **same transaction**:
+`update fileAttachment set complianceItemId = row.id where id = attachFileId
+AND accountId = ctx.account.accountId` — the account-scoped `where` is the
+security boundary (can't attach another tenant's file). `attachFileId` is
+optional, so the normal `/items/new` form (doesn't pass it) is unaffected.
+Threaded: `scan-to-create` `fileId` → `ItemForm attachFileId` prop →
+`create.mutate({ ...data, attachFileId })`.
+
+**Remaining (optional, Step 5 lifecycle):** clean up abandoned orphan files
+(uploaded + OCR'd but the user bailed before creating an item — they sit in
+Storage with `complianceItemId = null`); decide whether to mark the proposal
+`applied` once the item is created so it counts in the `/admin` accept-rate
+metric. Neither blocks the flow working.
+
+**Step 5 Part 1 — DONE (2026-06-07).** Orphan cleanup shipped. New
+`deleteBytes(path)` in `lib/storage.ts` (Supabase `.remove`), `lib/files/
+cleanup.ts` → `deleteAbandonedOrphans(olderThanHours = 24)` (query
+`complianceItemId IS NULL AND createdAt < cutoff` via `isNull`+`lt`; per-file
+try/catch, storage-delete-then-row, proposals cascade via the FK), and a daily
+Inngest cron `orphan-file-cleanup` (`0 4 * * *`) registered in the serve()
+list (5th function). NOTE: the file is misspelled `orphan-clearnup.ts` (import
+matches, so it compiles — rename later). Part 2 (proposal `applied`
+accounting) still skipped — cosmetic. Typechecks; not yet runtime-invoked.
+
+**Entry-point UI (2026-06-07).** Folded scan + manual into one `/items/new`
+page via `components/features/new-item-chooser.tsx` (client wrapper holding the
+`scan | manual` toggle; the RSC page fetches truck/person/venue lists and
+passes them down). Toggle = stacked selectable cards (scan is default). Built
+out `ScanToCreate`'s idle state from a bare button → a dashed drop-zone (icon,
+heading, "Choose a file", format/size hint), a numbered 3-step "how it works"
+strip, and spinner progress states. The standalone `/items/new/scan` route is
+now redundant — can be deleted.

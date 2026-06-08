@@ -8,6 +8,16 @@ import { ArchiveButton } from "@/components/features/archive-button";
 import { DocumentsPanel } from "@/components/features/documents-panel";
 import { RemindersPanel } from "@/components/features/reminders-panel";
 import { Badge } from "@/components/ui/badge";
+
+
+// Scan to create test
+
+
+import { ScanToCreate } from "@/components/features/scan-to-create";
+
+
+
+
 import {
   Card,
   CardContent,
@@ -63,6 +73,9 @@ export default async function ItemDetailPage({
           <ArchiveButton kind="item" id={item.id} redirectTo="/items" />
         )}
       </div>
+
+      
+
 
       <ItemForm
         item={item}

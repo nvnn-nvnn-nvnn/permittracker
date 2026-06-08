@@ -1,6 +1,7 @@
 import { serverApi } from "@/lib/trpc/server";
 import { ItemForm } from "@/components/features/item-form";
 import { itemTypeValues } from "@/lib/validators";
+import { NewItemChooser } from "@/components/features/new-item-chooser";
 
 export const metadata = { title: "Add item · VendGuard" };
 export const dynamic = "force-dynamic";
@@ -31,7 +32,7 @@ export default async function NewItemPage({
       <h1 className="text-2xl font-semibold tracking-tight">
         Add compliance item
       </h1>
-      <ItemForm
+      <NewItemChooser
         trucks={trucks.map((t) => ({ id: t.id, name: t.name }))}
         parentOptions={items.map((i) => ({
           id: i.id,

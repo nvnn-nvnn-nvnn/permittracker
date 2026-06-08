@@ -75,3 +75,14 @@ export async function downloadBytes(
     contentType: data.type || "application/octet-stream",
   };
 }
+
+
+export async function deleteBytes(
+  path:string, 
+): Promise <void> {
+  const { error } = await admin()
+  .storage.from(DOCUMENTS_BUCKET)
+  .remove([path])
+
+  if (error) throw error ?? new Error ("Delete Failed");
+}

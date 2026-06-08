@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OCR Flow Quiz — PermitKeep</title>
+<style>
+  :root {
+    --bg: #0f1115; --card: #181b22; --border: #2a2f3a; --text: #e6e8ec;
+    --muted: #9aa3b2; --primary: #6ea8fe; --good: #3fb950; --bad: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    display: flex; justify-content: center; padding: 32px 16px;
+  }
+  .wrap { width: 100%; max-width: 720px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .bar { height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; margin-bottom: 24px; }
+  .bar > span { display: block; height: 100%; width: 0; background: var(--primary); transition: width .3s; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px; margin-bottom: 16px;
+  }
+  .q { font-weight: 600; margin: 0 0 14px; }
+  .q .n { color: var(--primary); margin-right: 6px; }
+  .opt {
+    display: block; width: 100%; text-align: left; cursor: pointer;
+    background: #0f1218; color: var(--text); border: 1px solid var(--border);
+    border-radius: 10px; padding: 11px 14px; margin-bottom: 8px; font: inherit;
+    transition: border-color .15s, background .15s;
+  }
+  .opt:hover:not(:disabled) { border-color: var(--primary); }
+  .opt:disabled { cursor: default; }
+  .opt.correct { border-color: var(--good); background: rgba(63,185,80,.12); }
+  .opt.wrong { border-color: var(--bad); background: rgba(248,81,73,.12); }
+  .exp {
+    margin-top: 10px; font-size: 13px; color: var(--muted);
+    border-left: 2px solid var(--border); padding-left: 12px; display: none;
+  }
+  .exp.show { display: block; }
+  .exp b { color: var(--text); }
+  #result {
+    text-align: center; padding: 28px; display: none;
+  }
+  #result.show { display: block; }
+  #result .score { font-size: 40px; font-weight: 700; }
+  #result .msg { color: var(--muted); margin-top: 6px; }
+  button.again {
+    margin-top: 18px; background: var(--primary); color: #06101f; border: 0;
+    border-radius: 10px; padding: 10px 18px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Document-first OCR flow — quiz</h1>
+  <p class="sub">PermitKeep · scan-to-create. Pick an answer; you'll get instant feedback + the why.</p>
+  <div class="bar"><span id="prog"></span></div>
+  <div id="quiz"></div>
+  <div id="result">
+    <div class="score" id="score"></div>
+    <div class="msg" id="msg"></div>
+    <button class="again" onclick="location.reload()">Try again</button>
+  </div>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    q: "Step 1 uploads the scanned file with…",
+    opts: [
+      "complianceItemId set to a new draft item",
+      "complianceItemId set to null (an orphan file)",
+      "no file row — bytes only go to storage",
+      "a temporary placeholder item id",
+    ],
+    answer: 1,
+    exp: "Orphan upload: <b>complianceItemId: null</b>. No item exists yet — the file is created unattached, and gets linked later on create (Step 4).",
+  },
+  {
+    q: "Why does Step 1 call runExtractionNow instead of relying on the Inngest event?",
+    opts: [
+      "Inngest costs money per event",
+      "To get a deterministic result — the event is async / a no-op without the dev server",
+      "runExtractionNow is the only function that exists",
+      "It encrypts the document first",
+    ],
+    answer: 1,
+    exp: "The Inngest event is asynchronous and a no-op locally without the dev server. Running OCR <b>synchronously</b> makes the result deterministic for an interactive flow.",
+  },
+  {
+    q: "Why must the form NOT render until the proposal query has loaded?",
+    opts: [
+      "The server would reject an early request",
+      "ItemForm inputs are uncontrolled — defaultValue is read once, at mount",
+      "React Query throws if data is missing",
+      "It would double-charge the OCR call",
+    ],
+    answer: 1,
+    exp: "The form's inputs use <b>defaultValue</b>, read <b>once at mount</b>. Mount it before the proposal arrives and the prefill silently won't stick.",
+  },
+  {
+    q: "In Step 3, what does the prefill chain `item?.X ?? initialValues?.X ?? \"\"` mean?",
+    opts: [
+      "Always use the OCR value",
+      "Edit value wins; else OCR value; else blank",
+      "Blank unless the user types",
+      "OCR value wins; else the edit value",
+    ],
+    answer: 1,
+    exp: "Priority order: existing <b>item</b> value first (edit mode), then the <b>OCR</b> suggestion (scan mode, no item), then empty. That's why create-from-scan auto-fills.",
+  },
+  {
+    q: "documentType needed a runtime guard (itemTypeValues.includes) before feeding initialType. Why?",
+    opts: [
+      "It's encrypted in the DB",
+      "It's a text column (typed string) but initialType wants a strict union",
+      "Zod requires it",
+      "The form caches old values",
+    ],
+    answer: 1,
+    exp: "It's a <b>text</b> column → typed <b>string</b>. A broad string can't flow into the strict <code>(typeof itemTypeValues)[number]</code> union without a runtime check that narrows it.",
+  },
+  {
+    q: "After Step 4, where does the link between the item and the file physically live?",
+    opts: [
+      "A new attachFileId column on compliance_item",
+      "file_attachment.complianceItemId set to the new item's id",
+      "A join table linking both",
+      "In the extraction_proposal row",
+    ],
+    answer: 1,
+    exp: "The link lives on the <b>file</b> row: <code>file_attachment.compliance_item_id = newItem.id</code>. attachFileId is just the lookup key — it's never stored.",
+  },
+  {
+    q: "The attach UPDATE has a two-part where: id = attachFileId AND accountId = ctx.account.accountId. The second condition…",
+    opts: [
+      "Makes the query faster",
+      "Stops a client from attaching another tenant's file",
+      "Is required by Drizzle",
+      "Marks the proposal applied",
+    ],
+    answer: 1,
+    exp: "Account-scoping is the <b>security boundary</b> — you can only link a file your own account owns, so a client can't hijack someone else's document.",
+  },
+  {
+    q: "Why is the file attached inside the same withActor transaction as the item insert?",
+    opts: [
+      "To avoid a second page reload",
+      "Atomicity — both commit or both roll back; no half-linked state",
+      "Transactions are faster",
+      "So the audit log records it",
+    ],
+    answer: 1,
+    exp: "One transaction = <b>all-or-nothing</b>. You never end up with an item created but the file not linked. That's why it's in create, not a separate client call.",
+  },
+  {
+    q: "Step 5 Part 1 (the cron) deletes…",
+    opts: [
+      "All files older than 24h",
+      "Orphan files (complianceItemId IS NULL) older than the threshold",
+      "Every extraction proposal",
+      "Files that failed OCR",
+    ],
+    answer: 1,
+    exp: "Only <b>orphans</b> — uploaded + OCR'd but never turned into an item (complianceItemId null), older than ~24h so in-progress scans aren't nuked. Proposals cascade via the FK.",
+  },
+  {
+    q: "The one-line spine of the whole flow is:",
+    opts: [
+      "create item → upload doc → OCR → apply onto item",
+      "upload orphan + OCR → fetch proposal (wait) → prefill form → submit creates + attaches → cron cleans strays",
+      "OCR → email the user → wait for confirmation → save",
+      "upload → store bytes → done",
+    ],
+    answer: 1,
+    exp: "That's it. The old flow was item-first; this one is <b>document-first</b> — the item is created last, from the reviewed prefill.",
+  },
+];
+
+const quizEl = document.getElementById("quiz");
+const progEl = document.getElementById("prog");
+let answered = 0, correct = 0;
+
+QUESTIONS.forEach((item, qi) => {
+  const card = document.createElement("div");
+  card.className = "card";
+  const qp = document.createElement("p");
+  qp.className = "q";
+  qp.innerHTML = `<span class="n">${qi + 1}.</span>${item.q}`;
+  card.appendChild(qp);
+
+  const exp = document.createElement("div");
+  exp.className = "exp";
+  exp.innerHTML = item.exp;
+
+  item.opts.forEach((text, oi) => {
+    const btn = document.createElement("button");
+    btn.className = "opt";
+    btn.textContent = text;
+    btn.onclick = () => {
+      Array.from(card.querySelectorAll(".opt")).forEach((b) => (b.disabled = true));
+      const right = oi === item.answer;
+      if (right) { btn.classList.add("correct"); correct++; }
+      else {
+        btn.classList.add("wrong");
+        card.querySelectorAll(".opt")[item.answer].classList.add("correct");
+      }
+      exp.classList.add("show");
+      answered++;
+      progEl.style.width = (answered / QUESTIONS.length) * 100 + "%";
+      if (answered === QUESTIONS.length) finish();
+    };
+    card.appendChild(btn);
+  });
+
+  card.appendChild(exp);
+  quizEl.appendChild(card);
+});
+
+function finish() {
+  const pct = Math.round((correct / QUESTIONS.length) * 100);
+  document.getElementById("score").textContent = `${correct} / ${QUESTIONS.length}`;
+  const msg =
+    pct === 100 ? "Locked in. You own this flow." :
+    pct >= 70 ? "Solid — re-read the ones you missed and it's yours." :
+    pct >= 40 ? "Getting there. Re-tell the spine, then retry." :
+    "Fried brain? Rest, re-read the notes, come back.";
+  document.getElementById("msg").textContent = `${pct}% — ${msg}`;
+  document.getElementById("result").classList.add("show");
+  document.getElementById("result").scrollIntoView({ behavior: "smooth" });
+}
+</script>
+</body>
+</html>

@@ -12,7 +12,7 @@ import { defaultRemindersFor, itemTypeValues } from "@/lib/validators";
 import { dateInputValue } from "@/lib/format";
 import type { ComplianceItem } from "@/lib/db/schema";
 
-type TruckOption = { id: string; name: string };
+export type TruckOption = { id: string; name: string };
 
 const selectCls =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -25,7 +25,9 @@ function dayLabel(d: number): string {
   return `${d} day${d === 1 ? "" : "s"} before`;
 }
 
-type ParentOption = { id: string; label: string };
+export type ParentOption = { id: string; label: string };
+
+
 
 export function ItemForm({
   item,
@@ -34,15 +36,31 @@ export function ItemForm({
   people = [],
   venues = [],
   initialType,
+  initialValues,
   initialSubtype,
+  attachFileId,
 }: {
   item?: ComplianceItem;
   trucks: TruckOption[];
   parentOptions?: ParentOption[];
   people?: TruckOption[];
   venues?: TruckOption[];
+  
   initialType?: (typeof itemTypeValues)[number];
+
+  // Initial Values
+  initialValues?: {
+  jurisdiction?: string | null;
+  identifier?: string | null;
+  issueDate?: Date | string | null;
+  expirationDate?: Date | string | null;
+  feeAmount?: string | null;
+  feeDueDate?: Date | string | null;
+  holderName?: string | null;
+};
+
   initialSubtype?: string;
+  attachFileId?: string;
 }) {
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -152,7 +170,7 @@ export function ItemForm({
     const onError = (err: unknown) =>
       setError(err instanceof Error ? err.message : "Something went wrong");
     if (isEdit && item) update.mutate({ id: item.id, data }, { onError });
-    else create.mutate(data, { onError });
+    else create.mutate({ ...data, attachFileId }, { onError });
   }
 
   return (
@@ -191,7 +209,7 @@ export function ItemForm({
             name="jurisdiction"
             list="jurisdictions"
             required
-            defaultValue={item?.jurisdiction ?? ""}
+            defaultValue={item?.jurisdiction ?? initialValues?.jurisdiction ?? ""}
           />
           <datalist id="jurisdictions">
             {MN_JURISDICTIONS.map((j) => (
@@ -203,7 +221,7 @@ export function ItemForm({
           <Input
             id="identifier"
             name="identifier"
-            defaultValue={item?.identifier ?? ""}
+            defaultValue={item?.identifier ?? initialValues?.identifier ?? ""}
           />
         </Field>
         <Field label="Issue date" htmlFor="issueDate">
@@ -211,7 +229,7 @@ export function ItemForm({
             id="issueDate"
             name="issueDate"
             type="date"
-            defaultValue={dateInputValue(item?.issueDate)}
+            defaultValue={dateInputValue(item?.issueDate ?? initialValues?.issueDate)}
           />
         </Field>
         <Field label="Expiration date" htmlFor="expirationDate">
@@ -219,7 +237,7 @@ export function ItemForm({
             id="expirationDate"
             name="expirationDate"
             type="date"
-            defaultValue={dateInputValue(item?.expirationDate)}
+            defaultValue={dateInputValue(item?.expirationDate ?? initialValues?.expirationDate)}
           />
         </Field>
         <Field label="Renewal fee (USD)" htmlFor="feeAmount">
@@ -232,7 +250,7 @@ export function ItemForm({
             defaultValue={
               item?.feeAmountCents != null
                 ? (item.feeAmountCents / 100).toString()
-                : ""
+                : initialValues?.feeAmount ?? ""
             }
           />
         </Field>
@@ -241,7 +259,7 @@ export function ItemForm({
             id="feeDueDate"
             name="feeDueDate"
             type="date"
-            defaultValue={dateInputValue(item?.feeDueDate)}
+            defaultValue={dateInputValue(item?.feeDueDate ?? initialValues?.feeDueDate)}
           />
         </Field>
         <Field label="Status" htmlFor="status">
@@ -287,7 +305,7 @@ export function ItemForm({
           <Input
             id="holderName"
             name="holderName"
-            defaultValue={item?.holderName ?? ""}
+            defaultValue={item?.holderName ?? initialValues?.holderName ?? ""}
           />
         </Field>
         <Field label="Depends on (parent item)" htmlFor="parentItemId">

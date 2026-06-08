@@ -101,7 +101,7 @@ Use **separate** prod keys — never reuse dev. All flow through
       delete; audit trail row appears)
 - [X] **Dashboard** RED/YELLOW/GREEN: expired item on active truck → RED;
       commissary cascade; person-cert cross-truck cascade
-- [~] **OCR**: upload a real permit → proposal → apply → fields land; low
+- [X] **OCR**: upload a real permit → proposal → apply → fields land; low
       expiry confidence → manual-review banner
 - [ ] **Reminders**: item expiring soon → dispatch scheduled → "Run due
       now" → email arrives → acknowledge link works; unacked >48h → YELLOW
@@ -139,6 +139,7 @@ Use **separate** prod keys — never reuse dev. All flow through
       define the GDPR/CCPA path)
 - [—] SMS opt-in language: deferred at launch with Twilio (see §1).
       Required once A2P 10DLC is approved and SMS reminders go live.
+      Adjust the UI, and fix the dashboard , seperate items checklist for each distinct item. 
 
 ---
 
