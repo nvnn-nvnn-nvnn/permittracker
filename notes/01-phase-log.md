@@ -774,4 +774,34 @@ passes them down). Toggle = stacked selectable cards (scan is default). Built
 out `ScanToCreate`'s idle state from a bare button → a dashed drop-zone (icon,
 heading, "Choose a file", format/size hint), a numbered 3-step "how it works"
 strip, and spinner progress states. The standalone `/items/new/scan` route is
-now redundant — can be deleted.
+now redundant — can be deleted. (Route since deleted; `new-item-chooser` now
+forwards `initialType`/`initialSubtype` to the manual `ItemForm` branch only.)
+
+### 2026-06-08 — Reminder email delivery live (resolves §1 Resend)
+
+Reminders weren't arriving — root cause was Resend, not the pipeline (matches
+the "Resend dev sender" caveat in `00-decisions.md`). Fix: verified the
+`vendguard.app` sending domain in Resend and set `EMAIL_FROM=VendGuard
+<reminders@vendguard.app>` (a real address on the verified domain, replacing
+the default `onboarding@resend.dev` which only mails the Resend account owner).
+Gotcha worth remembering: the email adapter + `serverEnv()` are **memoized**,
+so changing `EMAIL_FROM`/`RESEND_API_KEY` needs a **dev-server restart** to
+take effect. Diagnostic order that works: dev terminal (`[email:stub]` = no
+key loaded), `/admin` dispatch status (sent/failed), Resend → Emails log
+(delivered/bounced). Unblocks §6 Reminders QA. Also began the PermitKeep →
+**VendGuard** rebrand (email/SMS/voice copy in `lib/reminders/`,
+`lib/digest/email.ts`; `EMAIL_FROM`); Stripe product names + dashboard still
+to do for a full rebrand.
+
+### 2026-06-08 — Billing limits verified (§6 line 117)
+
+Confirmed the cap block fires: on a Starter account, the 2nd truck (cap 1) is
+rejected with the FORBIDDEN message rendered in the form's red error box. Logic
+chain: `limitedProcedure` → `assertWithinLimit` throws `TRPCError(FORBIDDEN,
+"…Upgrade in Settings → Billing…")` → React Query `onError` → `setError(msg)` →
+`{error && <p role="alert">}`. Same pattern in truck-form + item-form. Caps:
+Starter 1 truck / 15 items; Pro+ unlimited items. `effectiveTier` floors
+lapsed/none accounts to Starter, so limits work pre-Stripe. **Follow-up (owner
+will do):** the "upgrade prompt" is currently just the error *text* — no
+clickable CTA. Improve later by detecting the FORBIDDEN code in `onError` and
+rendering an actual Upgrade button/link to Settings → Billing.

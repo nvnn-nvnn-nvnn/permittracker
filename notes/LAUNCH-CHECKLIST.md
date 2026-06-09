@@ -103,7 +103,7 @@ Use **separate** prod keys — never reuse dev. All flow through
       commissary cascade; person-cert cross-truck cascade
 - [X] **OCR**: upload a real permit → proposal → apply → fields land; low
       expiry confidence → manual-review banner
-- [ ] **Reminders**: item expiring soon → dispatch scheduled → "Run due
+- [X] **Reminders**: item expiring soon → dispatch scheduled → "Run due
       now" → email arrives → acknowledge link works; unacked >48h → YELLOW
 - [—] **SMS**: deferred at launch (see §1 Twilio). Re-enable once A2P
       live: reminder text; reply "OK" acks.
