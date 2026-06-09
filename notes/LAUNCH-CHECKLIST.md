@@ -114,11 +114,11 @@ Use **separate** prod keys — never reuse dev. All flow through
       disabled in prod. Core still testable via the Settings simulator:
       forward → classified, matched or draft created. Re-enable once the
       Postmark inbound server is live.
-- [ ] **Billing limits**: Starter at cap → create blocked with upgrade
+- [X] **Billing limits**: Starter at cap → create blocked with upgrade
       prompt
 - [X] **Admin** (`/admin`): only platform-admin; queue actions resolve +
       audit as the admin
-- [ ] **Digest**: monthly inspection-prep digest renders + emails
+- [X] **Digest**: monthly inspection-prep digest renders + emails
 
 ## 7. Tests & review (the engineering gap)
 
