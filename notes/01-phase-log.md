@@ -805,3 +805,20 @@ lapsed/none accounts to Starter, so limits work pre-Stripe. **Follow-up (owner
 will do):** the "upgrade prompt" is currently just the error *text* — no
 clickable CTA. Improve later by detecting the FORBIDDEN code in `onError` and
 rendering an actual Upgrade button/link to Settings → Billing.
+
+### 2026-06-08 — Monthly digest verified (§6 line 121) + email gotchas
+
+Digest renders + emails confirmed via `/admin` → "generate & send now"
+(`admin.generateAndSendDigests` → `runMonthlyDigests`, same path as the
+1st-of-month cron). Prereq: account needs items in a **seeded MN jurisdiction**
+or `digestsForAccount` returns empty → `emailed: 0`. Digest content is
+**Claude-authored, stored in `jurisdiction_digest`**, idempotent per
+(jurisdiction, period) — re-runs reuse rows; only the email *shell*
+(`lib/digest/email.ts`) is rebuilt per send. Two gotchas worth keeping:
+(1) **Gmail spam** — new domain `vendguard.app` landed digest/reminder mail in
+Gmail spam while Proton inboxed it and Resend showed "delivered" ("delivered" =
+recipient server accepted, not inboxed). Fix = add a **DMARC** TXT record
+(`_dmarc`, `v=DMARC1; p=none; rua=…`) on top of Resend's SPF/DKIM; Gmail's 2024
+rules want all three. (2) **Sent email = frozen snapshot** — a brand/template
+edit (PermitKeep→VendGuard) only shows on *new* sends; old inbox copies never
+change. §6 now complete except the deferred SMS/voice/inbound items.

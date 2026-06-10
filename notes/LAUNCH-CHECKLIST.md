@@ -43,7 +43,7 @@ Use **separate** prod keys — never reuse dev. All flow through
       un-hide the inbound affordance. See `00-decisions.md` → Known caveats.
 - [x] `REMINDER_TOKEN_SECRET` = fresh long random, **different from dev**
 - [x] `APP_URL` = production https URL
-- [ ] Inngest prod: `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`
+- [X] Inngest prod: `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`
 
 ## 2. Production database
 
@@ -122,7 +122,7 @@ Use **separate** prod keys — never reuse dev. All flow through
 
 ## 7. Tests & review (the engineering gap)
 
-- [ ] Automated tests for security-critical paths: RLS tenant isolation,
+- [~] Automated tests for security-critical paths: RLS tenant isolation,
       audit append-only, billing `limitedProcedure`, signed-token
       verify/expiry, cascade status engine
 - [ ] Webhook signature-verification tests (Stripe/Postmark/Twilio)

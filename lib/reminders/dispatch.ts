@@ -128,7 +128,7 @@ export async function processDueDispatches(opts?: {
           continue;
         }
         const twiml = buildEscalationTwiml({
-          spoken: `This is PermitKeep. ${label} ${
+          spoken: `This is VendGuard. ${label} ${
             d.kind === "fee" ? "has a fee due" : "expires"
           } ${fmtDate(row.item.expirationDate)}.`,
           actionUrl: `${appUrl}/api/webhooks/twilio-voice?token=${createAcknowledgeToken(
