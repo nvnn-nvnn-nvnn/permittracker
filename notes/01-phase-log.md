@@ -822,3 +822,216 @@ recipient server accepted, not inboxed). Fix = add a **DMARC** TXT record
 rules want all three. (2) **Sent email = frozen snapshot** — a brand/template
 edit (PermitKeep→VendGuard) only shows on *new* sends; old inbox copies never
 change. §6 now complete except the deferred SMS/voice/inbound items.
+
+### 2026-06-10 — Stripe webhook signature-verification tests
+
+Added `app/api/webhooks/stripe/route.test.ts` (Vitest) covering the
+`constructEvent` gate in `app/api/webhooks/stripe/route.ts`. Drives the real
+`POST` handler; signatures are generated **offline** with Stripe's own
+`webhooks.generateTestHeaderString` (pure local HMAC — no network, no Stripe
+API). 6 cases: valid sig → **200**; and → **400** for missing header, malformed
+sig, tampered body (valid sig over a *different* payload), wrong secret, stale
+timestamp (past the 5-min tolerance). Design choices worth remembering:
+(1) the fixture event uses an **unhandled** type (`invoice.payment_succeeded`)
+so a verified request falls through to `switch`'s `default` and returns 200
+**without touching the DB or `getStripe()` API** — keeps the test hermetic and
+purely about verification. (2) `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` are
+set in `beforeAll` and the route is **dynamically imported after**, because
+`serverEnv()` + the Stripe client memoize lazily. **Deferred:** the 503
+"Billing not configured" path isn't covered here — `serverEnv()` memoization
+means it belongs in a separate test file with fresh module state.
+
+### 2026-06-13 — Account deletion / GDPR-CCPA erasure (IN PROGRESS)
+
+Building hard account deletion (`lib/account/delete.ts`) for the launch
+checklist §8 "data-deletion / account-closure" item. Admin-only first
+(adminProcedure → `deleteAccount(accountId)`); self-serve owner flow comes
+later. **Assumption locked: 1 user ↔ 1 account** (no multi-member case), so
+deleting an account always deletes its single owner user too.
+
+Key design facts discovered:
+- **Cascade does ~90% of it.** Every tenant table FKs `account.id` with
+  `onDelete: "cascade"`, so a single `DELETE FROM account` wipes trucks, items,
+  commissaries, venues, people, files, proposals, costs, dispatches, membership.
+  And the audit trigger is `AFTER INSERT OR UPDATE` only — **DELETE doesn't fire
+  it**, so the cascade is neither blocked nor writes new audit rows.
+- **`audit_log` is the ONE exception** — it has **no FK to account** (deliberate,
+  so cascade can't erase history) and its `prior/new_value` JSONB embeds permit/
+  COI numbers + `person.email`. So erasure needs an explicit privileged purge:
+  `purge_account_audit(accountId)` — a `SECURITY DEFINER` SQL fn that out-ranks
+  the append-only block trigger. **TODO: write that migration.**
+- **Four things cascade can't reach:** (1) audit_log [above], (2) Supabase
+  Storage bytes — must `deleteObjects(paths)` derived from `file_attachment.
+  storage_path` BEFORE the cascade deletes those rows, (3) the Supabase auth
+  identity — `getSupabaseAdmin().auth.admin.deleteUser()`, (4) Stripe — cancel
+  the subscription but **keep the customer + invoices** (tax retention; an
+  allowed GDPR/CCPA exception).
+
+Routine ordering (external/reversible first, irreversible cascade last):
+read account row + file paths → cancel Stripe → deleteObjects → **tx**{
+purge_account_audit + DELETE account } → delete auth user + app_user row →
+record + confirm. **Idempotency over atomicity:** can't transact across Stripe +
+Storage + Supabase Auth + Postgres, so each external step is re-runnable
+("already gone" swallowed, real failures captured to Sentry + rethrown to
+abort before the cascade). Only the two Postgres ops share a transaction.
+
+Prereqs added: extracted the service-role client to `lib/supabase/admin.ts`
+(`getSupabaseAdmin`, reused by storage.ts) and a bulk `deleteObjects(paths)` in
+`lib/storage.ts`. **Still TODO:** `purge_account_audit` migration, an
+`account_deletion_log` table (proof-of-erasure, since audit_log for that account
+is gone), the admin tRPC mutation, and `notes/data-deletion-process.md` runbook.
+
+### 2026-06-13 — Account deletion: delete.ts + audit-purge migration DONE
+
+`lib/account/delete.ts` implemented and tsc/eslint-clean. Final ordering is
+**retry-safe**: read → Stripe cancel → `deleteObjects` → Supabase
+`auth.admin.deleteUser` → **tx{ purge_account_audit; delete account (cascade);
+delete app_user }**. The auth delete moved **before** the tx on purpose — the
+account row is the retry sentinel (`if (!row) return`), so it must die last;
+if it were deleted before the auth call, a failed auth delete could never be
+retried (re-run would early-return) → orphaned login. All three external steps
+swallow "already gone" (`stripe resource_missing`, `auth status 404`) and
+Sentry-log+rethrow real failures so we never erase an account whose billing we
+couldn't stop.
+
+Migration `0018_purge_account_audit.sql` written + wired into drizzle journal
+(idx 18) + chained 0018 snapshot. See `00-decisions.md` for the append-only
+escape-hatch decision. **NOT yet applied to any DB** — run `npm run db:migrate`
+(dev then prod) and re-run the Phase 2 append-only probe to confirm the guard
+still rejects normal UPDATE/DELETE after the `CREATE OR REPLACE`. Also verify at
+runtime that `auth.admin.deleteUser` returns `status: 404` for an already-gone
+user (the 404 branch is assumed, type-checks but untested).
+
+**Still TODO:** apply 0018; admin tRPC mutation (`adminProcedure` →
+`deleteAccount`); `account_deletion_log` proof-of-erasure table; the
+`notes/data-deletion-process.md` runbook; self-serve owner close-account flow.
+
+### 2026-06-13 — Account deletion: admin mutation + erasure ledger DONE
+
+tsc + eslint clean. Three pieces landed:
+- **`account_deletion_log` table** (`lib/db/schema.ts`) — append-only proof-of-
+  erasure ledger, **no FKs** (survives the cascade + outlives the owner, like
+  `audit_log`); denormalized `accountName`/`accountSlug` so a row still means
+  something after the account is gone. Columns: accountId, accountName,
+  accountSlug, deletedByUserId (plain uuid), reason, createdAt.
+- **`deleteAccount(accountId, { deletedByUserId, reason? })`** — signature
+  changed to take who/why; writes the ledger row **inside the final tx**, atomic
+  with the cascade (account deleted ⇒ proof row exists, guaranteed).
+- **`admin.deleteAccountPermanently` mutation** — `adminProcedure` (platform-
+  admin, cross-tenant). Input `{ accountId, confirmSlug, reason? }`. **Echo-
+  confirm guard**: fetches the account, throws BAD_REQUEST unless
+  `confirmSlug === account.slug` (stops fat-fingering the wrong tenant); passes
+  `ctx.account.userId` as deletedByUserId. **No `withActor`** here (unlike sibling
+  admin mutations) — the audit log for this account is being erased, and
+  deleteAccount manages its own tx + external calls. Named `…Permanently` to
+  signal irreversibility. Removed a broken earlier `deleteAccount` stub (wrong
+  `itemId` input) that was failing tsc.
+
+**REQUIRED before it runs:** the table isn't in the DB yet — run
+`npm run db:generate` (emits `0019_*` CREATE TABLE + snapshot, diffed against the
+0018 snapshot which has no new tables) then `npm run db:migrate` (applies 0018
+purge-fn + 0019 table). NOTE: 0018 was hand-written (pure SQL functions/triggers,
+which drizzle's diff can't model); 0019 is a real table so it goes through
+`db:generate` — don't hand-write it.
+
+**Still TODO:** run generate+migrate; `notes/data-deletion-process.md` runbook
+(blocked on 4 policy values: SLA, intake email, who's authorized, ledger
+retention); self-serve owner close-account flow.
+
+### 2026-06-13 — Account deletion: admin UI + migrations applied, TESTED ✅
+
+Migrations generated + applied (0018 purge-fn/escape-hatch, 0019
+`account_deletion_log` table). Admin UI shipped + verified working end-to-end:
+- **`components/features/account-danger-zone.tsx`** — "Danger zone" card at the
+  bottom of `/admin` (platform-admin only; page already `notFound()`s
+  non-admins). Account dropdown → type-the-slug echo-confirm (button disabled
+  until it matches) → `window.confirm()` → `admin.deleteAccountPermanently`.
+  Optional reason flows to the ledger.
+- **`admin.listAccounts`** query (id/name/slug, cap 200) feeds the picker.
+- Wired into `app/(app)/admin/page.tsx` via the `Promise.all` fetch.
+
+Three protection layers confirmed: admin-role gate (page + adminProcedure),
+slug echo-confirm (client disable + server BAD_REQUEST), browser confirm dialog.
+Account-deletion feature is now functionally complete and tested.
+
+**Still TODO (non-blocking for the feature itself):**
+`notes/data-deletion-process.md` runbook (blocked on 4 policy values: SLA,
+intake email, who's authorized, ledger retention) — this is the checklist §8
+"define the path" deliverable; and the self-serve owner close-account flow.
+
+### 2026-06-13 — Data-deletion runbook written; checklist §8 DONE
+
+`notes/data-deletion-process.md` written. Policy locked: **30-day SLA**,
+**platform-admin-only** execution, **3-year** `account_deletion_log` retention.
+Intake email is a **placeholder** (`raysarchive@proton.me`) that must be
+reconciled with the Privacy Policy's `privacy@vendguard.app` before launch.
+Runbook covers scope/legal basis, intake, identity verification, what's
+deleted vs retained (+basis: ledger 3yr, Stripe invoices for tax, backups age
+out), processor propagation, the /admin Danger-zone execution steps,
+confirmation, and record-keeping. Launch Checklist §8 data-deletion item ticked
+`[x]`. Account-deletion epic now fully complete (logic + UI + migrations +
+tested + documented). Remaining: self-serve owner close-account flow (later
+phase) and the broad UI/UX polish pass.
+
+### 2026-06-14 — Truck-centric UI/UX redesign (dashboard, trucks, items)
+
+Major front-end reorg toward a parent→children (truck→items) model. **No schema
+change** — `compliance_item.holderTruckId` + `itemType` already existed; this was
+all presentation. tsc + eslint clean throughout.
+
+New shared + components:
+- `lib/item-display.ts` — single source for the 5 item types' order/label/icon
+  (Stamp/ClipboardCheck/BadgeCheck/ShieldCheck/Truck), reused everywhere.
+- `truck-items.tsx` — a truck's items in collapsible **type folders**; **ALL 5
+  categories always listed** even when empty (empty = collapsed, dim, with a
+  prefilled `/items/new?truck=&type=` Add link).
+- `truck-rollup.tsx` — per-truck status list (worst-of-its-items), reused on the
+  dashboard "By truck" section AND the `/trucks` list.
+- `truck-staff-items.tsx` + new `truck.staffItems` tRPC query — staff certs that
+  cascade onto a truck via `person_truck`.
+- `items-by-type.tsx` — `/items` is now a **multi-column folder grid** by type;
+  all 5 columns always shown; headers link to the category subpage.
+- `app/(app)/items/category/[type]/page.tsx` — NEW per-category subpage (focused
+  list for one type). Validates type → notFound; can't collide with `/items/[id]`.
+- `dashboard-urgent-table.tsx` — the dashboard centerpiece: a **"Needs attention"
+  table** (expired / ≤30d / fee-due-soon, most-urgent first), soft red/amber row
+  wash, ring-halo status dots, type pills, responsive (Expires col hides <md).
+- `commissary-cascade.tsx` — extracted + professionalized the dashboard's
+  commissary block (header bar, count pill, linked rows, severity tints, clearer
+  "Permit expired / Contract due in Nd" badges).
+
+Pages reworked: `trucks/[id]` is now the compliance hub (status header → type
+folders → staff certs → edit form demoted into a collapsible "Truck details");
+`trucks` list shows compliance status per truck; `dashboard` restructured to
+status hero → Needs-attention table → commissary cascade → by-truck → digest
+(removed the redundant "Why this status" bullet list).
+
+Design language settled after iteration (user: "less vibe coded" then "not too
+amateur / too close together" then "more pretty"): flat **flex column-of-rows**
+layout, comfortable `px-5 py-4` rows, `gap-6` between item columns, status =
+color (R/Y/G) only, type = icon; soft severity row tints + ring-halo dots for
+polish. **All views verified by tsc+eslint only — NOT yet eyeballed in a running
+app.** Open follow-ups: wire `?truck=` prefill on the new-item page (currently
+only `type` is read); the parked "shared/account-wide items" decision (user
+chose the no-schema 'applies to all trucks' section — not yet built); optionally
+extend the table polish to the item detail page + dashboard status hero.
+
+### 2026-06-14 — Plan-limit warnings → upgrade prompt (billing cap UX)
+
+Closed the billing-limits follow-up logged at "2026-06-08 — Billing limits
+verified" (the cap error was raw red text with no CTA). Now truck-form + item-form
+detect the limit case and render a professional upgrade prompt instead.
+- `lib/limit-error.ts` — `isLimitError()` = `TRPCClientError` with `data.code ===
+  "FORBIDDEN"` (the only FORBIDDEN these create flows throw, from
+  `assertWithinLimit`).
+- `components/features/limit-notice.tsx` — branded panel (primary tint + Sparkles),
+  "You've reached your plan limit" + the cap detail + guidance (upgrade or
+  archive), "Upgrade plan" button → `/settings`. Strips the server message's
+  redundant "Upgrade in Settings…" tail.
+- Both forms now hold `{ message, isLimit }`; `isLimit` → `<LimitNotice>`, else the
+  plain red box for genuine errors. Decided AGAINST a modal — inline-at-the-form
+  keeps entered data and shows the prompt where the action failed.
+tsc + eslint clean. UI/UX redesign pass considered done; user pushing to
+production. NOTE: redesign + this prompt still verified statically only — a live
+click-through (esp. exceeding a cap, and the dashboard table with real expiring
+items) is the outstanding manual check before/at deploy.

@@ -14,6 +14,7 @@ import {
 } from "@/lib/db/schema";
 import { recomputeDispatches } from "@/lib/reminders/schedule";
 import { runMonthlyDigests } from "@/lib/digest/run";
+import { deleteAccount } from "@/lib/account/delete";
 
 /**
  * Platform-admin only (adminProcedure enforces is_platform_admin).
@@ -180,6 +181,53 @@ export const adminRouter = createTRPCRouter({
     return { manualReviewFiles, inboundDrafts, conciergeAccounts };
   }),
 
+  // --- Account directory (for the deletion picker) ---
+  listAccounts: adminProcedure.query(async () => {
+    const db = getDb();
+    return db
+      .select({
+        id: account.id,
+        name: account.name,
+        slug: account.slug,
+      })
+      .from(account)
+      .orderBy(desc(account.createdAt))
+      .limit(200);
+  }),
+
+  // --- Irreversible account erasure (GDPR/CCPA) ---
+  // Hard-deletes an account + its owner. Echo-confirm guard: the operator must
+  // pass the account's exact slug. deleteAccount() handles Stripe/Storage/Auth
+  // and writes the proof-of-erasure ledger row.
+  deleteAccountPermanently: adminProcedure
+    .input(
+      z.object({
+        accountId: z.string().uuid(),
+        confirmSlug: z.string().min(1),
+        reason: z.string().max(500).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = getDb();
+      const [acct] = await db
+        .select({ slug: account.slug })
+        .from(account)
+        .where(eq(account.id, input.accountId))
+        .limit(1);
+      if (!acct) throw new TRPCError({ code: "NOT_FOUND" });
+      if (acct.slug !== input.confirmSlug) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "confirmSlug does not match the account's slug",
+        });
+      }
+      await deleteAccount(input.accountId, {
+        deletedByUserId: ctx.account.userId,
+        reason: input.reason,
+      });
+      return { ok: true };
+    }),
+
   // --- Resolve actions (audited as the admin) ---
   markFileReviewed: adminProcedure
     .input(z.object({ fileId: z.string().uuid() }))
@@ -268,6 +316,9 @@ export const adminRouter = createTRPCRouter({
       });
       return { ok: true, applied: true };
     }),
+
+
+
 
   dismissDraft: adminProcedure
     .input(z.object({ itemId: z.string().uuid() }))

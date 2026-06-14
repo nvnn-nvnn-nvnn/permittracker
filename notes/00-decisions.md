@@ -254,6 +254,44 @@ These were confirmed with the owner before any code was written.
   `strict: true` to honor "TS strict everywhere". Next reformatted tsconfig
   and set `jsx: preserve` automatically (expected).
 
+## Security / dependency decisions
+
+- **2026-06-13 — Append-only audit log gains ONE erasure escape hatch.**
+  Phase 2 made `audit_log` immutable "even to us" (BEFORE UPDATE/DELETE trigger
+  raises for all roles + REVOKE from PUBLIC). GDPR/CCPA right-to-erasure forces a
+  narrow exception: migration `0018_purge_account_audit.sql` rewrites
+  `permitkeep_audit_block()` to allow a **DELETE** when the transaction-local GUC
+  `permitkeep.allow_audit_purge = 'on'`. Only `purge_account_audit(accountId)`
+  (SECURITY DEFINER) sets that flag, deletes one account's rows, unsets it; the
+  flag is tx-local so it auto-closes and can't leak across pooled connections
+  (same mechanism as `permitkeep.actor_id`). **UPDATE remains blocked
+  unconditionally** — the log is still un-editable; it is only *erasable* for a
+  whole account via the one sanctioned deletion path. Rationale: tamper-evidence
+  defends against bugs/malice, which a deliberate legal erasure is neither.
+  Trust model unchanged: non-privileged roles still can't touch `audit_log`
+  (RLS + REVOKE); only the trusted server (service role) can invoke the function.
+  Re-run the Phase 2 append-only probe after applying 0018 to confirm normal
+  UPDATE/DELETE still raise.
+
+
+- **2026-06-11 — `npm audit`: 6 moderate findings accepted, NOT force-fixed.**
+  `npm audit` reports two transitive, **build/dev-time-only** advisories:
+  (1) **esbuild ≤0.24.2** (GHSA-67mh-4wv8-2f99, dev-server response leak) pulled
+  in via `drizzle-kit` → `@esbuild-kit/esm-loader`; drizzle-kit is a
+  **devDependency** used only for `db:generate`/`db:push`, and uses esbuild to
+  load its TS config, not to serve — not in the deployed app. (2) **postcss
+  <8.5.10** (GHSA-qx2v-qp2m-jg93, XSS on stringify of attacker CSS) bundled
+  inside `next`; postcss only processes our own stylesheets at build time, never
+  visitor input. Neither is reachable by a running-app request. **Decision:** do
+  **not** run `npm audit fix --force` — it would downgrade `drizzle-kit`
+  0.31→0.18 and `next` 15.5→9.3 (catastrophic breaking changes) to clear
+  moderate, non-exploitable transitive advisories. Resolve the proper way:
+  **upstream version bumps** of `next`/`drizzle-kit` once they ship patched
+  transitive deps (`npm outdated`), staying on Next 15 / current drizzle-kit. If
+  a clean audit is ever required for compliance, prefer a scoped `overrides`
+  pin (after verifying the build) or a documented exception — not `--force`.
+  Not a launch blocker.
+
 ## Environment notes
 
 - Dev machine: Windows 11, Node v22.19.0, npm 11.6.0, git 2.46.0.

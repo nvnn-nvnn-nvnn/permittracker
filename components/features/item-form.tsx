@@ -7,12 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { LimitNotice } from "@/components/features/limit-notice";
+import { isLimitError } from "@/lib/limit-error";
 import { MN_JURISDICTIONS } from "@/lib/jurisdictions";
 import { defaultRemindersFor, itemTypeValues } from "@/lib/validators";
 import { dateInputValue } from "@/lib/format";
 import type { ComplianceItem } from "@/lib/db/schema";
 
 export type TruckOption = { id: string; name: string };
+type FormError = { message: string; isLimit: boolean };
 
 const selectCls =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -65,7 +68,7 @@ export function ItemForm({
   const router = useRouter();
   const utils = trpc.useUtils();
   const isEdit = Boolean(item);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FormError | null>(null);
   const [type, setType] = useState(
     item?.itemType ?? initialType ?? "permit",
   );
@@ -168,7 +171,10 @@ export function ItemForm({
       reminderDaysBefore: reminders,
     };
     const onError = (err: unknown) =>
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError({
+        message: err instanceof Error ? err.message : "Something went wrong",
+        isLimit: isLimitError(err),
+      });
     if (isEdit && item) update.mutate({ id: item.id, data }, { onError });
     else create.mutate({ ...data, attachFileId }, { onError });
   }
@@ -434,14 +440,17 @@ export function ItemForm({
         <Textarea id="notes" name="notes" defaultValue={item?.notes ?? ""} />
       </Field>
 
-      {error && (
-        <p
-          role="alert"
-          className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
-        >
-          {error}
-        </p>
-      )}
+      {error &&
+        (error.isLimit ? (
+          <LimitNotice message={error.message} />
+        ) : (
+          <p
+            role="alert"
+            className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {error.message}
+          </p>
+        ))}
 
       {confirmMsg && (
         <p

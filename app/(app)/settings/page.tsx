@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { requireAccountContext } from "@/lib/auth/session";
 import {
   Card,
@@ -52,6 +53,29 @@ export default async function SettingsPage() {
       </Suspense>
 
       <NotificationsPanel />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Legal</CardTitle>
+          <CardDescription>
+            Policies that govern your use of VendGuard.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2 text-sm">
+          <Link
+            href="/legal/terms"
+            className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+          >
+            Terms of Service
+          </Link>
+          <Link
+            href="/privacy"
+            className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+          >
+            Privacy Policy
+          </Link>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -61,6 +85,7 @@ function Row({ label, value }: { label: string; value: string }) {
     <div className="flex justify-between gap-4 border-b py-1 last:border-0">
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium">{value}</span>
-    </div>
+    </div>              
+    
   );
 }

@@ -1,21 +1,22 @@
 import Link from "next/link";
+import { requireAccountContext } from "@/lib/auth/session";
 import { serverApi } from "@/lib/trpc/server";
+import { computeAccountStatus } from "@/lib/status";
 import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { TruckRollup } from "@/components/features/truck-rollup";
 
 export const metadata = { title: "Trucks · VendGuard" };
 export const dynamic = "force-dynamic";
 
 export default async function TrucksPage() {
-  const api = await serverApi();
-  const trucks = await api.truck.list();
+  const [ctx, api] = await Promise.all([
+    requireAccountContext(),
+    serverApi(),
+  ]);
+  const [trucks, status] = await Promise.all([
+    api.truck.list(),
+    computeAccountStatus(ctx.accountId),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -26,37 +27,7 @@ export default async function TrucksPage() {
         </Link>
       </div>
 
-      {trucks.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>No trucks yet</CardTitle>
-            <CardDescription>
-              Add your first truck to start tracking its permits.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      ) : (
-        <div className="grid gap-3">
-          {trucks.map((t) => (
-            <Link key={t.id} href={`/trucks/${t.id}`}>
-              <Card className="transition-colors hover:bg-accent/40">
-                <CardContent className="flex items-center justify-between p-4">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{t.name}</p>
-                    <p className="truncate text-sm text-muted-foreground">
-                      {t.plateOrVin ?? "no plate"} ·{" "}
-                      {t.jurisdiction ?? "no jurisdiction"}
-                    </p>
-                  </div>
-                  <Badge variant={t.isActive ? "green" : "outline"}>
-                    {t.isActive ? "Active" : "Inactive"}
-                  </Badge>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      )}
+      <TruckRollup trucks={trucks} items={status.items} />
     </div>
   );
 }

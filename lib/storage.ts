@@ -3,19 +3,21 @@ import { createClient } from "@supabase/supabase-js";
 import { publicEnv, requireEnv } from "@/lib/env";
 import { DOCUMENTS_BUCKET } from "@/lib/constants";
 
+import { getSupabaseAdmin } from "./supabase/admin";
+
 export { DOCUMENTS_BUCKET };
 
 /**
  * Service-role Supabase client. Server-only. Bypasses RLS by design — the
  * bucket is private and we only ever expose short-lived SIGNED urls.
- */
-function admin() {
-  return createClient(
-    publicEnv.NEXT_PUBLIC_SUPABASE_URL,
-    requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
-    { auth: { persistSession: false } },
-  );
-}
+//  */
+// function admin() {
+//   return createClient(
+//     publicEnv.NEXT_PUBLIC_SUPABASE_URL,
+//     requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
+//     { auth: { persistSession: false } },
+//   );
+// }
 
 /** Canonical object path: accounts/{account}/items/{item}/{file}-{name}. */
 export function buildStoragePath(args: {
@@ -33,7 +35,7 @@ export function buildStoragePath(args: {
 
 /** A one-time signed URL the browser uses to PUT the file bytes directly. */
 export async function createSignedUploadUrl(path: string) {
-  const { data, error } = await admin()
+  const { data, error } = await getSupabaseAdmin()
     .storage.from(DOCUMENTS_BUCKET)
     .createSignedUploadUrl(path);
   if (error) throw error;
@@ -42,7 +44,7 @@ export async function createSignedUploadUrl(path: string) {
 
 /** Short-lived signed URL for viewing/downloading a stored document. */
 export async function createSignedReadUrl(path: string, expiresSec = 600) {
-  const { data, error } = await admin()
+  const { data, error } = await getSupabaseAdmin()
     .storage.from(DOCUMENTS_BUCKET)
     .createSignedUrl(path, expiresSec);
   if (error) throw error;
@@ -55,7 +57,7 @@ export async function uploadBytes(
   bytes: Buffer,
   contentType: string,
 ): Promise<void> {
-  const { error } = await admin()
+  const { error } = await getSupabaseAdmin()
     .storage.from(DOCUMENTS_BUCKET)
     .upload(path, bytes, { contentType, upsert: false });
   if (error) throw error;
@@ -65,7 +67,7 @@ export async function uploadBytes(
 export async function downloadBytes(
   path: string,
 ): Promise<{ base64: string; contentType: string }> {
-  const { data, error } = await admin()
+  const { data, error } = await getSupabaseAdmin()
     .storage.from(DOCUMENTS_BUCKET)
     .download(path);
   if (error || !data) throw error ?? new Error("Download failed");
@@ -80,9 +82,27 @@ export async function downloadBytes(
 export async function deleteBytes(
   path:string, 
 ): Promise <void> {
-  const { error } = await admin()
+  const { error } = await getSupabaseAdmin()
   .storage.from(DOCUMENTS_BUCKET)
   .remove([path])
 
   if (error) throw error ?? new Error ("Delete Failed");
+}
+
+
+export async function deleteObjects(
+  paths:string[]
+): Promise <void> {
+
+  const { error } = await getSupabaseAdmin()
+  .storage
+  .from(DOCUMENTS_BUCKET)
+  .remove(paths)
+
+
+  if (error) throw error ?? new Error ("Delete Failed");
+
+
+
+
 }

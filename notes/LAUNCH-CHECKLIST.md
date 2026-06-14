@@ -125,18 +125,32 @@ Use **separate** prod keys — never reuse dev. All flow through
 - [~] Automated tests for security-critical paths: RLS tenant isolation,
       audit append-only, billing `limitedProcedure`, signed-token
       verify/expiry, cascade status engine
-- [ ] Webhook signature-verification tests (Stripe/Postmark/Twilio)
-- [ ] Independent security review (auth, RLS, service-role boundary,
+- [~ STRIPE ] Webhook signature-verification tests (Stripe/Postmark/Twilio)
+- [~] Independent security review (auth, RLS, service-role boundary,
       cross-tenant `/admin`)
-- [ ] Load test the */5 reminder cron at realistic volume
+- [DEFERRED] Load test the */5 reminder cron at realistic volume
+      (2026-06-11) — skipped for launch: volume is low with few customers, so
+      the risk isn't live yet. Revisit when reminder counts grow. Known
+      bottleneck to test then: dispatcher caps at 100 sends/tick
+      (`processDueDispatches` limit) and all reminders are stamped 13:00 UTC
+      (`SEND_HOUR_UTC`), so a day's reminders pile onto one tick → backlog
+      drains at only 100 per 5 min. Test = bulk-insert N due `reminder_dispatch`
+      rows (stub adapters), loop the dispatcher, measure drain time + the
+      due-select query plan; likely fixes = raise the limit, send concurrently,
+      add a `(status, scheduled_for)` index, and/or jitter the send hour.
 
 ## 8. Legal / product
 
-- [ ] Terms of Service + Privacy Policyy
-- [ ] "Advisory, not legal advice" disclaimer on digest/compliance copy
+- [~] Terms of Service + Privacy Policyy
+- [~] "Advisory, not legal advice" disclaimer on digest/compliance copy
       reviewed by counsel
-- [ ] Data-deletion / account-closure process (soft-delete + audit exists;
-      define the GDPR/CCPA path)
+- [x] Data-deletion / account-closure process (soft-delete + audit exists;
+      define the GDPR/CCPA path) — DONE 2026-06-13. Hard-delete implemented
+      (`lib/account/delete.ts` + `purge_account_audit` 0018 + `account_
+      deletion_log` 0019), admin Danger-zone UI, tested. Path defined in
+      `notes/data-deletion-process.md` (30-day SLA, platform-admin only, 3yr
+      ledger). **Pre-launch:** reconcile intake email (runbook placeholder
+      `raysarchive@proton.me` vs Privacy Policy `privacy@vendguard.app`).
 - [—] SMS opt-in language: deferred at launch with Twilio (see §1).
       Required once A2P 10DLC is approved and SMS reminders go live.
       Adjust the UI, and fix the dashboard , seperate items checklist for each distinct item. 

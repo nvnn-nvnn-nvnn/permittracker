@@ -27,6 +27,23 @@ export default function SignUpPage() {
             Sign in
           </Link>
         </p>
+        <p className="text-center text-xs text-muted-foreground">
+          By creating an account, you agree to our{" "}
+          <Link
+            href="/legal/terms"
+            className="font-medium text-foreground underline underline-offset-2"
+          >
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link
+            href="/privacy"
+            className="font-medium text-foreground underline underline-offset-2"
+          >
+            Privacy Policy
+          </Link>
+          .
+        </p>
       </CardContent>
     </Card>
   );

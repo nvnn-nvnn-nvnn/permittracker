@@ -691,3 +691,30 @@ export const jurisdictionDigest = pgTable(
 );
 
 export type JurisdictionDigest = typeof jurisdictionDigest.$inferSelect;
+
+// ===========================================================================
+// Account deletion ledger (GDPR/CCPA proof-of-erasure)
+// ===========================================================================
+//
+// An append-only RECORD that an account erasure happened. Intentionally has
+// NO foreign keys: it must survive the very cascade that erases the account
+// and outlive the deleted owner — exactly like audit_log. name/slug are
+// denormalized so the row stays meaningful after the account itself is gone.
+
+export const accountDeletionLog = pgTable("account_deletion_log", {
+  id: uuid("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  accountId: uuid("account_id").notNull(),
+  accountName: text("account_name"),
+  accountSlug: text("account_slug"),
+  // The user who performed the deletion (admin now, owner for self-serve
+  // later). Plain uuid, no FK — the ledger must not depend on app_user.
+  deletedByUserId: uuid("deleted_by_user_id"),
+  reason: text("reason"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type AccountDeletionLog = typeof accountDeletionLog.$inferSelect;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   createTRPCRouter,
@@ -7,7 +7,13 @@ import {
   protectedProcedure,
 } from "@/lib/trpc/trpc";
 import { getDb, withActor, type DbTx } from "@/lib/db";
-import { commissary, truck } from "@/lib/db/schema";
+import {
+  commissary,
+  complianceItem,
+  person,
+  personTruck,
+  truck,
+} from "@/lib/db/schema";
 import { truckInput } from "@/lib/validators";
 
 /** A linked commissary must belong to the same account. */
@@ -67,6 +73,29 @@ export const truckRouter = createTRPCRouter({
         .limit(1);
       if (!row) throw new TRPCError({ code: "NOT_FOUND" });
       return row;
+    }),
+
+  /** Compliance items held by people assigned to this truck (staff certs
+   *  that cascade onto it — see the person→truck cascade in lib/status). */
+  staffItems: protectedProcedure
+    .input(z.object({ truckId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const db = getDb();
+      return db
+        .select({ item: complianceItem, personName: person.name })
+        .from(complianceItem)
+        .innerJoin(
+          personTruck,
+          eq(personTruck.personId, complianceItem.personId),
+        )
+        .innerJoin(person, eq(person.id, complianceItem.personId))
+        .where(
+          and(
+            eq(complianceItem.accountId, ctx.account.accountId),
+            eq(personTruck.truckId, input.truckId),
+            isNull(complianceItem.archivedAt),
+          ),
+        );
     }),
 
   create: limitedProcedure("truck")

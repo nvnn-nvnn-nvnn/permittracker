@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AdminQueue } from "@/components/features/admin-queue";
 import { DigestAdmin } from "@/components/features/digest-admin";
+import { AccountDangerZone } from "@/components/features/account-danger-zone";
 
 export const metadata = { title: "Admin · VendGuard" };
 export const dynamic = "force-dynamic";
@@ -45,10 +46,11 @@ export default async function AdminPage() {
   if (!ctx.isPlatformAdmin) notFound();
 
   const api = await serverApi();
-  const [overview, queue, cost] = await Promise.all([
+  const [overview, queue, cost, accounts] = await Promise.all([
     api.admin.overview(),
     api.admin.conciergeQueue(),
     api.admin.extractionCostSummary(),
+    api.admin.listAccounts(),
   ]);
 
   const d = overview.dispatch;
@@ -197,6 +199,8 @@ export default async function AdminPage() {
           )}
         </CardContent>
       </Card>
+
+      <AccountDangerZone accounts={accounts} />
     </div>
   );
 }

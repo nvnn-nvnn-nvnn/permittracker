@@ -6,8 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { LimitNotice } from "@/components/features/limit-notice";
+import { isLimitError } from "@/lib/limit-error";
 import { MN_JURISDICTIONS } from "@/lib/jurisdictions";
 import type { Truck } from "@/lib/db/schema";
+
+type FormError = { message: string; isLimit: boolean };
 
 type CommissaryOption = { id: string; name: string };
 
@@ -23,7 +27,7 @@ export function TruckForm({
 }) {
   const router = useRouter();
   const utils = trpc.useUtils();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FormError | null>(null);
   const isEdit = Boolean(truck);
 
   const onDone = async () => {
@@ -48,7 +52,10 @@ export function TruckForm({
       notes: String(fd.get("notes") ?? ""),
     };
     const handler = (e2: unknown) =>
-      setError(e2 instanceof Error ? e2.message : "Something went wrong");
+      setError({
+        message: e2 instanceof Error ? e2.message : "Something went wrong",
+        isLimit: isLimitError(e2),
+      });
     if (isEdit && truck) {
       update.mutate({ id: truck.id, data }, { onError: handler });
     } else {
@@ -116,14 +123,17 @@ export function TruckForm({
         <Textarea id="notes" name="notes" defaultValue={truck?.notes ?? ""} />
       </Field>
 
-      {error && (
-        <p
-          role="alert"
-          className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
-        >
-          {error}
-        </p>
-      )}
+      {error &&
+        (error.isLimit ? (
+          <LimitNotice message={error.message} />
+        ) : (
+          <p
+            role="alert"
+            className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {error.message}
+          </p>
+        ))}
 
       <div className="flex gap-3">
         <Button type="submit" disabled={pending}>
