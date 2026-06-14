@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
+import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
 
 /**
- * Public-facing layout (landing + legal pages). Adds the shared site footer
- * so Terms/Privacy are reachable from anywhere on the marketing surface.
+ * Public-facing layout (landing, pricing, about, contact, legal). Adds the
+ * shared marketing header + footer around every page.
  */
 export default function MarketingLayout({
   children,
@@ -12,7 +13,8 @@ export default function MarketingLayout({
 }) {
   return (
     <div className="flex min-h-dvh flex-col">
-      {children}
+      <SiteHeader />
+      <div className="flex-1">{children}</div>
       <SiteFooter />
     </div>
   );

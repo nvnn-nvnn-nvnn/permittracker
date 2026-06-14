@@ -1,31 +1,74 @@
 import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
 
-/** Public site footer — shown on marketing + legal pages via (marketing) layout. */
+const COLUMNS: { heading: string; links: { href: string; label: string }[] }[] =
+  [
+    {
+      heading: "Product",
+      links: [
+        { href: "/#features", label: "Features" },
+        { href: "/#how", label: "How it works" },
+        { href: "/pricing", label: "Pricing" },
+        { href: "/signup", label: "Get started" },
+      ],
+    },
+    {
+      heading: "Company",
+      links: [
+        { href: "/about", label: "About" },
+        { href: "/contact", label: "Contact" },
+      ],
+    },
+    {
+      heading: "Legal",
+      links: [
+        { href: "/legal/terms", label: "Terms of Service" },
+        { href: "/privacy", label: "Privacy Policy" },
+      ],
+    },
+  ];
+
+/** Public site footer — shown on all marketing + legal pages via the layout. */
 export function SiteFooter() {
   return (
     <footer className="border-t border-border bg-secondary/30">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-5 py-8 text-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Logo variant="graphic" graphicClassName="h-6" />
-          <span>
-            © {new Date().getFullYear()} VendGuard · Stay open.
-          </span>
+      <div className="mx-auto w-full max-w-6xl px-5 py-14 sm:px-6">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.5fr_repeat(3,1fr)]">
+          <div className="max-w-xs">
+            <Logo variant="lockup" graphicClassName="h-7" textClassName="h-5" />
+            <p className="mt-4 text-sm text-muted-foreground">
+              Stay open. We track every permit, inspection, cert, and COI that
+              can shut your food truck down.
+            </p>
+          </div>
+
+          {COLUMNS.map((col) => (
+            <div key={col.heading}>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {col.heading}
+              </h3>
+              <ul className="mt-4 flex flex-col gap-3 text-sm">
+                {col.links.map((l) => (
+                  <li key={l.href}>
+                    <Link
+                      href={l.href}
+                      className="text-foreground/80 transition-colors hover:text-foreground"
+                    >
+                      {l.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
-        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-muted-foreground">
-          <Link href="/legal/terms" className="hover:text-foreground">
-            Terms
-          </Link>
-          <Link href="/privacy" className="hover:text-foreground">
-            Privacy
-          </Link>
-          <a
-            href="mailto:support@vendguard.app"
-            className="hover:text-foreground"
-          >
-            Contact
-          </a>
-        </nav>
+
+        <div className="mt-12 flex flex-col gap-3 border-t border-border pt-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <p>© {new Date().getFullYear()} VendGuard. All rights reserved.</p>
+          <p className="text-xs">
+            A compliance tracking tool — not legal, tax, or insurance advice.
+          </p>
+        </div>
       </div>
     </footer>
   );
