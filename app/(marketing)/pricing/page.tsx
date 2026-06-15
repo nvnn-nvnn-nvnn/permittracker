@@ -1,7 +1,9 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Check } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import foodtruckHeader from "@/app/assets/foodtruck-3.jpg";
 
 export const metadata = {
   title: "Pricing · VendGuard",
@@ -62,12 +64,22 @@ const TIERS = [
 export default function PricingPage() {
   return (
     <main>
-      <section className="border-b border-border/60">
-        <div className="mx-auto w-full max-w-3xl px-5 py-20 text-center sm:px-6 sm:py-24">
-          <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl">
+      <section className="relative overflow-hidden border-b border-border/60">
+        <Image
+          src={foodtruckHeader}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          placeholder="blur"
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-foreground/70" />
+        <div className="relative mx-auto w-full max-w-3xl px-5 py-12 text-center sm:px-6 sm:py-16">
+          <h1 className="text-balance text-4xl font-bold tracking-tight text-background sm:text-5xl">
             Pricing that scales with your fleet
           </h1>
-          <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground">
+          <p className="mx-auto mt-5 max-w-xl text-lg text-background/85">
             Per business, not per seat. Start free, upgrade when you add another
             truck. Two months free on annual plans.
           </p>
@@ -75,7 +87,7 @@ export default function PricingPage() {
       </section>
 
       <section>
-        <div className="mx-auto w-full max-w-6xl px-5 py-16 sm:px-6 sm:py-20">
+        <div className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-6 sm:py-14">
           <div className="grid items-start gap-6 lg:grid-cols-3">
             {TIERS.map((t) => (
               <div
@@ -90,7 +102,7 @@ export default function PricingPage() {
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="text-lg font-bold">{t.label}</h2>
                   {t.featured && (
-                    <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                    <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-brand-ink">
                       Most popular
                     </span>
                   )}
@@ -121,7 +133,7 @@ export default function PricingPage() {
                 <ul className="mt-7 flex flex-col gap-3 text-sm">
                   {t.features.map((f) => (
                     <li key={f} className="flex items-start gap-2.5">
-                      <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+                      <Check className="mt-0.5 size-4 shrink-0 text-brand-ink" />
                       <span>{f}</span>
                     </li>
                   ))}
@@ -133,7 +145,7 @@ export default function PricingPage() {
           <p className="mt-10 text-center text-sm text-muted-foreground">
             Prices are placeholders for this preview. Questions about a larger
             fleet?{" "}
-            <Link href="/contact" className="font-medium text-primary hover:underline">
+            <Link href="/contact" className="font-medium text-brand-ink hover:underline">
               Talk to us
             </Link>
             .

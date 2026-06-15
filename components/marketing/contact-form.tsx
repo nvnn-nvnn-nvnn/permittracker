@@ -5,45 +5,89 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-/**
- * Placeholder contact form. Captures submit client-side and shows a notice —
- * not yet wired to a backend. Replace onSubmit with a server action + email
- * send before launch.
- */
-export function ContactForm() {
-  const [sent, setSent] = useState(false);
+type Status = "idle" | "sending" | "success" | "error";
 
-  if (sent) {
+/** Contact form. Posts same-origin to /api/contact, which forwards to the
+ *  email provider server-side (keeps the provider key off the client). */
+export function ContactForm() {
+  const [status, setStatus] = useState<Status>("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    setStatus("sending");
+    setErrorMsg(null);
+
+    const data = new FormData(form);
+    const payload = {
+      name: String(data.get("name") ?? ""),
+      email: String(data.get("email") ?? ""),
+      message: String(data.get("message") ?? ""),
+      botcheck: data.get("botcheck") ? true : false,
+    };
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (res.ok && json.ok) {
+        setStatus("success");
+        form.reset();
+      } else {
+        setStatus("error");
+        setErrorMsg(json.error ?? "Something went wrong. Please try again.");
+      }
+    } catch {
+      setStatus("error");
+      setErrorMsg("Couldn't reach the server. Please try again.");
+    }
+  }
+
+  if (status === "success") {
     return (
       <div className="rounded-2xl border border-status-green/40 bg-status-green/5 p-6 text-sm">
-        <p className="font-semibold text-status-green">Thanks for reaching out!</p>
+        <p className="font-semibold text-status-green">
+          Thanks for reaching out!
+        </p>
         <p className="mt-1 text-muted-foreground">
-          This form is a preview and isn&apos;t wired up yet — please email us
-          directly at{" "}
-          <a
-            href="mailto:raysarchive@proton.me"
-            className="font-medium text-primary hover:underline"
-          >
-            raysarchive@proton.me
-          </a>{" "}
-          and we&apos;ll get back to you.
+          Your message is on its way — we&apos;ll get back to you within one
+          business day.
         </p>
       </div>
     );
   }
 
+  const sending = status === "sending";
+
   return (
     <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        setSent(true);
-      }}
+      onSubmit={onSubmit}
       className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-6"
     >
+      {/* Honeypot — bots fill this; real users never see it. */}
+      <input
+        type="checkbox"
+        name="botcheck"
+        className="hidden"
+        style={{ display: "none" }}
+        tabIndex={-1}
+        autoComplete="off"
+      />
+
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="c-name">Name</Label>
-          <Input id="c-name" name="name" required placeholder="Jane Operator" />
+          <Input
+            id="c-name"
+            name="name"
+            required
+            placeholder="Jane Operator"
+            disabled={sending}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="c-email">Email</Label>
@@ -53,6 +97,7 @@ export function ContactForm() {
             type="email"
             required
             placeholder="jane@truck.com"
+            disabled={sending}
           />
         </div>
       </div>
@@ -64,10 +109,18 @@ export function ContactForm() {
           required
           rows={5}
           placeholder="Tell us about your operation…"
+          disabled={sending}
         />
       </div>
-      <Button type="submit" className="self-start">
-        Send message
+
+      {status === "error" && (
+        <p role="alert" className="text-sm text-destructive">
+          {errorMsg}
+        </p>
+      )}
+
+      <Button type="submit" className="self-start" disabled={sending}>
+        {sending ? "Sending…" : "Send message"}
       </Button>
     </form>
   );

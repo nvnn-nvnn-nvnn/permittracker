@@ -95,7 +95,7 @@ export function AdminQueue({ queue }: { queue: Queue }) {
                         {" · "}
                         <Link
                           href={`/items/${f.itemId}`}
-                          className="text-primary hover:underline"
+                          className="text-brand-ink hover:underline"
                         >
                           open item
                         </Link>
@@ -144,7 +144,7 @@ export function AdminQueue({ queue }: { queue: Queue }) {
                 <div className="flex gap-2">
                   <Link
                     href={`/items/${d.itemId}`}
-                    className="text-xs text-primary hover:underline self-center"
+                    className="text-xs text-brand-ink hover:underline self-center"
                   >
                     open
                   </Link>

@@ -1,8 +1,5 @@
 import "server-only";
-import { createClient } from "@supabase/supabase-js";
-import { publicEnv, requireEnv } from "@/lib/env";
 import { DOCUMENTS_BUCKET } from "@/lib/constants";
-
 import { getSupabaseAdmin } from "./supabase/admin";
 
 export { DOCUMENTS_BUCKET };

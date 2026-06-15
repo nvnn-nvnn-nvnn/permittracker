@@ -66,7 +66,7 @@ export function NewItemChooser({
               <Icon
                 className={cn(
                   "h-5 w-5 shrink-0",
-                  active ? "text-primary" : "text-muted-foreground",
+                  active ? "text-brand-ink" : "text-muted-foreground",
                 )}
               />
               <span className="min-w-0">

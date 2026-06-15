@@ -19,11 +19,13 @@
   --popover: oklch(1 0.002 80);
   --popover-foreground: var(--foreground);
 
-  /* Brand */
-  --brand: oklch(0.63 0.16 47);
-  --brand-foreground: oklch(0.99 0.012 85);
+  /* Brand — VendGuard logo gold (#FCB017). Dark text rides on top of it. */
+  --brand: #fcb017;
+  --brand-foreground: oklch(0.26 0.03 75);
   --primary: var(--brand);
   --primary-foreground: var(--brand-foreground);
+  /* Deeper gold for TEXT/links/icons — bright gold is unreadable on light. */
+  --brand-ink: oklch(0.52 0.13 70);
 
   --secondary: oklch(0.96 0.014 75);
   --secondary-foreground: oklch(0.31 0.022 55);
@@ -37,7 +39,7 @@
 
   --border: oklch(0.9 0.012 72);
   --input: oklch(0.9 0.012 72);
-  --ring: oklch(0.63 0.16 47);
+  --ring: #fcb017;
 
   /* compliance status palette */
   --status-green: oklch(0.66 0.15 152);
@@ -59,10 +61,12 @@
   --popover: oklch(0.235 0.014 58);
   --popover-foreground: var(--foreground);
 
-  --brand: oklch(0.72 0.15 52);
+  --brand: #fcb017;
   --brand-foreground: oklch(0.21 0.02 50);
   --primary: var(--brand);
   --primary-foreground: var(--brand-foreground);
+  /* On dark surfaces the bright gold is already readable as text. */
+  --brand-ink: #fcb017;
 
   --secondary: oklch(0.29 0.016 58);
   --secondary-foreground: oklch(0.96 0.01 85);
@@ -76,7 +80,7 @@
 
   --border: oklch(1 0 0 / 9%);
   --input: oklch(1 0 0 / 13%);
-  --ring: oklch(0.72 0.15 52);
+  --ring: #fcb017;
 
   --status-green: oklch(0.72 0.15 152);
   --status-yellow: oklch(0.82 0.15 82);
@@ -95,6 +99,7 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-brand-ink: var(--brand-ink);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);

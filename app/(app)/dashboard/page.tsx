@@ -86,7 +86,7 @@ export default async function DashboardPage() {
               variant="outline"
               className="gap-1.5 border-border/70 bg-card px-2.5 py-1 text-xs font-medium"
             >
-              <Truck className="size-3.5 text-primary" />
+              <Truck className="size-3.5 text-brand-ink" />
               <span className="tabular-nums">{activeTrucks}</span>
               <span className="text-muted-foreground">
                 active {activeTrucks === 1 ? "truck" : "trucks"}
@@ -99,7 +99,7 @@ export default async function DashboardPage() {
         </div>
         <Link
           href="/items/new"
-          className="text-sm font-medium text-primary hover:underline"
+          className="text-sm font-medium text-brand-ink hover:underline"
         >
           + Add compliance item
         </Link>
@@ -174,7 +174,7 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-3 text-xs">
             <Link
               href="/trucks/new"
-              className="text-primary hover:underline"
+              className="text-brand-ink hover:underline"
             >
               + Add truck
             </Link>
@@ -231,7 +231,7 @@ export default async function DashboardPage() {
               </p>
               <Link
                 href="/digest"
-                className="text-xs text-primary hover:underline"
+                className="text-xs text-brand-ink hover:underline"
               >
                 Read all
               </Link>

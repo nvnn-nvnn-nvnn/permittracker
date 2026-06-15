@@ -64,13 +64,13 @@ export default async function SettingsPage() {
         <CardContent className="flex flex-col gap-2 text-sm">
           <Link
             href="/legal/terms"
-            className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+            className="font-medium text-brand-ink underline underline-offset-2 hover:text-brand-ink/80"
           >
             Terms of Service
           </Link>
           <Link
             href="/privacy"
-            className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+            className="font-medium text-brand-ink underline underline-offset-2 hover:text-brand-ink/80"
           >
             Privacy Policy
           </Link>

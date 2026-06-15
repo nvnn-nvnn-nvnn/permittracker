@@ -62,7 +62,7 @@ export function ItemsByType({
         return (
           <section
             key={type}
-            className="overflow-hidden rounded-xl border border-border bg-card"
+            className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-soft)] transition-shadow hover:shadow-[var(--shadow-pop)]"
           >
             <Link
               href={`/items/category/${type}`}
@@ -101,7 +101,7 @@ export function ItemsByType({
                 </span>
                 <Link
                   href={`/items/new?type=${type}`}
-                  className="text-sm font-medium text-primary hover:underline"
+                  className="text-sm font-medium text-brand-ink hover:underline"
                 >
                   Add
                 </Link>

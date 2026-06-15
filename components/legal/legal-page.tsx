@@ -107,7 +107,7 @@ export function LegalLink({
   return (
     <Link
       href={href}
-      className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+      className="font-medium text-brand-ink underline underline-offset-2 hover:text-brand-ink/80"
     >
       {children}
     </Link>

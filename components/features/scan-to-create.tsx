@@ -153,7 +153,7 @@ export function ScanToCreate({
               key={i}
               className="rounded-lg border border-border/60 bg-card/30 p-3 text-xs text-muted-foreground"
             >
-              <span className="mb-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
+              <span className="mb-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-brand-ink">
                 {i + 1}
               </span>
               {step}

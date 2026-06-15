@@ -80,7 +80,7 @@ export default async function AdminPage() {
               ? "—"
               : `${overview.accuracy.acceptRatePct}%`
           }
-          tone="text-primary"
+          tone="text-brand-ink"
         />
       </div>
 

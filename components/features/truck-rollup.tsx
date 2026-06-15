@@ -45,7 +45,7 @@ export function TruckRollup({
         No trucks yet.{" "}
         <Link
           href="/trucks/new"
-          className="font-semibold text-primary hover:underline"
+          className="font-semibold text-brand-ink hover:underline"
         >
           Add your first truck
         </Link>

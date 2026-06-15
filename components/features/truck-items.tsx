@@ -62,7 +62,7 @@ export function TruckItems({
           <details
             key={type}
             open={!isEmpty}
-            className="group overflow-hidden rounded-xl border border-border bg-card"
+            className="group overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-soft)]"
           >
             {/* Folder header row */}
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
@@ -101,7 +101,7 @@ export function TruckItems({
                 </span>
                 <Link
                   href={`/items/new?truck=${truckId}&type=${type}`}
-                  className="text-sm font-medium text-primary hover:underline"
+                  className="text-sm font-medium text-brand-ink hover:underline"
                 >
                   Add
                 </Link>

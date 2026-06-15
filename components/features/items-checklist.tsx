@@ -111,7 +111,7 @@ export function ItemsChecklist({ items }: { items: ComplianceItem[] }) {
                         </div>
                         <Link
                           href={prefillUrl(entry.itemType, entry.subtype)}
-                          className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline"
+                          className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-brand-ink hover:underline"
                         >
                           <Plus className="size-3.5" />
                           {isDone ? "Add another" : "Add"}

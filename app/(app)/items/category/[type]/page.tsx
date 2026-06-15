@@ -96,7 +96,7 @@ export default async function ItemCategoryPage({
           No {TYPE_LABEL[itemType].toLowerCase()} tracked yet.{" "}
           <Link
             href={`/items/new?type=${itemType}`}
-            className="font-semibold text-primary hover:underline"
+            className="font-semibold text-brand-ink hover:underline"
           >
             Add one
           </Link>

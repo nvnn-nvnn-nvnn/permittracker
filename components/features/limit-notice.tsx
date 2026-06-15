@@ -16,7 +16,7 @@ export function LimitNotice({ message }: { message: string }) {
       className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between"
     >
       <div className="flex items-start gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-brand-ink">
           <Sparkles className="size-4" />
         </span>
         <div className="space-y-0.5">
