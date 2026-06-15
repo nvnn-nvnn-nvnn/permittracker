@@ -10,7 +10,7 @@ export default function TermsOfService() {
   return (
     <LegalPage
       title="Terms of Service"
-      lastUpdated="[Effective Date]"
+      lastUpdated="May 15, 2026"
       intro={
         <p>
           These Terms of Service (the &quot;Terms&quot;) govern your access to
@@ -168,7 +168,7 @@ export default function TermsOfService() {
           service — including any reminder that was missed, late, or not
           delivered — even if advised of the possibility of such damages. Our
           total liability for any claim relating to the service will not exceed
-          the amount you paid us for the service in the [twelve (12) months]
+          the amount you paid us for the service in the twelve (12) months
           preceding the claim.
         </p>
       </LegalSection>
@@ -195,9 +195,12 @@ export default function TermsOfService() {
 
       <LegalSection heading="13. Governing Law">
         <p>
-          These Terms are governed by the laws of the State of [Minnesota],
-          without regard to its conflict-of-laws rules. [Specify venue / dispute
-          resolution — to be confirmed by counsel.]
+          These Terms are governed by the laws of the State of Minnesota,
+          without regard to its conflict-of-laws rules. You agree that any
+          dispute arising out of or relating to these Terms or the service will
+          be brought exclusively in the state or federal courts located in
+          Minnesota, and you consent to the personal jurisdiction of those
+          courts.
         </p>
       </LegalSection>
 
@@ -206,13 +209,11 @@ export default function TermsOfService() {
         <p className="text-foreground">
           VendGuard
           <br />
-          Email: legal@vendguard.app
-          <br />
-          Address: [Your Business Address]
+          Email: raysarchive@proton.me
         </p>
         <p className="text-sm">
-          These Terms are effective as of [Effective Date] and apply to all
-          users of VendGuard.
+          These Terms are effective as of May 15, 2026 and apply to all users of
+          VendGuard.
         </p>
       </LegalSection>
     </LegalPage>

@@ -202,11 +202,11 @@ export default function MarketingHome() {
         <div className="absolute inset-0 bg-foreground/70" />
         <div className="relative mx-auto max-w-3xl px-5 py-16 text-center sm:px-6 sm:py-20">
           <blockquote className="text-balance text-2xl font-medium leading-snug text-background sm:text-3xl">
-            “I used to find out a permit lapsed when an inspector told me. Now I
-            find out a month early, from my phone.”
+            “I used to find out a permit lapsed when an inspector told me, or when I got the notification in the mail. Now I can keep track of everything, and
+            find out a month early, from my phone, and computer. Tracking everything using this software has made managing my permits so much easier, and it sure beats having to use spreadsheets and Google Calendar to automate everything manually”
           </blockquote>
           <p className="mt-5 text-sm font-medium text-background/80">
-            — Placeholder Operator, Twin Cities food truck
+            — Adrian Hernandez, Peyos Authentic Mexican Cuisine
           </p>
         </div>
       </section>

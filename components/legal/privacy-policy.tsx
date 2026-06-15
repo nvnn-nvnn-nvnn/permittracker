@@ -10,7 +10,7 @@ export default function PrivacyPolicy() {
   return (
     <LegalPage
       title="Privacy Policy"
-      lastUpdated="[Effective Date]"
+      lastUpdated="May 15, 2026"
       intro={
         <p>
           This Privacy Policy explains how VendGuard (&quot;VendGuard,&quot;
@@ -152,8 +152,8 @@ export default function PrivacyPolicy() {
           than hard-deleted so your history and audit trail remain intact. We
           retain certain records as required for legal, tax, security, and
           audit-log purposes. When you close your account, we will delete or
-          de-identify your information within [retention period — to be confirmed
-          by counsel], except where retention is required by law.
+          de-identify your information within 90 days, except where retention is
+          required by law.
         </p>
       </LegalSection>
 
@@ -238,8 +238,6 @@ export default function PrivacyPolicy() {
           VendGuard
           <br />
           Email: raysarchive@proton.me
-          <br />
-          Address: [Your Business Address]
         </p>
         <p className="text-sm">
           See also our{" "}
