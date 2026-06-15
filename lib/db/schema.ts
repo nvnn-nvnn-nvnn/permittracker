@@ -31,6 +31,18 @@ import {
 
 export const planTierEnum = pgEnum("plan_tier", ["starter", "pro", "fleet"]);
 
+/** Vendor-side application lifecycle for a prospective event. */
+export const eventStatusEnum = pgEnum("event_status", [
+  "interested",
+  "applied",
+  "waitlisted",
+  "accepted",
+  "confirmed",
+  "rejected",
+  "withdrawn",
+  "attended",
+]);
+
 /** Stripe subscription health. `none` = never subscribed (limits still
  *  enforced at the starter floor). Mirrors Stripe subscription.status. */
 export const planStatusEnum = pgEnum("plan_status", [
@@ -594,6 +606,45 @@ export const venue = pgTable(
   (t) => [index("venue_account_idx").on(t.accountId)],
 );
 
+// --- event -----------------------------------------------------------------
+// A prospective event the vendor wants to apply to / work, with an application
+// status pipeline. Optionally links to a venue (which carries the COI /
+// additional-insured requirements that kick in once accepted).
+
+export const event = pgTable(
+  "event",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    status: eventStatusEnum("status").notNull().default("interested"),
+    // Optional link to the venue's recurring COI requirements.
+    venueId: uuid("venue_id").references((): AnyPgColumn => venue.id, {
+      onDelete: "set null",
+    }),
+    location: text("location"),
+    eventDate: date("event_date", { mode: "date" }),
+    applicationDeadline: date("application_deadline", { mode: "date" }),
+    applicationUrl: text("application_url"),
+    // Money as integer cents — never floats for currency.
+    feeAmountCents: integer("fee_amount_cents"),
+    notes: text("notes"),
+    createdByUserId: uuid("created_by_user_id").references(() => appUser.id, {
+      onDelete: "set null",
+    }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    index("event_account_idx").on(t.accountId),
+    index("event_status_idx").on(t.status),
+  ],
+);
+
 // --- person ----------------------------------------------------------------
 // A staff member. May or may not be a User. Their certifications
 // (compliance_items with person_id) cascade to assigned active trucks.
@@ -653,6 +704,8 @@ export const personTruck = pgTable(
 );
 
 export type Venue = typeof venue.$inferSelect;
+export type Event = typeof event.$inferSelect;
+export type EventStatus = (typeof eventStatusEnum.enumValues)[number];
 export type Person = typeof person.$inferSelect;
 export type PersonTruck = typeof personTruck.$inferSelect;
 

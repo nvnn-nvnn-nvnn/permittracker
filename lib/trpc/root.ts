@@ -3,6 +3,7 @@ import { accountRouter } from "./routers/account";
 import { truckRouter } from "./routers/truck";
 import { commissaryRouter } from "./routers/commissary";
 import { venueRouter } from "./routers/venue";
+import { eventRouter } from "./routers/event";
 import { personRouter } from "./routers/person";
 import { itemRouter } from "./routers/item";
 import { fileRouter } from "./routers/file";
@@ -17,6 +18,7 @@ export const appRouter = createTRPCRouter({
   truck: truckRouter,
   commissary: commissaryRouter,
   venue: venueRouter,
+  event: eventRouter,
   person: personRouter,
   item: itemRouter,
   file: fileRouter,

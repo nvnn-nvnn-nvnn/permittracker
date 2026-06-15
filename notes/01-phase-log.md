@@ -1211,3 +1211,38 @@ specific metros so the product reads location-agnostic:
   `account.notificationSettings`; renders a red "Email reminders are turned off"
   banner (→ Settings) when `notifyEmail` is false. All changed files pass
   tsc + eslint.
+
+### 2026-06-15 — Vendor event pipeline (vertical slice)
+
+New feature: track prospective events + application status. See `00-decisions.md`
+for the scope/why and the venue-vs-event modeling call.
+
+- **Schema** (`lib/db/schema.ts`): `event` table + `eventStatusEnum`
+  (interested→applied→waitlisted→accepted→confirmed→rejected→withdrawn→attended).
+  Fields: name, status, optional `venueId`, location, `eventDate`,
+  `applicationDeadline` (date mode), `applicationUrl`, `feeAmountCents` (int
+  cents), notes; account-scoped, archive-only. `Event`/`EventStatus` types.
+- **Migrations:** `0021_regular_hedge_knight.sql` (table, drizzle-gen) +
+  hand-authored `0022_event_audit_rls.sql` (audit trigger + RLS member-select,
+  same as venue/person). Journal `meta/_journal.json` updated with the 0022 entry
+  (idx 22) so `drizzle-kit migrate` applies it. **Run `npm run db:migrate`** to
+  apply 0020/0021/0022.
+- **Validators** (`lib/validators.ts`): `eventInput` + `eventStatusValues`. Fee
+  entered as dollars client-side → converted to cents.
+- **Shared meta** (`lib/events.ts`): `EVENT_STATUS_META` (label + badge variant +
+  `open` pipeline flag) and `EVENT_STATUS_ORDER`.
+- **Router** (`lib/trpc/routers/event.ts`, registered in `root.ts`): list, byId,
+  create, update, **setStatus**, archive — account-scoped, `withActor`-audited,
+  tenant-guarded (`assertOwned`).
+- **UI:** nav "Events" (`CalendarCheck`, after Venues); list grouped into the
+  status pipeline (`events/page.tsx`); new (`events/new`) + detail/edit
+  (`events/[id]`) via `event-form.tsx`; quick `event-status-select.tsx` on detail;
+  `archive-button.tsx` extended with `kind="event"`. Detail surfaces a venue COI
+  callout once accepted/confirmed. Dashboard gets an "Events pipeline" card
+  (open count + soonest application deadlines, urgency-colored).
+- **Tone pass (pre-prod polish):** events list re-skinned to the canonical
+  list pattern (`TruckRollup`): single `Card overflow-hidden p-0` + `divide-y`
+  rows, full-row `Link` with `hover:bg-accent/40`, `ChevronRight`, status `Badge`
+  group headers, deadline urgency colors matching the dashboard; empty state
+  matches the centered card + brand-ink CTA. Form `Field` matches `venue-form`.
+  All new/changed files pass tsc + eslint.

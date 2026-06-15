@@ -12,6 +12,7 @@ import { TruckRollup } from "@/components/features/truck-rollup";
 import { DashboardUrgentTable } from "@/components/features/dashboard-urgent-table";
 import { CommissaryCascade } from "@/components/features/commissary-cascade";
 import { DashboardOnboarding } from "@/components/features/dashboard-onboarding";
+import { EVENT_STATUS_META } from "@/lib/events";
 
 import {serverApi} from "@/lib/trpc/server";
 
@@ -55,11 +56,12 @@ export default async function DashboardPage() {
   ]);
 
   // Three independent I/O calls — fire in parallel instead of waterfalled.
-  const [result, digests, trucks, notify] = await Promise.all([
+  const [result, digests, trucks, notify, events] = await Promise.all([
     computeAccountStatus(ctx.accountId),
     digestsForAccount(ctx.accountId, currentPeriod()),
     api.truck.list(),
     api.account.notificationSettings(),
+    api.event.list(),
   ]);
   const activeTrucks = trucks.filter((t) => t.isActive).length;
 
@@ -74,6 +76,21 @@ export default async function DashboardPage() {
   const needsAttention = result.items.filter(
     (u) => u.contributesRed || u.isExpired || u.expiringSoon || u.feeDueSoon,
   ).length;
+
+  // Events pipeline summary: how many are still open, and the soonest
+  // application deadlines among open events.
+  const openEvents = events.filter((e) => EVENT_STATUS_META[e.status].open);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const upcomingDeadlines = openEvents
+    .filter((e) => e.applicationDeadline != null)
+    .map((e) => {
+      const due = new Date(e.applicationDeadline as Date);
+      const days = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+      return { event: e, due, days };
+    })
+    .sort((a, b) => a.due.getTime() - b.due.getTime())
+    .slice(0, 3);
 
   const tiles = [
     { label: "Tracked", value: counts.total, tone: "text-foreground" },
@@ -193,6 +210,69 @@ export default async function DashboardPage() {
 
       {/* Commissary cascade */}
       <CommissaryCascade alerts={result.commissaryAlerts} />
+
+      {/* Events pipeline */}
+      {events.length > 0 && (
+        <Card>
+          <CardContent className="p-5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-sm font-medium text-muted-foreground">
+                  Events pipeline
+                </h2>
+                <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold tabular-nums text-secondary-foreground">
+                  {openEvents.length} open
+                </span>
+              </div>
+              <Link
+                href="/events"
+                className="text-xs text-brand-ink hover:underline"
+              >
+                View all
+              </Link>
+            </div>
+            {upcomingDeadlines.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No application deadlines set on your open events.
+              </p>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {upcomingDeadlines.map(({ event, days }) => (
+                  <li
+                    key={event.id}
+                    className="flex items-center justify-between gap-3"
+                  >
+                    <Link
+                      href={`/events/${event.id}`}
+                      className="min-w-0 flex-1 truncate font-medium hover:underline"
+                    >
+                      {event.name}
+                    </Link>
+                    <Badge variant={EVENT_STATUS_META[event.status].variant}>
+                      {EVENT_STATUS_META[event.status].label}
+                    </Badge>
+                    <span
+                      className={`shrink-0 tabular-nums ${
+                        days < 0
+                          ? "font-medium text-status-red"
+                          : days <= 14
+                            ? "font-medium text-status-yellow"
+                            : "text-muted-foreground"
+                      }`}
+                    >
+                      {days < 0
+                        ? `${Math.abs(days)}d overdue`
+                        : days === 0
+                          ? "due today"
+                          : `apply in ${days}d`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
 
 

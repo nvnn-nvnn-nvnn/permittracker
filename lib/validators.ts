@@ -51,6 +51,36 @@ export const venueInput = z.object({
 });
 export type VenueInput = z.input<typeof venueInput>;
 
+export const eventStatusValues = [
+  "interested",
+  "applied",
+  "waitlisted",
+  "accepted",
+  "confirmed",
+  "rejected",
+  "withdrawn",
+  "attended",
+] as const;
+
+// Form sends "" when no fee entered; cents are computed client-side from dollars.
+const optionalCents = z.preprocess(
+  (v) => (v === "" || v === null ? undefined : v),
+  z.coerce.number().int().min(0).max(100_000_000).optional(),
+);
+
+export const eventInput = z.object({
+  name: z.string().trim().min(1, "Name is required").max(160),
+  status: z.enum(eventStatusValues).default("interested"),
+  venueId: optionalUuid,
+  location: optionalTrimmed(240),
+  eventDate: optionalDate,
+  applicationDeadline: optionalDate,
+  applicationUrl: optionalTrimmed(500),
+  feeAmountCents: optionalCents,
+  notes: optionalTrimmed(2000),
+});
+export type EventInput = z.input<typeof eventInput>;
+
 export const personInput = z.object({
   name: z.string().trim().min(1, "Name is required").max(160),
   email: optionalTrimmed(160),

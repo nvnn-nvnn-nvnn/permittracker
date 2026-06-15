@@ -32,6 +32,30 @@ These were confirmed with the owner before any code was written.
 
 ## Data-model scope decisions (not stack deviations)
 
+- **2026-06-15 — Product scope expanded: compliance tracker → compliance +
+  vendor event pipeline.** Added a first-class `Event` entity (prospective
+  events the vendor applies to) with an application-status pipeline
+  (`interested → applied → waitlisted → accepted → confirmed → rejected →
+  withdrawn → attended`). Rationale: a recurring market gap — all event
+  software is planner-side; vendors have nowhere to track which events they're
+  applying to and each application's status. **Decision: `Event` is a separate
+  entity, NOT a `status` column on `venue`.** A venue = a reusable place/COI
+  requirement profile (one venue, many events over time); the *application* is
+  what has a status. `event.venueId` optionally links the two, and when an event
+  is accepted/confirmed the detail page surfaces the linked venue's COI /
+  additional-insured requirements — the compliance tie-in that differentiates
+  this from a generic CRM. Same tenant model as every table (account-scoped,
+  archive-only, audited via `permitkeep_audit('event')`, RLS member-select).
+  Migrations 0021 (table) + 0022 (audit/RLS). Phase-log has the build details.
+
+- **2026-06-15 — Product is now location-agnostic (reverses kickoff decision
+  #2's MN framing for user-facing surfaces).** All user-facing references to
+  Minnesota / Twin Cities removed; `MN_JURISDICTIONS` → generic
+  `DEFAULT_JURISDICTIONS` (State/City/County Health Dept, etc.), Terms governing
+  law no longer names a state. Internal kickoff decision #2 left as historical
+  record. Rationale: owner wants the location kept as vague as possible
+  pre-production; tying the product to one metro narrows positioning.
+
 - **2026-05-26 — `compliance_item.jurisdiction` is required at the input
   layer.** Zod (`itemInput.jurisdiction`) now enforces `min(1)`; the form
   marks the input `required`. The DB column remains nullable for now —

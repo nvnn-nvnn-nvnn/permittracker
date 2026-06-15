@@ -13,7 +13,7 @@ export function ArchiveButton({
   id,
   redirectTo,
 }: {
-  kind: "truck" | "item" | "commissary" | "venue" | "person";
+  kind: "truck" | "item" | "commissary" | "venue" | "person" | "event";
   id: string;
   redirectTo?: string;
 }) {
@@ -26,6 +26,7 @@ export function ArchiveButton({
     else if (kind === "item") await utils.item.list.invalidate();
     else if (kind === "commissary") await utils.commissary.list.invalidate();
     else if (kind === "venue") await utils.venue.list.invalidate();
+    else if (kind === "event") await utils.event.list.invalidate();
     else await utils.person.list.invalidate();
     if (redirectTo) router.push(redirectTo);
     router.refresh();
@@ -36,12 +37,14 @@ export function ArchiveButton({
     onSuccess,
   });
   const venueArchive = trpc.venue.archive.useMutation({ onSuccess });
+  const eventArchive = trpc.event.archive.useMutation({ onSuccess });
   const personArchive = trpc.person.archive.useMutation({ onSuccess });
   const pending =
     truckArchive.isPending ||
     itemArchive.isPending ||
     commissaryArchive.isPending ||
     venueArchive.isPending ||
+    eventArchive.isPending ||
     personArchive.isPending;
 
   function go() {
@@ -49,6 +52,7 @@ export function ArchiveButton({
     else if (kind === "item") itemArchive.mutate({ id });
     else if (kind === "commissary") commissaryArchive.mutate({ id });
     else if (kind === "venue") venueArchive.mutate({ id });
+    else if (kind === "event") eventArchive.mutate({ id });
     else personArchive.mutate({ id });
   }
 
