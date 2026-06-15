@@ -25,7 +25,7 @@ export function NotificationsPanel() {
   );
   const [body, setBody] = useState(
     "This notice is to inform you that permit MFU-2024-0917 issued by " +
-      "Minneapolis Health Department expires on 2026-07-01. Please renew.",
+      "the City Health Department expires on 2026-07-01. Please renew.",
   );
   const [msg, setMsg] = useState<string | null>(null);
 

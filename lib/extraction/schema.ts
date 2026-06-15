@@ -42,7 +42,7 @@ export const extractionTool = {
         "Specific document name, e.g. 'Mobile Food Unit License'.",
       ),
       jurisdiction: field(
-        "Issuing authority, e.g. 'Minneapolis Health Department'.",
+        "Issuing authority, e.g. 'City Health Department'.",
       ),
       identifier_number: field("Permit / license / policy number."),
       issue_date: field("Issue date in strict YYYY-MM-DD format."),

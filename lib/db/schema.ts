@@ -79,6 +79,9 @@ export const account = pgTable("account", {
   name: text("name").notNull(),
   slug: text("slug").notNull(),
   planTier: planTierEnum("plan_tier").notNull().default("starter"),
+  // Email reminder toggle. Default on; when false, email reminder dispatches
+  // are skipped (transactional/auth emails are unaffected).
+  notifyEmail: boolean("notify_email").notNull().default(true),
   // --- Billing (Phase 5) ---
   // SMS reminder recipient (Phase 7). Null → SMS dispatches are skipped.
   smsPhone: text("sms_phone"),

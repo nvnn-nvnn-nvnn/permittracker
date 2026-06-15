@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { LimitNotice } from "@/components/features/limit-notice";
 import { isLimitError } from "@/lib/limit-error";
-import { MN_JURISDICTIONS } from "@/lib/jurisdictions";
+import { DEFAULT_JURISDICTIONS } from "@/lib/jurisdictions";
 import type { Truck } from "@/lib/db/schema";
 
 type FormError = { message: string; isLimit: boolean };
@@ -87,10 +87,10 @@ export function TruckForm({
           name="jurisdiction"
           list="jurisdictions"
           defaultValue={truck?.jurisdiction ?? ""}
-          placeholder="Minneapolis Health Department"
+          placeholder="City Health Department"
         />
         <datalist id="jurisdictions">
-          {MN_JURISDICTIONS.map((j) => (
+          {DEFAULT_JURISDICTIONS.map((j) => (
             <option key={j} value={j} />
           ))}
         </datalist>

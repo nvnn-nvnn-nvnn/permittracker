@@ -11,7 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/auth/actions";
 import { BillingPanel } from "@/components/features/billing-panel";
-import { NotificationsPanel } from "@/components/features/notifications-panel";
+import { NotificationPreferences } from "@/components/features/notification-preferences";
+// Postmark (inbound forward-to-inbox) isn't wired up yet, so the full
+// Notifications & forward-to-inbox panel is commented out until then.
+// import { NotificationsPanel } from "@/components/features/notifications-panel";
+// TODO: collect the user's ZIP code (for area-scoped digests) — not yet.
 
 export const metadata = { title: "Settings · VendGuard" };
 export const dynamic = "force-dynamic";
@@ -52,7 +56,10 @@ export default async function SettingsPage() {
         <BillingPanel />
       </Suspense>
 
-      <NotificationsPanel />
+      <NotificationPreferences email={ctx.email} />
+
+      {/* Full SMS/voice + forward-to-inbox panel — restore once Postmark is wired up.
+      <NotificationsPanel /> */}
 
       <Card>
         <CardHeader>

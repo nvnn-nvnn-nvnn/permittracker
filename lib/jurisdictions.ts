@@ -1,14 +1,17 @@
 /**
- * Launch metro: Twin Cities, Minnesota. Default jurisdiction options for
- * compliance items + Phase 10 content scope. Free-form entry still allowed.
+ * Default issuing-authority options for compliance items + content scope.
+ * Intentionally location-agnostic; free-form entry is still allowed so users
+ * can name the exact authority for their area.
  */
-export const MN_JURISDICTIONS = [
-  "Minnesota Department of Health (MDH)",
-  "Minnesota Department of Agriculture (MDA)",
-  "Minneapolis Health Department",
-  "Saint Paul Dept. of Safety & Inspections (DSI)",
-  "Hennepin County",
-  "Ramsey County",
+export const DEFAULT_JURISDICTIONS = [
+  "State Department of Health",
+  "State Department of Agriculture",
+  "City Health Department",
+  "City Dept. of Safety & Inspections",
+  "County Health Department",
+  "County Environmental Health",
 ] as const;
 
-export type Jurisdiction = (typeof MN_JURISDICTIONS)[number] | (string & {});
+export type Jurisdiction =
+  | (typeof DEFAULT_JURISDICTIONS)[number]
+  | (string & {});

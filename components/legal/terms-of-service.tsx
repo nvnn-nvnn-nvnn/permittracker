@@ -195,12 +195,12 @@ export default function TermsOfService() {
 
       <LegalSection heading="13. Governing Law">
         <p>
-          These Terms are governed by the laws of the State of Minnesota,
-          without regard to its conflict-of-laws rules. You agree that any
-          dispute arising out of or relating to these Terms or the service will
-          be brought exclusively in the state or federal courts located in
-          Minnesota, and you consent to the personal jurisdiction of those
-          courts.
+          These Terms are governed by the laws of the state in which VendGuard
+          is established, without regard to its conflict-of-laws rules. You
+          agree that any dispute arising out of or relating to these Terms or
+          the service will be brought exclusively in the state or federal courts
+          of that jurisdiction, and you consent to the personal jurisdiction of
+          those courts.
         </p>
       </LegalSection>
 

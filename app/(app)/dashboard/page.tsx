@@ -5,7 +5,7 @@ import { requireAccountContext } from "@/lib/auth/session";
 import { computeAccountStatus } from "@/lib/status";
 import { digestsForAccount } from "@/lib/digest/resolve";
 import { currentPeriod } from "@/lib/digest/period";
-import { Truck } from "lucide-react";
+import { Truck, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { TruckRollup } from "@/components/features/truck-rollup";
@@ -55,10 +55,11 @@ export default async function DashboardPage() {
   ]);
 
   // Three independent I/O calls — fire in parallel instead of waterfalled.
-  const [result, digests, trucks] = await Promise.all([
+  const [result, digests, trucks, notify] = await Promise.all([
     computeAccountStatus(ctx.accountId),
     digestsForAccount(ctx.accountId, currentPeriod()),
     api.truck.list(),
+    api.account.notificationSettings(),
   ]);
   const activeTrucks = trucks.filter((t) => t.isActive).length;
 
@@ -111,6 +112,29 @@ export default async function DashboardPage() {
           + Add compliance item
         </Link>
       </div>
+
+      {/* Email reminders disabled — the user opted out in Settings. */}
+      {!notify.notifyEmail && (
+        <div className="flex items-start gap-3 rounded-xl border border-status-red/40 bg-status-red/5 px-4 py-3 text-sm">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-status-red" />
+          <div className="flex-1 space-y-0.5">
+            <p className="font-medium text-status-red">
+              Email reminders are turned off
+            </p>
+            <p className="text-muted-foreground">
+              VendGuard won&apos;t email you before a permit, inspection, cert,
+              or COI expires. Turn reminders back on in{" "}
+              <Link
+                href="/settings"
+                className="font-medium text-brand-ink hover:underline"
+              >
+                Settings
+              </Link>
+              .
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Status hero */}
       <Card className={`ring-1 ${s.ring}`}>

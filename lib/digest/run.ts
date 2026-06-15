@@ -4,7 +4,7 @@ import { getDb } from "@/lib/db";
 import { account, appUser } from "@/lib/db/schema";
 import { serverEnv } from "@/lib/env";
 import { getEmailAdapter } from "@/lib/email";
-import { MN_JURISDICTIONS } from "@/lib/jurisdictions";
+import { DEFAULT_JURISDICTIONS } from "@/lib/jurisdictions";
 import { ensureDigest } from "./generate";
 import { digestsForAccount } from "./resolve";
 import { buildDigestEmail } from "./email";
@@ -29,7 +29,7 @@ export async function runMonthlyDigests(
   let generated = 0;
   let skipped = 0;
 
-  for (const j of MN_JURISDICTIONS) {
+  for (const j of DEFAULT_JURISDICTIONS) {
     const r = await ensureDigest(j, period);
     if (r.created) generated++;
     else if (r.skipped) skipped++;

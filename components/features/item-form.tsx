@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { LimitNotice } from "@/components/features/limit-notice";
 import { isLimitError } from "@/lib/limit-error";
-import { MN_JURISDICTIONS } from "@/lib/jurisdictions";
+import { DEFAULT_JURISDICTIONS } from "@/lib/jurisdictions";
 import { defaultRemindersFor, itemTypeValues } from "@/lib/validators";
 import { dateInputValue } from "@/lib/format";
 import type { ComplianceItem } from "@/lib/db/schema";
@@ -218,7 +218,7 @@ export function ItemForm({
             defaultValue={item?.jurisdiction ?? initialValues?.jurisdiction ?? ""}
           />
           <datalist id="jurisdictions">
-            {MN_JURISDICTIONS.map((j) => (
+            {DEFAULT_JURISDICTIONS.map((j) => (
               <option key={j} value={j} />
             ))}
           </datalist>

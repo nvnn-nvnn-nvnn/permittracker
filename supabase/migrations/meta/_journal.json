@@ -141,6 +141,13 @@
       "when": 1781377699297,
       "tag": "0019_fine_korg",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1781552087160,
+      "tag": "0020_graceful_micromacro",
+      "breakpoints": true
     }
   ]
 }

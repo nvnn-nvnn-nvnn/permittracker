@@ -54,6 +54,7 @@ export async function processDueDispatches(opts?: {
       item: complianceItem,
       ownerEmail: appUser.email,
       smsPhone: account.smsPhone,
+      notifyEmail: account.notifyEmail,
     })
     .from(reminderDispatch)
     .innerJoin(
@@ -148,6 +149,10 @@ export async function processDueDispatches(opts?: {
           `Reply OK to acknowledge, or: ${ackUrl}`;
         await sms.send({ to: row.smsPhone, body });
       } else {
+        if (!row.notifyEmail) {
+          await markSkipped(d.id, "Email reminders disabled by user");
+          continue;
+        }
         if (!row.ownerEmail) {
           await db
             .update(reminderDispatch)

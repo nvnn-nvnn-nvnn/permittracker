@@ -1162,3 +1162,52 @@ Steps 2–3 are intentionally non-actionable (muted) because items can't exist
 without a parent truck — visually funnels the new user to create the truck first.
 All new/changed files pass tsc + eslint (pre-existing `token.test.ts` tsc error
 is unrelated).
+
+### 2026-06-15 — Location made vague (de-Minnesota'd the product surface)
+
+Per request, scrubbed all user-facing references to Minnesota / Twin Cities /
+specific metros so the product reads location-agnostic:
+- `lib/jurisdictions.ts`: `MN_JURISDICTIONS` → `DEFAULT_JURISDICTIONS`, values now
+  generic (State/City/County Health Dept, State Dept. of Agriculture, City Dept.
+  of Safety & Inspections, County Environmental Health). Updated all 4 importers
+  (truck-form, item-form, digest/run, the `Jurisdiction` type).
+- Genericized: truck-form jurisdiction placeholder, the notifications-panel demo
+  notice, and the AI extraction schema example → "City Health Department".
+- Terms §13 governing law: "State of Minnesota" → "the state in which VendGuard
+  is established" (venue clause kept, no named state).
+- **Left alone (flagged to user):** internal notes — `00-decisions.md` still
+  records "Launch metro: Twin Cities, MN" as a binding decision, plus phase logs
+  / README. Did not rewrite the decision record or append-only history.
+- Heads-up: `runMonthlyDigests` now iterates the generic jurisdiction names, so
+  any digests seeded under the old MN names won't match (fine in beta).
+
+### 2026-06-15 — Settings notifications: prefs UI + persisted email toggle
+
+- **Commented out** the `NotificationsPanel` (SMS/voice + forward-to-inbox
+  simulators) in `app/(app)/settings/page.tsx` — Postmark isn't wired yet. Import
+  + JSX both commented; component file kept intact to restore later. Also left a
+  `// TODO` to collect the user's ZIP later (explicitly NOT implemented now).
+- **New `components/features/notification-preferences.tsx`**: a "how we reach you"
+  block. Email channel (default on, toggleable); SMS channel **locked** (lock icon
+  in the checkbox + `Beta · Pro` badge + note — can't enable yet). Status line
+  reflects active channels. Custom checkbox + lightweight modal built by hand (no
+  Radix dialog/checkbox dep — none installed, CLAUDE.md says ask first).
+- **Warning modal** (`alertdialog`, Esc/backdrop close): intercepts turning email
+  OFF while SMS is locked off (⇒ zero channels) — "Turn off all reminders?" with
+  Keep (default) / Turn off anyway. Confirming flips status line to a red
+  all-off warning.
+- **Backend (persisted, per follow-up request):**
+  - Schema: `account.notifyEmail` boolean NOT NULL DEFAULT true. Migration
+    `supabase/migrations/0020_graceful_micromacro.sql` (drizzle-kit generate).
+    **Needs `npm run db:migrate` to apply** — not run here (no DB creds).
+  - Router `account.ts`: `notificationSettings` now returns `notifyEmail`; new
+    `setEmailNotifications({ enabled })` mutation.
+  - Component now reads/writes via tRPC with optimistic cache update.
+  - `lib/reminders/dispatch.ts`: email branch skips with "Email reminders
+    disabled by user" when `notifyEmail` is false. SMS/voice + transactional/auth
+    emails unaffected. **Digest emails (`digest/run.ts`) are NOT gated** (separate
+    content stream) — open question whether to gate by same toggle.
+- **Dashboard warning** (`app/(app)/dashboard/page.tsx`): fetches
+  `account.notificationSettings`; renders a red "Email reminders are turned off"
+  banner (→ Settings) when `notifyEmail` is false. All changed files pass
+  tsc + eslint.
