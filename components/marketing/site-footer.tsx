@@ -68,6 +68,9 @@ export function SiteFooter() {
           <p className="text-xs">
             A compliance tracking tool — not legal, tax, or insurance advice.
           </p>
+          <p>
+            Beta 1.0
+          </p>
         </div>
       </div>
     </footer>
