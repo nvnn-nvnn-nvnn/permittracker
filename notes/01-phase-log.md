@@ -1120,3 +1120,45 @@ new route + clear the build/dev cache 500s; (2) add a Web3Forms key var to
 in `.env.local` is now redundant (client no longer calls Web3Forms) — safe to
 delete. Earlier `WEB3FORMS_PUBLIC_KEY`/`NEXT_PUBLIC_*` env merge bug (no trailing
 newline) was fixed; both on their own lines now.
+
+### 2026-06-15 — Legal pages finalized + effective date
+
+Filled every bracketed placeholder in `components/legal/privacy-policy.tsx` and
+`terms-of-service.tsx`. **Effective / Last-updated → May 15, 2026** (both, incl.
+the Terms' closing "effective as of" line). Standardized the contact email to
+`raysarchive@proton.me` (Terms had a stale `legal@vendguard.app`; now matches the
+Privacy + contact pages). Removed the `[Your Business Address]` line from both
+(email-only) rather than invent an address. Privacy retention → "within 90 days";
+Terms liability cap → "twelve (12) months"; Terms governing law → **Minnesota**
+with a concrete exclusive-venue/jurisdiction clause added.
+- Then **removed the shared draft/placeholder banner** from `legal-page.tsx`
+  (lived in the `LegalPage` shell → gone from both pages) per user; also dropped
+  the stale "drop the banner" comment.
+- **Judgment calls flagged to user:** governing law kept as Minnesota (draft's
+  existing choice — confirm if registered elsewhere); no physical address listed
+  (add back if one is legally required). These are NOT attorney-reviewed.
+
+### 2026-06-15 — Auth: show-password toggle + confirm password
+
+- New reusable `components/ui/password-input.tsx` — `<PasswordInput>`, a drop-in
+  for `<Input type="password">` with an eye/eye-off toggle (lucide `Eye`/`EyeOff`,
+  `aria-label`/`aria-pressed`, `tabIndex={-1}` so it stays out of tab order).
+- Applied across **all** password fields in `components/features/auth-forms.tsx`:
+  sign-in, sign-up, and both reset-password fields.
+- **Sign-up now has a "Confirm password" field** (`name="confirm"`), and
+  `signUpWithPassword` in `lib/auth/actions.ts` validates it matches (mirrors the
+  existing `resetPassword` check) → "Passwords do not match." Confirm is enforced
+  server-side, not just UI.
+
+### 2026-06-15 — Dashboard first-run onboarding walkthrough
+
+New `components/features/dashboard-onboarding.tsx`, rendered from
+`app/(app)/dashboard/page.tsx` via early return when
+`trucks.length === 0 && result.items.length === 0` (brand-new account = nothing
+tracked). 3-step vertical walkthrough enforcing the **truck-first model**:
+(1) Create your first truck — the ONLY live CTA (primary, → `/trucks/new`,
+ring-highlighted); (2) Add compliance items; (3) Let VendGuard watch the dates.
+Steps 2–3 are intentionally non-actionable (muted) because items can't exist
+without a parent truck — visually funnels the new user to create the truck first.
+All new/changed files pass tsc + eslint (pre-existing `token.test.ts` tsc error
+is unrelated).

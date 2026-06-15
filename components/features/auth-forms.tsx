@@ -12,6 +12,7 @@ import {
 } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 
 const initial: AuthActionState = {};
@@ -62,10 +63,9 @@ export function PasswordSignInForm() {
             Forgot password?
           </Link>
         </div>
-        <Input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           required
           autoComplete="current-password"
         />
@@ -103,10 +103,19 @@ export function SignUpForm() {
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">Password</Label>
-        <Input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
+          required
+          autoComplete="new-password"
+          minLength={8}
+        />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="confirm-password">Confirm password</Label>
+        <PasswordInput
+          id="confirm-password"
+          name="confirm"
           required
           autoComplete="new-password"
           minLength={8}
@@ -175,10 +184,9 @@ export function ResetPasswordForm() {
     <form action={action} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label htmlFor="new-password">New password</Label>
-        <Input
+        <PasswordInput
           id="new-password"
           name="password"
-          type="password"
           required
           autoComplete="new-password"
           minLength={8}
@@ -186,10 +194,9 @@ export function ResetPasswordForm() {
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="confirm-password">Confirm new password</Label>
-        <Input
+        <PasswordInput
           id="confirm-password"
           name="confirm"
-          type="password"
           required
           autoComplete="new-password"
           minLength={8}

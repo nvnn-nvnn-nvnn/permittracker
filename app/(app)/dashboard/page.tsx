@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TruckRollup } from "@/components/features/truck-rollup";
 import { DashboardUrgentTable } from "@/components/features/dashboard-urgent-table";
 import { CommissaryCascade } from "@/components/features/commissary-cascade";
+import { DashboardOnboarding } from "@/components/features/dashboard-onboarding";
 
 import {serverApi} from "@/lib/trpc/server";
 
@@ -60,6 +61,12 @@ export default async function DashboardPage() {
     api.truck.list(),
   ]);
   const activeTrucks = trucks.filter((t) => t.isActive).length;
+
+  // Brand-new account: nothing tracked at all. Show the first-run walkthrough
+  // instead of an empty dashboard — a truck has to exist before anything else.
+  if (trucks.length === 0 && result.items.length === 0) {
+    return <DashboardOnboarding name={ctx.accountName} />;
+  }
 
   const s = STATUS[result.status];
   const { counts } = result;

@@ -48,6 +48,7 @@ export async function signUpWithPassword(
   const rawFullName = String(formData.get("fullName") ?? "");
   const email = emailSchema.safeParse(rawEmail);
   const password = passwordSchema.safeParse(formData.get("password"));
+  const confirm = z.string().safeParse(formData.get("confirm"));
   const fullName = z.string().trim().min(1).safeParse(rawFullName);
   if (!email.success) {
     return { error: "Enter a valid email.", email: rawEmail, fullName: rawFullName };
@@ -58,6 +59,9 @@ export async function signUpWithPassword(
       email: rawEmail,
       fullName: rawFullName,
     };
+  }
+  if (!confirm.success || confirm.data !== password.data) {
+    return { error: "Passwords do not match.", email: rawEmail, fullName: rawFullName };
   }
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signUp({
