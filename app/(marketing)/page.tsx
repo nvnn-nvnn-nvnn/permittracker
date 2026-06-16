@@ -94,8 +94,10 @@ export default function MarketingHome() {
             Stay open.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-pretty text-lg text-background/85 sm:text-xl">
-            VendGuard tracks every permit, inspection, cert, and COI that can
-            shut your food truck down — and reminds you before it does.
+            One organized dashboard built for food truck operators — it reads
+            your permits, certs, inspections, and COIs, knows exactly what each
+            one means and when it lapses, and keeps every truck audit-ready so a
+            missed renewal never shuts you down.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/signup" className={buttonVariants({ size: "lg" })}>
