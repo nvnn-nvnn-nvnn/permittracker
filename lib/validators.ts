@@ -91,6 +91,153 @@ export const personInput = z.object({
 });
 export type PersonInput = z.input<typeof personInput>;
 
+// Quantity (not currency): fractional units like 1.5 lb are normal.
+const optionalQty = z.preprocess(
+  (v) => (v === "" || v === null ? undefined : v),
+  z.coerce.number().min(0).max(1_000_000).optional(),
+);
+
+/** Suggested units for the form datalist (free text — not an enum). */
+export const ingredientUnits = [
+  "each",
+  "lb",
+  "oz",
+  "case",
+  "box",
+  "bag",
+  "gal",
+  "qt",
+  "L",
+  "dozen",
+] as const;
+
+export const ingredientInput = z.object({
+  name: z.string().trim().min(1, "Name is required").max(160),
+  category: optionalTrimmed(80),
+  unit: z.string().trim().min(1).max(20).default("each"),
+  // Dollars in the form → converted to integer cents at the router edge.
+  unitCost: z.preprocess(
+    (v) => (v === "" || v === null ? undefined : v),
+    z.coerce.number().min(0).max(1_000_000).optional(),
+  ),
+  onHandQty: z.coerce.number().min(0).max(1_000_000).default(0),
+  parLevel: optionalQty,
+  reorderToQty: optionalQty,
+  supplierName: optionalTrimmed(160),
+  notes: optionalTrimmed(2000),
+});
+export type IngredientInput = z.input<typeof ingredientInput>;
+
+export const recipeLineInput = z.object({
+  ingredientId: z.string().uuid(),
+  qty: z.coerce.number().min(0).max(1_000_000),
+});
+
+export const recipeInput = z.object({
+  name: z.string().trim().min(1, "Name is required").max(160),
+  category: optionalTrimmed(80),
+  // Dollars in the form → converted to integer cents at the router edge.
+  sellPrice: z.preprocess(
+    (v) => (v === "" || v === null ? undefined : v),
+    z.coerce.number().min(0).max(1_000_000).optional(),
+  ),
+  notes: optionalTrimmed(2000),
+  lines: z.array(recipeLineInput).max(100).default([]),
+});
+export type RecipeInput = z.input<typeof recipeInput>;
+
+export const purchaseLineInput = z.object({
+  ingredientId: z.string().uuid(),
+  qty: z.coerce.number().min(0).max(1_000_000),
+  // Unit cost in dollars (form) → cents at the router edge.
+  unitCost: z.preprocess(
+    (v) => (v === "" || v === null ? undefined : v),
+    z.coerce.number().min(0).max(1_000_000).optional(),
+  ),
+});
+
+export const purchaseOrderInput = z.object({
+  supplierName: optionalTrimmed(160),
+  notes: optionalTrimmed(2000),
+  lines: z.array(purchaseLineInput).max(200).default([]),
+});
+export type PurchaseOrderInput = z.input<typeof purchaseOrderInput>;
+
+/** Suggested expense categories for the form datalist (free text). */
+export const expenseCategories = [
+  "Rent",
+  "Insurance",
+  "Fuel",
+  "Supplies",
+  "Payroll",
+  "Permits & fees",
+  "Repairs",
+  "Marketing",
+  "Commissary",
+  "Other",
+] as const;
+
+export const expenseInput = z.object({
+  description: z.string().trim().min(1, "Description is required").max(200),
+  category: optionalTrimmed(80),
+  // Dollars in the form → integer cents at the router edge.
+  amount: z.coerce.number().min(0).max(10_000_000),
+  spentOn: z.coerce.date(),
+  vendorName: optionalTrimmed(160),
+  notes: optionalTrimmed(2000),
+});
+export type ExpenseInput = z.input<typeof expenseInput>;
+
+export const inventoryCountLineInput = z.object({
+  ingredientId: z.string().uuid(),
+  countedQty: z.coerce.number().min(0).max(1_000_000),
+});
+
+export const inventoryCountInput = z.object({
+  countedOn: z.coerce.date(),
+  note: optionalTrimmed(500),
+  lines: z.array(inventoryCountLineInput).max(2000).default([]),
+});
+export type InventoryCountInput = z.input<typeof inventoryCountInput>;
+
+export const truckStatusInput = z.object({
+  truckId: z.string().uuid(),
+  serviceStatus: z.enum(["open", "closed"]).default("closed"),
+  currentLocation: optionalTrimmed(200),
+  serviceWindow: optionalTrimmed(80),
+  statusNote: optionalTrimmed(280),
+});
+export type TruckStatusInput = z.input<typeof truckStatusInput>;
+
+export const reinspectionStatusValues = [
+  "not_required",
+  "pending",
+  "scheduled",
+  "cleared",
+] as const;
+
+/** Suggested modification categories for the form datalist. */
+export const modificationCategories = [
+  "Equipment",
+  "Layout",
+  "Plumbing / gas",
+  "Electrical",
+  "Menu",
+  "Fire suppression",
+  "Other",
+] as const;
+
+export const truckModificationInput = z.object({
+  truckId: z.string().uuid(),
+  description: z.string().trim().min(1, "Describe the change").max(280),
+  category: optionalTrimmed(80),
+  changedOn: z.coerce.date(),
+  reinspectionStatus: z.enum(reinspectionStatusValues).default("not_required"),
+  reportedToHealthDept: z.boolean().default(false),
+  notes: optionalTrimmed(2000),
+});
+export type TruckModificationInput = z.input<typeof truckModificationInput>;
+
 export const itemTypeValues = [
   "permit",
   "inspection",

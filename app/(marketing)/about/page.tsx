@@ -177,7 +177,7 @@ export default function AboutPage() {
           </h2>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/signup" className={buttonVariants({ size: "lg" })}>
-              Start free
+              Start free trial
             </Link>
             <Link
               href="/contact"

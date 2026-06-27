@@ -8,7 +8,7 @@ import foodtruckHeader from "@/app/assets/foodtruck-3.jpg";
 export const metadata = {
   title: "Pricing · VendGuard",
   description:
-    "Simple per-business pricing for food truck compliance tracking. Start free, upgrade as your fleet grows.",
+    "Simple per-business pricing for food truck compliance + operations. Start with a 14-day free trial on any plan.",
 };
 
 const TIERS = [
@@ -80,8 +80,9 @@ export default function PricingPage() {
             Pricing that scales with your fleet
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-lg text-background/85">
-            Per business, not per seat. Start free, upgrade when you add another
-            truck. Two months free on annual plans.
+            Per business, not per seat. Every plan starts with a 14-day free
+            trial — card required, cancel anytime. Two months free on annual
+            plans.
           </p>
         </div>
       </section>
@@ -128,7 +129,7 @@ export default function PricingPage() {
                     "mt-6",
                   )}
                 >
-                  Start free
+                  Start 14-day free trial
                 </Link>
                 <ul className="mt-7 flex flex-col gap-3 text-sm">
                   {t.features.map((f) => (

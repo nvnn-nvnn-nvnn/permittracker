@@ -10,6 +10,7 @@ import { resolvePriceId } from "@/lib/stripe/prices";
 import {
   CONCIERGE_LOOKUP_KEY,
   priceLookupKey,
+  TRIAL_PERIOD_DAYS,
 } from "@/lib/stripe";
 import {
   applySubscription,
@@ -46,6 +47,19 @@ async function loadAccount(accountId: string) {
   return row;
 }
 
+/** Eligible for the one-time free trial: never subscribed and never trialed. */
+function isTrialEligible(a: {
+  planStatus: string;
+  trialStartedAt: Date | null;
+  stripeSubscriptionId: string | null;
+}): boolean {
+  return (
+    a.planStatus === "none" &&
+    a.trialStartedAt === null &&
+    !a.stripeSubscriptionId
+  );
+}
+
 export const billingRouter = createTRPCRouter({
   /** Current billing snapshot for the Settings UI. */
   status: protectedProcedure.query(async ({ ctx }) => {
@@ -58,6 +72,10 @@ export const billingRouter = createTRPCRouter({
       conciergePurchasedAt: a.conciergePurchasedAt,
       stripeConfigured: isStripeConfigured(),
       isOwner: ctx.account.role === "owner",
+      // Trial: whether starting one is still available, plus its length and
+      // (when trialing) the trial end = currentPeriodEnd.
+      trialEligible: isTrialEligible(a),
+      trialDays: TRIAL_PERIOD_DAYS,
     };
   }),
 
@@ -78,19 +96,33 @@ export const billingRouter = createTRPCRouter({
         priceLookupKey(input.tier, input.interval),
       );
       const appUrl = serverEnv().APP_URL;
+      const trialing = isTrialEligible(a);
       const session = await getStripe().checkout.sessions.create({
         mode: "subscription",
         customer: customerId,
         line_items: [{ price, quantity: 1 }],
         client_reference_id: a.id,
-        subscription_data: { metadata: { accountId: a.id } },
+        // Card required even during the trial; if the card later fails when the
+        // trial ends, Stripe cancels rather than leaving a free dangling sub.
+        payment_method_collection: "always",
+        subscription_data: {
+          metadata: { accountId: a.id },
+          ...(trialing
+            ? {
+                trial_period_days: TRIAL_PERIOD_DAYS,
+                trial_settings: {
+                  end_behavior: { missing_payment_method: "cancel" },
+                },
+              }
+            : {}),
+        },
         success_url: `${appUrl}/settings?billing=success`,
         cancel_url: `${appUrl}/settings?billing=cancel`,
         allow_promotion_codes: true,
       });
       if (!session.url)
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-      return { url: session.url };
+      return { url: session.url, trialing };
     }),
 
   /** One-time $49 concierge onboarding add-on. */

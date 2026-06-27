@@ -1,0 +1,1 @@
+ALTER TABLE "account" ADD COLUMN "trial_started_at" timestamp with time zone;

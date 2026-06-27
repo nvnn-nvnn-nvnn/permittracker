@@ -7,6 +7,7 @@ import { computeAccountStatus } from "@/lib/status";
 import { TruckForm } from "@/components/features/truck-form";
 import { TruckItems } from "@/components/features/truck-items";
 import { TruckStaffItems } from "@/components/features/truck-staff-items";
+import { TruckStatusControl } from "@/components/features/truck-status-control";
 import { ArchiveButton } from "@/components/features/archive-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,17 +36,21 @@ export default async function TruckDetailPage({
   let commissaries;
   let status;
   let staffRows;
+  let statusRows;
   try {
-    [truck, commissaries, status, staffRows] = await Promise.all([
+    [truck, commissaries, status, staffRows, statusRows] = await Promise.all([
       api.truck.byId({ id }),
       api.commissary.list(),
       computeAccountStatus(ctx.accountId),
       api.truck.staffItems({ truckId: id }),
+      api.truck.statusList(),
     ]);
   } catch (e) {
     if (e instanceof TRPCError && e.code === "NOT_FOUND") notFound();
     throw e;
   }
+
+  const myStatus = statusRows.find((s) => s.truckId === id) ?? null;
 
   // This truck's own items (cascade-aware urgency from the status engine).
   const truckItems = status.items.filter(
@@ -87,11 +92,39 @@ export default async function TruckDetailPage({
           >
             Add item
           </Link>
+          <Link
+            href={`/modifications/new?truck=${truck.id}`}
+            className={buttonVariants({ size: "sm", variant: "outline" })}
+          >
+            Log change
+          </Link>
           {!truck.archivedAt && (
             <ArchiveButton kind="truck" id={truck.id} redirectTo="/trucks" />
           )}
         </div>
       </div>
+
+      {/* Service status — where/when this truck is serving */}
+      {!truck.archivedAt && (
+        <Card>
+          <CardContent className="space-y-3 p-5">
+            <p className="text-sm font-medium">Service status</p>
+            <TruckStatusControl
+              truckId={truck.id}
+              initial={
+                myStatus?.serviceStatus
+                  ? {
+                      serviceStatus: myStatus.serviceStatus,
+                      currentLocation: myStatus.currentLocation,
+                      serviceWindow: myStatus.serviceWindow,
+                      statusNote: myStatus.statusNote,
+                    }
+                  : null
+              }
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Compliance items, by type */}
       <section className="space-y-4">

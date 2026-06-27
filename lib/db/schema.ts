@@ -16,6 +16,7 @@ import {
   type AnyPgColumn,
   boolean,
   date,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -103,6 +104,11 @@ export const account = pgTable("account", {
   // "month" | "year" | null — drives the displayed price, not authorization.
   planInterval: text("plan_interval"),
   currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+  // Stamped once when the account's free trial begins (status → trialing).
+  // Durable trial-eligibility marker so a cancel→resubscribe can't farm a new
+  // 14-day trial each time. The trial END date during a trial is
+  // current_period_end. See 00-decisions.md (2026-06-25, trial confirmed).
+  trialStartedAt: timestamp("trial_started_at", { withTimezone: true }),
   conciergePurchasedAt: timestamp("concierge_purchased_at", {
     withTimezone: true,
   }),
@@ -774,3 +780,525 @@ export const accountDeletionLog = pgTable("account_deletion_log", {
 });
 
 export type AccountDeletionLog = typeof accountDeletionLog.$inferSelect;
+
+// ===========================================================================
+// Operations pillar — Slice 1: Square sales sync + weekly P&L
+// ===========================================================================
+//
+// SCOPE (logged in 00-decisions.md, 2026-06-25): the app gains a second pillar,
+// "Stay profitable", connecting the tools operators already use (Square now,
+// QuickBooks later). Slice 1 = Square sales sync + a weekly P&L dashboard.
+//
+// Like reminder_dispatch, `sales_day` is SYNCED, recomputable data: upserted on
+// every sync and not audited (no audit_log entity). `square_connection` is
+// per-account config (like the billing columns on `account`) — not audited.
+// Both are RLS member-select; all writes go through the service connection.
+
+/** Where a sales figure came from. `manual` reserved for later slices. */
+export const salesSourceEnum = pgEnum("sales_source", ["square", "manual"]);
+
+// --- square_connection -----------------------------------------------------
+// One row per account. Records the linked Square merchant/location and last
+// sync. Slice 1 does NOT persist OAuth tokens — the stub needs none, and the
+// real adapter reads SQUARE_ACCESS_TOKEN from env (encrypted token storage
+// arrives with full OAuth). `connected` flips false on disconnect.
+
+export const squareConnection = pgTable(
+  "square_connection",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    connected: boolean("connected").notNull().default(true),
+    merchantId: text("merchant_id"),
+    locationId: text("location_id"),
+    locationName: text("location_name"),
+    // "sandbox" | "production" — mirrors SQUARE_ENVIRONMENT at connect time.
+    environment: text("environment"),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    connectedByUserId: uuid("connected_by_user_id").references(
+      () => appUser.id,
+      { onDelete: "set null" },
+    ),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("square_connection_account_uniq").on(t.accountId)],
+);
+
+// --- sales_day -------------------------------------------------------------
+// One row per (account, source, business date). The daily rollup the weekly
+// P&L aggregates. Money as integer cents — never floats. net = gross - refunds.
+
+export const salesDay = pgTable(
+  "sales_day",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    source: salesSourceEnum("source").notNull().default("square"),
+    businessDate: date("business_date", { mode: "date" }).notNull(),
+    grossSalesCents: integer("gross_sales_cents").notNull().default(0),
+    refundsCents: integer("refunds_cents").notNull().default(0),
+    netSalesCents: integer("net_sales_cents").notNull().default(0),
+    taxCents: integer("tax_cents").notNull().default(0),
+    tipsCents: integer("tips_cents").notNull().default(0),
+    discountsCents: integer("discounts_cents").notNull().default(0),
+    transactionCount: integer("transaction_count").notNull().default(0),
+    syncedAt: timestamp("synced_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("sales_day_account_source_date_uniq").on(
+      t.accountId,
+      t.source,
+      t.businessDate,
+    ),
+    index("sales_day_account_date_idx").on(t.accountId, t.businessDate),
+  ],
+);
+
+export type SquareConnection = typeof squareConnection.$inferSelect;
+export type SalesDay = typeof salesDay.$inferSelect;
+export type NewSalesDay = typeof salesDay.$inferInsert;
+export type SalesSource = (typeof salesSourceEnum.enumValues)[number];
+
+// --- sales_item_day --------------------------------------------------------
+// Per-item daily sales (Square order line items). Powers item-level reports,
+// menu-simplification analytics, and (later) per-recipe COGS attribution.
+// Synced/recomputable like sales_day; RLS member-select, not audited.
+
+export const salesItemDay = pgTable(
+  "sales_item_day",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    source: salesSourceEnum("source").notNull().default("square"),
+    businessDate: date("business_date", { mode: "date" }).notNull(),
+    // Menu item name as it appears in the POS; the join key to recipes.
+    itemName: text("item_name").notNull(),
+    // Square catalog object id when available (stub has none).
+    squareItemId: text("square_item_id"),
+    qtySold: doublePrecision("qty_sold").notNull().default(0),
+    grossSalesCents: integer("gross_sales_cents").notNull().default(0),
+    syncedAt: timestamp("synced_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("sales_item_day_uniq").on(
+      t.accountId,
+      t.source,
+      t.businessDate,
+      t.itemName,
+    ),
+    index("sales_item_day_account_date_idx").on(t.accountId, t.businessDate),
+  ],
+);
+
+export type SalesItemDay = typeof salesItemDay.$inferSelect;
+
+// ===========================================================================
+// Operations pillar — Slice 2a: Inventory (ingredients)
+// ===========================================================================
+//
+// Master inventory data the operator edits. Account-scoped, archive-only, RLS
+// member-select. Like the rest of the ops pillar it is NOT wired to the
+// compliance audit_log (that trigger guards legal/compliance records; ops is
+// operational). Quantities use double precision (NOT currency — fractional
+// units like 1.5 lb are normal); money stays integer cents (`unit_cost_cents`).
+
+export const ingredient = pgTable(
+  "ingredient",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    category: text("category"),
+    // Stock-keeping unit of measure, e.g. "lb", "each", "case", "gal".
+    unit: text("unit").notNull().default("each"),
+    // Cost per `unit`, integer cents.
+    unitCostCents: integer("unit_cost_cents").notNull().default(0),
+    onHandQty: doublePrecision("on_hand_qty").notNull().default(0),
+    // Reorder threshold; null = not stock-tracked (no low-stock alerts).
+    parLevel: doublePrecision("par_level"),
+    // Target on-hand quantity after a reorder (drives suggested order qty).
+    reorderToQty: doublePrecision("reorder_to_qty"),
+    supplierName: text("supplier_name"),
+    notes: text("notes"),
+    createdByUserId: uuid("created_by_user_id").references(() => appUser.id, {
+      onDelete: "set null",
+    }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("ingredient_account_idx").on(t.accountId)],
+);
+
+export type Ingredient = typeof ingredient.$inferSelect;
+export type NewIngredient = typeof ingredient.$inferInsert;
+
+// ===========================================================================
+// Operations pillar — Slice 2b: Recipes (menu items) + ingredient usage
+// ===========================================================================
+//
+// A recipe is a sellable menu item with a price and a bill of materials
+// (recipe_ingredient lines). COGS = Σ(line.qty × ingredient.unit_cost_cents);
+// margin = sell_price − COGS. Account-scoped, archive-only, RLS member-select,
+// not audited (operational). recipe_ingredient is a hard-deletable join
+// replaced on each recipe save (like person_truck) — no audit trigger.
+
+export const recipe = pgTable(
+  "recipe",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    category: text("category"),
+    // Menu price, integer cents.
+    sellPriceCents: integer("sell_price_cents").notNull().default(0),
+    notes: text("notes"),
+    createdByUserId: uuid("created_by_user_id").references(() => appUser.id, {
+      onDelete: "set null",
+    }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("recipe_account_idx").on(t.accountId)],
+);
+
+export const recipeIngredient = pgTable(
+  "recipe_ingredient",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    recipeId: uuid("recipe_id")
+      .notNull()
+      .references(() => recipe.id, { onDelete: "cascade" }),
+    ingredientId: uuid("ingredient_id")
+      .notNull()
+      .references(() => ingredient.id, { onDelete: "cascade" }),
+    // Quantity of the ingredient (in the ingredient's unit) per one sold item.
+    qty: doublePrecision("qty").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("recipe_ingredient_uniq").on(t.recipeId, t.ingredientId),
+    index("recipe_ingredient_account_idx").on(t.accountId),
+    index("recipe_ingredient_recipe_idx").on(t.recipeId),
+  ],
+);
+
+export type Recipe = typeof recipe.$inferSelect;
+export type NewRecipe = typeof recipe.$inferInsert;
+export type RecipeIngredient = typeof recipeIngredient.$inferSelect;
+
+// ===========================================================================
+// Operations pillar — Slice 2c: Purchasing (reorder lists / purchase orders)
+// ===========================================================================
+//
+// A purchase order the manager builds (or auto-seeds from below-par stock),
+// moves draft → ordered → received. Receiving bumps ingredient.on_hand_qty.
+// Account-scoped, archive-only, RLS member-select, not audited. Items are a
+// hard-deletable join replaced on save while the order is still editable.
+
+export const purchaseOrderStatusEnum = pgEnum("purchase_order_status", [
+  "draft",
+  "ordered",
+  "received",
+  "canceled",
+]);
+
+export const purchaseOrder = pgTable(
+  "purchase_order",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    supplierName: text("supplier_name"),
+    status: purchaseOrderStatusEnum("status").notNull().default("draft"),
+    notes: text("notes"),
+    orderedAt: timestamp("ordered_at", { withTimezone: true }),
+    // Set once when the order is received; gates the one-time stock bump.
+    receivedAt: timestamp("received_at", { withTimezone: true }),
+    createdByUserId: uuid("created_by_user_id").references(() => appUser.id, {
+      onDelete: "set null",
+    }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    index("purchase_order_account_idx").on(t.accountId),
+    index("purchase_order_status_idx").on(t.status),
+  ],
+);
+
+export const purchaseOrderItem = pgTable(
+  "purchase_order_item",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    purchaseOrderId: uuid("purchase_order_id")
+      .notNull()
+      .references(() => purchaseOrder.id, { onDelete: "cascade" }),
+    ingredientId: uuid("ingredient_id")
+      .notNull()
+      .references(() => ingredient.id, { onDelete: "cascade" }),
+    qty: doublePrecision("qty").notNull().default(0),
+    // Cost snapshot at order time (ingredient cost can change later).
+    unitCostCents: integer("unit_cost_cents").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("purchase_order_item_uniq").on(
+      t.purchaseOrderId,
+      t.ingredientId,
+    ),
+    index("purchase_order_item_account_idx").on(t.accountId),
+    index("purchase_order_item_po_idx").on(t.purchaseOrderId),
+  ],
+);
+
+export type PurchaseOrder = typeof purchaseOrder.$inferSelect;
+export type PurchaseOrderItem = typeof purchaseOrderItem.$inferSelect;
+export type PurchaseOrderStatus =
+  (typeof purchaseOrderStatusEnum.enumValues)[number];
+
+// ===========================================================================
+// Operations pillar — Slice 3: Overhead expense ledger (QuickBooks fallback)
+// ===========================================================================
+//
+// A barebones bookkeeping ledger: dated operating expenses (rent, insurance,
+// fuel, …) that feed the weekly P&L's overhead line. Account-scoped,
+// archive-only, RLS member-select, not audited. Money in integer cents.
+
+export const expense = pgTable(
+  "expense",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    description: text("description").notNull(),
+    category: text("category"),
+    amountCents: integer("amount_cents").notNull().default(0),
+    // The date the expense applies to (drives which P&L week it lands in).
+    spentOn: date("spent_on", { mode: "date" }).notNull(),
+    vendorName: text("vendor_name"),
+    notes: text("notes"),
+    createdByUserId: uuid("created_by_user_id").references(() => appUser.id, {
+      onDelete: "set null",
+    }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    index("expense_account_idx").on(t.accountId),
+    index("expense_spent_on_idx").on(t.spentOn),
+  ],
+);
+
+export type Expense = typeof expense.$inferSelect;
+export type NewExpense = typeof expense.$inferInsert;
+
+// ===========================================================================
+// Operations pillar — Tier A step 3: Inventory counts (snapshots)
+// ===========================================================================
+//
+// A physical count at a point in time. Stores the counted value (snapshot) +
+// per-ingredient counted quantities, and reconciles ingredient.on_hand_qty to
+// the counted figures. Two counts + purchases between them give ACTUAL food
+// cost = opening + purchases − closing (captures waste/shrink). Account-scoped,
+// RLS member-select, not audited; lines are a hard-deletable child of the count.
+
+export const inventoryCount = pgTable(
+  "inventory_count",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    countedOn: date("counted_on", { mode: "date" }).notNull(),
+    // Snapshot of total inventory value (Σ counted qty × unit cost) in cents.
+    totalValueCents: integer("total_value_cents").notNull().default(0),
+    note: text("note"),
+    createdByUserId: uuid("created_by_user_id").references(() => appUser.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("inventory_count_account_idx").on(t.accountId),
+    index("inventory_count_date_idx").on(t.accountId, t.countedOn),
+  ],
+);
+
+export const inventoryCountLine = pgTable(
+  "inventory_count_line",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    countId: uuid("count_id")
+      .notNull()
+      .references(() => inventoryCount.id, { onDelete: "cascade" }),
+    ingredientId: uuid("ingredient_id")
+      .notNull()
+      .references(() => ingredient.id, { onDelete: "cascade" }),
+    countedQty: doublePrecision("counted_qty").notNull().default(0),
+    // Unit cost snapshot at count time.
+    unitCostCents: integer("unit_cost_cents").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("inventory_count_line_uniq").on(t.countId, t.ingredientId),
+    index("inventory_count_line_account_idx").on(t.accountId),
+    index("inventory_count_line_count_idx").on(t.countId),
+  ],
+);
+
+export type InventoryCount = typeof inventoryCount.$inferSelect;
+export type InventoryCountLine = typeof inventoryCountLine.$inferSelect;
+
+// ===========================================================================
+// Operations pillar — Tier A step 5: Truck service status (location / window)
+// ===========================================================================
+//
+// Current "are we serving / where" status, 1:1 with a truck. Updated often
+// (daily / multiple times a day), so it is a SEPARATE table — NOT columns on
+// `truck` (which is audited) — to keep location pings out of the compliance
+// audit_log. RLS member-select; not audited.
+
+export const serviceStatusEnum = pgEnum("service_status", ["open", "closed"]);
+
+export const truckStatus = pgTable(
+  "truck_status",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    truckId: uuid("truck_id")
+      .notNull()
+      .references(() => truck.id, { onDelete: "cascade" }),
+    serviceStatus: serviceStatusEnum("service_status")
+      .notNull()
+      .default("closed"),
+    // Where it's parked today, e.g. "Mears Park, St Paul".
+    currentLocation: text("current_location"),
+    // Free-text service window, e.g. "11am–2pm".
+    serviceWindow: text("service_window"),
+    statusNote: text("status_note"),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("truck_status_truck_uniq").on(t.truckId)],
+);
+
+export type TruckStatus = typeof truckStatus.$inferSelect;
+export type ServiceStatus = (typeof serviceStatusEnum.enumValues)[number];
+
+// ===========================================================================
+// Compliance pillar — Tier A step 6: Truck modification / health-dept log
+// ===========================================================================
+//
+// A dated record of equipment/layout/menu changes to a truck that may trigger
+// re-inspection — so the operator has proof of what changed and when to show
+// the health department. Account-scoped, archive-only, RLS member-select.
+// It is itself an append-style log (entries aren't edited as history); not
+// wired to the formal audit_log trigger (would need an enum + trigger
+// migration) — logged as a decision.
+
+export const reinspectionStatusEnum = pgEnum("reinspection_status", [
+  "not_required",
+  "pending",
+  "scheduled",
+  "cleared",
+]);
+
+export const truckModification = pgTable(
+  "truck_modification",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    truckId: uuid("truck_id")
+      .notNull()
+      .references(() => truck.id, { onDelete: "cascade" }),
+    description: text("description").notNull(),
+    // Free text + datalist: Equipment, Layout, Plumbing/Gas, Electrical, Menu…
+    category: text("category"),
+    changedOn: date("changed_on", { mode: "date" }).notNull(),
+    reinspectionStatus: reinspectionStatusEnum("reinspection_status")
+      .notNull()
+      .default("not_required"),
+    reportedToHealthDept: boolean("reported_to_health_dept")
+      .notNull()
+      .default(false),
+    notes: text("notes"),
+    createdByUserId: uuid("created_by_user_id").references(() => appUser.id, {
+      onDelete: "set null",
+    }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    index("truck_modification_account_idx").on(t.accountId),
+    index("truck_modification_truck_idx").on(t.truckId),
+  ],
+);
+
+export type TruckModification = typeof truckModification.$inferSelect;
+export type ReinspectionStatus =
+  (typeof reinspectionStatusEnum.enumValues)[number];

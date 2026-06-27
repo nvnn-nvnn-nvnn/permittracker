@@ -1246,3 +1246,525 @@ for the scope/why and the venue-vs-event modeling call.
   group headers, deadline urgency colors matching the dashboard; empty state
   matches the centered card + brand-ink CTA. Form `Field` matches `venue-form`.
   All new/changed files pass tsc + eslint.
+
+---
+
+## Operations pillar — Slice 1: Square sales sync + weekly P&L (2026-06-25)
+
+Second product pillar ("Stay profitable") begins — see `00-decisions.md`
+(2026-06-25) for the why (Reddit/PH "just use a spreadsheet" pricing backlash)
+and the slice sequencing. This slice is the thinnest wedge: connect Square,
+roll daily sales into a weekly P&L. Inventory/purchasing/expenses/QuickBooks
+are later slices.
+
+- **No new dependency.** The Square adapter uses raw REST via `fetch` + Bearer
+  token (same posture as the Twilio SMS adapter), so the `square` SDK is *not*
+  installed — this sidesteps the "ask before adding deps" gate. Confirmed the
+  REST approach matches `lib/sms/index.ts`.
+- **Adapter** (`lib/square/index.ts`): `getSquareAdapter()` returns a real REST
+  adapter when `SQUARE_ACCESS_TOKEN` is set (GET /v2/locations, POST
+  /v2/orders/search w/ cursor pagination, aggregated per closed-at day), else a
+  **deterministic stub** that fabricates plausible weekend-weighted daily sales
+  so the dashboard demos with zero creds. `isSquareConfigured()` mirrors
+  `isSmsConfigured()`. Env: `SQUARE_ACCESS_TOKEN?`, `SQUARE_ENVIRONMENT`
+  (sandbox|production, default sandbox), `SQUARE_LOCATION_ID?` added to
+  `lib/env.ts`. QuickBooks intentionally NOT wired (Slice 4).
+- **Schema** (`lib/db/schema.ts`): enum `sales_source` (square|manual);
+  `square_connection` (one row/account, unique on account_id — merchant/location
+  + last_synced; NO OAuth token persisted in Slice 1) and `sales_day`
+  (one row per account+source+business_date; money in integer cents;
+  net = gross − refunds). Both are RLS member-select; like `reminder_dispatch`,
+  `sales_day` is synced/recomputable so it is **not audited**, and
+  `square_connection` is config (like account billing cols) so also not audited.
+- **Migrations:** `0023_sleepy_starbolt.sql` (tables, drizzle-gen) +
+  hand-authored `0024_ops_rls.sql` (ENABLE RLS + member-select policies).
+  Journal updated with idx 24. **Run `npm run db:migrate`** to apply 0023/0024.
+- **Sync** (`lib/square/sync.ts`): `syncSquareSales(accountId, {days=90})`
+  pulls daily sales and **upserts** `sales_day` (onConflict account+source+date
+  → idempotent re-sync) and upserts the `square_connection` row + last_synced.
+  Writes via the service connection (`getDb`), no `withActor` (un-audited).
+  Plus `disconnectSquare` (keeps history) and `getSquareConnection`.
+- **Weekly P&L** (`lib/ops/pnl.ts`): `weeklyPnl(accountId, weeks=8)` buckets
+  `sales_day` into Mon–Sun weeks, computes net/gross/refunds/tax/tips/discounts,
+  avg ticket, and week-over-week net change. Expense side (cogs/overhead/
+  estimated profit) returned as **null** ("not tracked yet") — never fake a
+  profit number; those land in Slices 2–3.
+- **Router** (`lib/trpc/routers/ops.ts`, registered in `root.ts`): `connection`
+  (query), `sync` (mutation, wraps adapter errors as BAD_GATEWAY), `disconnect`
+  (mutation), `weeklyPnl` (query). All account-scoped from session.
+- **UI:** nav "Operations" (`TrendingUp`, right after Dashboard) in
+  `app-shell.tsx`; page `app/(app)/operations/page.tsx` (server component) —
+  connection card with `components/features/square-sync.tsx` (client; Connect /
+  Sync now / Disconnect via tRPC mutations + `router.refresh()`), latest-week
+  hero tiles, and a weekly P&L table with WoW pill. Empty state when no sales.
+- **Verify:** `npm run typecheck` clean for all new/changed files (one
+  pre-existing unrelated error in `lib/reminders/token.test.ts`).
+- **Deferred / pending:** plan-gating ops behind Pro+ and the **free-tier =
+  1 truck** pricing change are both still pending (separate from this slice);
+  full Square OAuth + encrypted token storage; expense/COGS slices; a Square
+  webhook for incremental sync (Slice 1 is pull-only).
+
+---
+
+## Pricing: card-required 14-day free trial (2026-06-25)
+
+Decision reversed (see `00-decisions.md`): **no free tier**; the product is now
+all-paid + a 14-day free trial. Built the trial first (before Slice 2), as
+confirmed. Reuses Phase 5 billing almost entirely — `plan_status` already has
+`trialing` and `effectiveTier()` already grants the full tier while trialing,
+so a trial user gets full access with **zero new gating code**.
+
+- **Card-required** flavor chosen (converts better; billing already wired).
+  Implemented via Stripe Checkout, not a bespoke trial system.
+- **Schema:** `account.trial_started_at` (`0025_elite_albert_cleary.sql`) — a
+  durable, set-once trial-eligibility marker so cancel→resubscribe can't farm a
+  fresh 14-day trial. Trial END during a trial is `current_period_end`.
+- **`lib/stripe/index.ts`:** `TRIAL_PERIOD_DAYS = 14`.
+- **`createCheckout` (`billing.ts`):** when eligible (`plan_status==='none'` &&
+  `trial_started_at` null && no `stripe_subscription_id`), adds
+  `subscription_data.trial_period_days=14` +
+  `trial_settings.end_behavior.missing_payment_method='cancel'`, and
+  `payment_method_collection: 'always'` (card required even during trial). Non-
+  eligible accounts (already trialed/subscribed) check out with no trial.
+  `billing.status` now returns `trialEligible` + `trialDays`.
+- **Reconciler (`applySubscription`):** stamps `trial_started_at` once, the
+  first time it sees `trialing`, via `coalesce(trial_started_at, now())` — works
+  for both the webhook and the manual "Sync from Stripe" path.
+- **UI:** billing panel shows a trial banner when eligible ("Start with a
+  14-day free trial — card required, cancel anytime"), CTA copy becomes "Start
+  14-day trial", and the header shows "free trial — N days left (billing starts
+  …)" while trialing. Marketing `pricing/page.tsx` copy updated ("Start 14-day
+  free trial" / removed "Start free" free-tier language).
+- **Verify:** typecheck clean for all changed files (lone pre-existing
+  `token.test.ts` error unrelated); eslint clean.
+- **Pending:** `PLANS` re-pricing + feature flags + ops/AI plan-gating still to
+  come; at trial expiry with a failing card Stripe cancels → `effectiveTier()`
+  floors to starter (existing behavior). Local trial testing needs the Stripe
+  CLI running (same as all Phase 5 webhook flows).
+- **Marketing copy swept:** removed remaining "Start free" / "Free to start"
+  free-tier language (home hero + bottom CTA, about CTA, pricing) → "Start free
+  trial" / "14-day free trial".
+
+---
+
+## Operations Slice 2a — Inventory (ingredients) (2026-06-25)
+
+Slice 2 (inventory + recipe usage + purchasing) is being delivered as **2a/2b/
+2c** so each ships end-to-end rather than half-built. 2a = inventory, the
+foundation recipes (COGS) and purchasing both build on.
+
+- **Schema** (`lib/db/schema.ts`): `ingredient` — account-scoped, archive-only,
+  RLS member-select, **not** wired to compliance `audit_log` (operational data,
+  same posture as the rest of the ops pillar). Quantities are
+  `doublePrecision` (fractional units like 1.5 lb are normal — NOT currency);
+  money stays integer cents (`unit_cost_cents`). Fields: name, category, unit
+  (text, e.g. lb/each/case), unit_cost_cents, on_hand_qty, par_level (reorder
+  threshold; null = no low-stock alerts), reorder_to_qty, supplier_name, notes.
+- **Migrations:** `0026_chunky_tattoo.sql` (table, drizzle-gen) + hand-authored
+  `0027_ingredient_rls.sql` (ENABLE RLS + member-select). Journal updated
+  (idx 27). **Run `npm run db:migrate`** to apply 0026/0027.
+- **Validator** (`lib/validators.ts`): `ingredientInput` (+ `ingredientUnits`
+  datalist suggestions). Cost entered in dollars → cents at the router edge;
+  quantities coerced; par/reorder optional.
+- **Router** (`lib/trpc/routers/inventory.ts`, registered in `root.ts` as
+  `inventory`): list, byId, **summary** (count + total on-hand value cents +
+  low-stock count via SQL `filter`), create, update, **adjustStock**
+  (set | delta, floored at 0), archive. Plain `getDb()` (not audited);
+  tenant-guarded via `assertOwned`.
+- **UI:** nav "Inventory" (`Boxes`, after Operations); list page
+  (`app/(app)/inventory/page.tsx`) with summary tiles + low-stock `Badge` rows;
+  `inventory/new` + `inventory/[id]` (edit + archive) via
+  `components/features/ingredient-form.tsx`; `ArchiveButton` extended with
+  `kind="ingredient"` (explicit branch, removed the silent person fallthrough
+  risk). Operations page gains an Inventory snapshot card (value + low-stock,
+  links to /inventory).
+- **Verify:** `npm run typecheck` clean (lone pre-existing `token.test.ts`
+  error remains, unrelated); eslint clean on all new/changed files.
+- **Next (2b):** recipes + recipe_ingredient join → per-recipe COGS & margin,
+  which is what makes the weekly P&L's profit line real. Then 2c purchasing
+  list (seed a draft order from below-par ingredients; receiving bumps on-hand).
+  Deferred: an inventory movement ledger (`inventory_txn`) and auto
+  recipe-usage depletion from Square line items.
+
+---
+
+## Operations Slice 2b — Recipes + ingredient usage (COGS/margin) (2026-06-25)
+
+Menu items priced against ingredient cost. This delivers per-recipe COGS &
+margin (menu engineering); wiring COGS into the *weekly* P&L still needs
+sales→recipe attribution (deferred — see below).
+
+- **Schema** (`lib/db/schema.ts`): `recipe` (name, category, sell_price_cents,
+  notes) + `recipe_ingredient` join (recipe_id, ingredient_id, qty
+  doublePrecision; unique per recipe+ingredient). Account-scoped, archive-only
+  (recipe), RLS member-select, not audited. `recipe_ingredient` is a hard-
+  deletable join replaced wholesale on each save (like `person_truck`).
+- **Migrations:** `0028_wild_felicia_hardy.sql` (tables) + hand-authored
+  `0029_recipe_rls.sql` (RLS for both). Journal idx 29. **Run
+  `npm run db:migrate`** to apply 0028/0029.
+- **Validator** (`lib/validators.ts`): `recipeInput` + `recipeLineInput`
+  (sellPrice dollars→cents at router; lines array, max 100). NOTE: handler uses
+  the parsed *output* type — `RecipeInput` (`z.input`) has `qty: unknown`
+  because of `z.coerce`, so helpers type lines as `{ingredientId; qty:number}[]`.
+- **Router** (`lib/trpc/routers/recipe.ts`, registered as `recipe`): list
+  (recipes + COGS via `leftJoin`+`groupBy(recipe.id)` aggregate + lineCount),
+  byId (recipe + priced lines + COGS), create/update (transactional; lines
+  normalized = de-duped by ingredient + zero-qty dropped; `assertIngredientsOwned`
+  guards cross-tenant ingredient refs; update replaces the BOM wholesale),
+  archive. Plain `getDb()` (not audited).
+- **UI:** nav "Recipes" (`ChefHat`, after Inventory); list page with per-item
+  margin % (green/red); `recipes/new` + `recipes/[id]` via
+  `components/features/recipe-form.tsx` — a client form with a **dynamic
+  ingredient-line builder** (select + qty rows, add/remove) and a **live
+  COGS / sell price / margin preview** computed from the inventory list. Reuses
+  `inventory.list` for the picker (no new endpoint). `ArchiveButton` extended
+  with `kind="recipe"`.
+- **Verify:** typecheck clean (lone pre-existing `token.test.ts` error); eslint
+  clean (removed an unused `CardContent` import).
+- **Deferred:** weekly-P&L COGS requires mapping Square line items → recipes
+  (sales attribution); until then the P&L profit line stays `null`. Also
+  deferred: inventory depletion on sale, and a movement ledger.
+- **Next (2c):** purchasing list — seed a draft order from below-par
+  ingredients; receiving bumps on-hand.
+
+---
+
+## Operations Slice 2c — Purchasing (reorder lists / POs) (2026-06-25)
+
+Completes Slice 2. A purchase order the manager builds (or auto-seeds from
+low stock), moved draft → ordered → received; **receiving adds the ordered
+quantities back to inventory**.
+
+- **Schema** (`lib/db/schema.ts`): enum `purchase_order_status`
+  (draft/ordered/received/canceled); `purchase_order` (supplier_name, status,
+  notes, ordered_at, received_at, archived_at) + `purchase_order_item`
+  (qty doublePrecision, unit_cost_cents **snapshot at order time**, unique per
+  order+ingredient). Account-scoped, archive-only, RLS member-select, not
+  audited. Items replaced wholesale while editable.
+- **Migrations:** `0030_stormy_wild_pack.sql` (tables) + hand-authored
+  `0031_purchasing_rls.sql`. Journal idx 31. **Run `npm run db:migrate`** to
+  apply 0030/0031.
+- **Validator** (`lib/validators.ts`): `purchaseOrderInput` + `purchaseLineInput`
+  (qty + per-line unitCost dollars→cents).
+- **Router** (`lib/trpc/routers/purchasing.ts`, registered as `purchasing`):
+  list (orders + itemCount + totalCents aggregate), byId (priced lines),
+  create/update (transactional; `update` blocked once received), **setStatus**
+  (receiving bumps `ingredient.on_hand_qty` per item in the same transaction,
+  guarded by `received_at` so it's **idempotent** — receiving can't double-add),
+  **createFromLowStock** (seeds a draft from every below-par ingredient, qty =
+  reorderTo/par − onHand), archive.
+- **UI:** nav "Purchasing" (`ShoppingCart`, after Recipes); list page with
+  status badges + a **"Generate from low stock"** button
+  (`purchasing-actions.tsx`); `purchasing/new` + `purchasing/[id]` via
+  `purchase-order-form.tsx` (dynamic line builder, prefills unit cost from the
+  ingredient, live order total). Detail page shows status-transition buttons
+  (Mark ordered / Receive / Cancel / Reopen) and switches to a **read-only
+  summary once received**. `ArchiveButton` extended with `kind="purchaseOrder"`.
+- **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean
+  (removed an unused import).
+
+**Slice 2 (inventory + recipes + purchasing) is complete.** The ops loop now
+exists end-to-end: stock ingredients → build recipes (COGS/margin) → reorder
+below-par stock → receive to replenish. Still deferred: sales→recipe
+attribution (to put COGS into the weekly P&L), inventory depletion on sale, a
+movement ledger, Square webhook for incremental sync, plan-gating + repricing,
+Slice 3 (expenses), Slice 4 (QuickBooks), automated checklist, AI assistant.
+
+---
+
+## Operations Slice 3 — Overhead expense ledger + P&L expense side (2026-06-25)
+
+A barebones bookkeeping ledger (the QuickBooks fallback) — and the first **real
+expense side** in the weekly P&L, so it finally shows profit instead of "—".
+
+- **Schema** (`lib/db/schema.ts`): `expense` — description, category (free text
+  + `expenseCategories` datalist), amount_cents, spent_on (date → drives the
+  P&L week it lands in), vendor_name, notes. Account-scoped, archive-only, RLS
+  member-select, not audited.
+- **Migrations:** `0032_chemical_invaders.sql` (table) + hand-authored
+  `0033_expense_rls.sql`. Journal idx 33. **Run `npm run db:migrate`** to apply
+  0032/0033.
+- **Validator** (`lib/validators.ts`): `expenseInput` (amount dollars→cents;
+  spentOn coerced date; defaults date to today in the form).
+- **Router** (`lib/trpc/routers/expenses.ts`, registered as `expenses`): list,
+  byId, summary (total + count over last N days), create, update, archive.
+- **Weekly P&L wired** (`lib/ops/pnl.ts`): now also pulls expenses since the
+  window start and **buckets them by spent_on into the same Mon–Sun weeks**
+  (weeks with only expenses now appear too). New `WeeklyPnl` fields:
+  `overheadCents` (real) and `operatingProfitCents = netSales − overhead`.
+  `cogsCents` stays **null** (still needs sales→recipe attribution), so the
+  profit column is labelled **"Op. profit*"** with a footnote that food cost
+  isn't included yet — staying honest about what the number means.
+- **UI:** nav "Expenses" (`Receipt`, after Purchasing); list page (30-day total
+  + dated rows w/ category badge), `expenses/new` + `expenses/[id]` via
+  `expense-form.tsx`; `ArchiveButton` extended with `kind="expense"`. Operations
+  page: P&L table swapped Refunds/Avg-ticket columns for **Overhead + Op.
+  profit** (red when negative), and added an **Overhead snapshot card** (30-day
+  total) next to the inventory card.
+- **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean.
+- **Next candidates:** sales→recipe attribution (the last piece for true COGS
+  in the P&L), the automated checklist, plan-gating + repricing, Slice 4
+  (QuickBooks), AI assistant.
+
+---
+
+## P&L food cost — step 1: purchases-based actual food cost (2026-06-25)
+
+Decided approach (see the conversation): finish the P&L's profit line with
+**actual food cost = supplier purchases received**, not theoretical per-recipe
+COGS. Rationale: reuses purchasing data we already have, no dependency on Square
+line-item quality or a recipe-mapping chore, and matches the food-cost % KPI
+operators actually track. Theoretical/attribution COGS is a later layer.
+
+- **`lib/ops/pnl.ts`:** now also pulls **received** purchase orders since the
+  window start, totals each PO (`Σ qty × unit_cost_cents`), and buckets by
+  `receivedAt` into the same Mon–Sun weeks. `WeeklyPnl` gains `foodCostCents`
+  (replaces the old null `cogsCents`); `operatingProfitCents = net − foodCost −
+  overhead`. Added `WeeklyPnlResult.totals` = trailing sums over the returned
+  window incl. **`foodCostPct`** (food ÷ net) — the headline KPI. `hasData`
+  now also true when only purchases exist.
+- **Operations page:** P&L table columns now Week · Net sales · **Food cost** ·
+  Overhead · **Profit** (red when negative); added a **trailing-totals KPI
+  card** (Net sales / Food cost % / Overhead / Operating profit over last Nw);
+  footnote explains food cost = received supplier purchases (lumpy → watch the
+  trailing %), overhead = expenses, true per-recipe COGS later.
+- **Honest framing kept:** "food cost" is actual supplier spend and is lumpy
+  week-to-week (bulk buys), so the **trailing food-cost %** is presented as the
+  number to watch, not the weekly figure.
+- **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean.
+- **Next (accuracy, step 2):** one-tap inventory snapshots → true actual COGS =
+  opening + purchases − closing (smooths lumpiness, exposes shrink/variance).
+  Step 3 (parallel): Square line-item ingestion + recipe mapping → theoretical
+  COGS and theoretical-vs-actual variance.
+
+---
+
+## Tier A roadmap chosen (2026-06-25)
+
+After completing the ops loop, owner reviewed a broad feature wishlist. Decided
+**Tier A only** — features that deepen the "operations brain on top of Square +
+QuickBooks" — and explicitly **rejected Tier B** (offline sales capture, online
+ordering, pickup/order management, menu editing/availability, prep-timing/KDS,
+condiment-station workflow) because those make us a POS/ordering competitor,
+contradicting the logged "don't build a POS" decision and re-opening the
+"why not just use Square" objection. Tier A sequence: (1) Square line-item
+ingestion → item-level reports; (2) menu-simplification suggestions; (3)
+inventory counts/snapshots → true actual COGS; (4) QuickBooks sync; (5) truck
+location / service-window status; (6) health-dept change log for truck mods
+(compliance pillar); (7) enforce staff roles on ops screens + plan-gating.
+
+## Tier A step 1 — Square line-item ingestion + item sales report (2026-06-25)
+
+- **Adapter** (`lib/square/index.ts`): new `listItemSales()` on `SquareAdapter`
+  + `SquareItemSalesDay` type. Stub fabricates a 5-item demo menu with per-day
+  quantities; real impl aggregates Square order **line_items** by (day, name).
+- **Schema:** `sales_item_day` (account, source, business_date, item_name,
+  square_item_id?, qty_sold, gross_sales_cents; unique per
+  account+source+date+item). Synced/recomputable, RLS member-select, not
+  audited. Migrations `0034_silent_sleepwalker.sql` + hand-authored
+  `0035_sales_item_rls.sql` (journal idx 35). **Run `npm run db:migrate`.**
+- **Sync** (`lib/square/sync.ts`): pulls item sales alongside daily sales and
+  upserts `sales_item_day` (idempotent, onConflict per item/day).
+- **Router** (`ops.itemSales`): aggregates per item over last N days
+  (best-sellers first by gross).
+- **UI:** Operations page gains a **"Top items · last 30 days"** table (item,
+  units, sales). Footnote points to the next step (recipe matching → per-item
+  margin + menu-simplification).
+- **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean.
+- **Next (Tier A step 2):** match item names → recipes for per-item margin and
+  menu-simplification suggestions.
+
+---
+
+## Tier A step 2 — Menu-simplification suggestions (2026-06-25)
+
+Classic menu engineering: matches Square item sales to recipe cost and sorts
+items into **Star / Plowhorse / Puzzle / Dog** with a plain-English action each.
+
+- **Analysis lib** (`lib/ops/menu.ts`): `menuAnalysis(accountId, days)` pulls
+  item sales (`sales_item_day`) + recipes-with-COGS, matches by **normalized
+  item name** (`trim().toLowerCase()` == recipe name), computes per-unit margin
+  + total contribution, then classifies vs. the **average units & average
+  margin** across matched items. Returns matched (classified), unmatched (sold
+  but no recipe), and the thresholds.
+- **Router:** `ops.menuAnalysis({days})`.
+- **UI:** new page `app/(app)/operations/menu/page.tsx` — classified list with
+  class badge (star=green, plowhorse=yellow, puzzle=outline, dog=red), per-item
+  margin/units/price/cost + recommendation, an "sold but no recipe" section
+  (prompts to name a recipe to match), and a legend. Linked from the Operations
+  "Top items" section ("Menu analysis →").
+- **Matching caveat (by design):** name-based exact match. Items whose POS name
+  ≠ recipe name show as unmatched until the user aligns names; an explicit
+  mapping table is deferred.
+- **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean.
+- **Next (Tier A step 3):** inventory counts/snapshots → true actual COGS.
+
+---
+
+## Tier A step 3 — Inventory counts → actual food cost (2026-06-25)
+
+Periodic physical counts → **actual food cost = opening + purchases − closing**
+(captures waste/shrink, unlike the P&L's purchases proxy).
+
+- **Schema:** `inventory_count` (countedOn, total_value_cents snapshot, note) +
+  `inventory_count_line` (counted_qty, unit_cost_cents snapshot per ingredient).
+  Account-scoped, RLS member-select, not audited; lines cascade with the count.
+  Migrations `0036_mute_richard_fisk.sql` + hand-authored
+  `0037_inventory_count_rls.sql` (journal idx 37). **Run `npm run db:migrate`.**
+- **Validator:** `inventoryCountInput` (countedOn, note, lines[]).
+- **Router** (`inventory.*`): `listCounts`, `countById` (with priced lines),
+  **`createCount`** — validates ownership, snapshots current unit costs,
+  computes total value, inserts count + lines, and **reconciles each
+  ingredient's on_hand_qty to the counted figure** (transactional).
+- **Actual COGS** (`ops.actualCogs`): takes the two most recent counts +
+  received purchases between them → opening + purchases − closing. Returns
+  `{available:false}` until there are ≥2 counts.
+- **UI:** count form (`inventory-count-form.tsx`) prefilled from current
+  on-hand with a live counted-value total; `/inventory/counts` (list + actual-
+  COGS card), `/inventory/counts/new`, `/inventory/counts/[id]`; "Counts" link
+  on the Inventory page; an **Actual food cost** card on the Operations page.
+- **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean.
+- **Next (Tier A step 4):** QuickBooks sync (Slice 4) — or step 5 truck status.
+
+---
+
+## Tier A step 4 — QuickBooks export (Slice 4) (2026-06-25)
+
+Working deliverable = a **QuickBooks-importable CSV** of sales + expenses (no
+creds needed). Live two-way QBO sync is OAuth2 + entity mapping and can't be
+exercised without a dev app, so it's **stubbed** (same posture as Square).
+
+- **Adapter** (`lib/quickbooks/index.ts`): `QuickBooksAdapter.pushTransactions`
+  + `getQuickBooksAdapter()` (no-op stub for now) + `isQuickBooksConfigured()`
+  (checks `QUICKBOOKS_ACCESS_TOKEN` + `QUICKBOOKS_REALM_ID`). Env vars added to
+  `lib/env.ts`. Real REST push is future work (commented).
+- **Export builder** (`lib/ops/export.ts`): `buildFinancialCsv(accountId, days)`
+  → 4-column CSV (Date, Description, Category, Amount) — sales net as positive
+  income, expenses as negative — the shape QBO imports as bank transactions.
+  CSV-escapes fields; money as `(cents/100).toFixed(2)`.
+- **Router:** `ops.financialExport({days})` (returns filename + csv + counts),
+  `ops.quickbooksStatus` (liveSyncConfigured flag).
+- **UI:** page `app/(app)/operations/export/page.tsx` with a connected/export-
+  only badge; client `quickbooks-export.tsx` fetches the CSV via
+  `utils.ops.financialExport.fetch` and triggers a Blob download (30/90/365-day
+  range). Linked from the Operations header ("Export to QuickBooks →").
+- **No new tables/migrations** — pure read/export over sales_day + expense.
+- **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean.
+- **Next (Tier A step 5):** truck location / service-window status.
+
+---
+
+## Tier A step 5 — Truck service status (location / window) (2026-06-25)
+
+Per-truck "are we serving / where" status — a food-truck-specific, self-
+contained feature (no integrations).
+
+- **Schema:** enum `service_status` (open/closed) + `truck_status` (1:1 with
+  truck via unique truck_id; service_status, current_location, service_window,
+  status_note, updated_at). **Separate table on purpose** — status changes
+  often, and `truck` is audited; keeping it separate avoids spamming the
+  compliance audit_log with location pings. RLS member-select, not audited.
+  Migrations `0038_amused_spectrum.sql` + hand-authored
+  `0039_truck_status_rls.sql` (journal idx 39). **Run `npm run db:migrate`.**
+- **Validator:** `truckStatusInput`.
+- **Router** (`truck.*`, plain `getDb` — not audited): `statusList` (all
+  non-archived trucks left-joined to their status) + `setStatus` (upsert on
+  truck_id, ownership-checked).
+- **UI:** `truck-status-control.tsx` (open/closed toggle + location + window +
+  note) on the truck detail page; a **Service status** card on the Operations
+  page listing each truck with an open/closed badge + location, linking to the
+  truck.
+- **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean.
+- **Deferred:** a public/customer-facing "where's the truck" page (this step is
+  operator-facing only).
+- **Next (Tier A step 6):** health-dept change log for truck modifications.
+
+---
+
+## Tier A step 6 — Truck modification / health-dept change log (2026-06-25)
+
+Compliance-pillar feature: a dated record of equipment/layout/menu changes that
+may trigger re-inspection — proof for the health department + a re-inspection
+status flag.
+
+- **Schema:** enum `reinspection_status` (not_required/pending/scheduled/
+  cleared) + `truck_modification` (truck_id, description, category, changed_on,
+  reinspection_status, reported_to_health_dept, notes). Account-scoped,
+  archive-only, RLS member-select. Migrations `0040_curvy_domino.sql` +
+  hand-authored `0041_truck_modification_rls.sql` (journal idx 41). **Run
+  `npm run db:migrate`.**
+- **Decision (logged):** it's itself an append-style log, so it is NOT wired to
+  the formal compliance `audit_log` trigger (which would need an audit-enum +
+  trigger migration) — consistent with how this session treated the new tables.
+- **Validator:** `truckModificationInput` (+ `reinspectionStatusValues`,
+  `modificationCategories`). Meta in `lib/modifications.ts` (`REINSPECTION_META`
+  → label + badge variant; pending = red, scheduled = yellow, cleared = green).
+- **Router** (`modification.*`, plain `getDb`): list (joins truck name; filter
+  by truckId / includeArchived), byId, create, update, archive — truck
+  ownership checked.
+- **UI:** nav "Truck log" (`Wrench`, after Trucks); list page with status
+  badges; `modifications/new` (+ `?truck=` prefill) + `modifications/[id]` via
+  `modification-form.tsx` (truck select, category datalist, date, re-inspection
+  select, reported-to-health-dept checkbox). "Log change" link added to the
+  truck detail header. `ArchiveButton` extended with `kind="modification"`.
+- **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean.
+- **Next (Tier A step 7):** enforce staff roles on ops screens + plan-gating
+  (the last Tier A step), then `PLANS` re-pricing/feature-flags.
+
+---
+
+## Tier A step 7 — Plan-gating + staff roles on Operations (2026-06-25)
+
+The last Tier A step. Locks the Operations pillar to entitled plans and makes
+`viewer` members read-only — both enforced in **one** tRPC middleware.
+
+- **`PLANS.operations` flag** (`lib/stripe`): starter=false, **pro/fleet=true**
+  (default split; one-line change to re-tier). This is the concrete encoding of
+  the still-flexible pricing decision.
+- **`lib/limits.ts`:** `operationsEnabled(tier,status)`,
+  `accountHasOperations(accountId)` (async; **open when Stripe is unconfigured**
+  so dev/preview isn't locked out — billing-resilient), `assertOperationsAccess`
+  (throws FORBIDDEN with an upgrade message).
+- **`opsProcedure`** (`lib/trpc/trpc.ts`): one middleware that (a) asserts plan
+  entitlement and (b) blocks **mutations** for `viewer` role (uses the tRPC
+  `type` to tell reads from writes — so queries stay open to viewers, writes
+  don't). Applied by swapping `protectedProcedure → opsProcedure` across all
+  five ops routers (ops, inventory, recipe, purchasing, expenses).
+- **UI:** `AppShell` gets `operationsEnabled` (from the app layout via
+  `accountHasOperations`) and **hides the 5 ops nav items** when off; the
+  Operations page renders an **upgrade gate** instead of erroring when the plan
+  doesn't include it.
+- **Known gap (minor):** the deep ops pages (inventory/recipes/…) aren't
+  individually wrapped in the upgrade gate — they're hidden from nav and the
+  server `opsProcedure` blocks their data, so a non-entitled user who types the
+  URL directly hits a FORBIDDEN error rather than a pretty screen. Acceptable;
+  wrap them in the gate later if needed.
+- **Pricing still owner-pending:** the exact tier→price mapping (and whether
+  Starter should include any ops) is a pricing call; the flag makes it trivial.
+- **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean.
+
+## Nav reorg — grouped sidebar sections (2026-06-25)
+
+The flat ~15-item sidebar is now grouped under section headers (chose grouped
+nav over multi-dashboard — clarity with no added navigation depth; the two
+existing hubs Dashboard + Operations remain the "overviews").
+
+- `app-shell.tsx`: nav is now `NavGroup[]` (label + items) rendered with small
+  uppercase section headers. Groups: **Overview** (Dashboard), **Finances**
+  (Sales & P&L [was "Operations"], Expenses), **Inventory** (Inventory, Recipes,
+  Purchasing), **Compliance** (Items, Inspection prep, Commissaries, Venues,
+  People, Events), **Trucks** (Trucks, Truck log), **Account** (Settings, Admin).
+  The "/operations" item was relabeled **"Sales & P&L"** (href unchanged).
+- Plan-gating preserved: ops items are filtered per-group and any group left
+  empty is dropped — so for a non-ops plan the **Finances + Inventory groups
+  disappear entirely**. Nav made scrollable (`flex-1 overflow-y-auto`).
+- Compliance is the flexible bucket (Commissaries/Venues/People/Events parked
+  there as compliance-supporting entities); easy to re-bucket.
+- Verify: typecheck clean (lone pre-existing `token.test.ts`); eslint clean.
+
+## Tier A is complete (steps 1–7). The app is now a two-pillar workspace:
+*Stay open* (compliance) + *Stay profitable* (operations: Square sales →
+item/menu analytics, inventory + counts, recipes/COGS, purchasing, expenses,
+weekly P&L with food-cost %, QuickBooks CSV export, truck service status,
+truck change log) — gated to paid plans, viewer-read-only, all on top of Square
++ QuickBooks rather than replacing them.

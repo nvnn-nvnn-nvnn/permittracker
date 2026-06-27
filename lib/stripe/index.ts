@@ -16,6 +16,9 @@ export interface PlanDefinition {
   maxItems: number | null; // null = unlimited
   sms: boolean;
   voiceEscalation: boolean;
+  // Operations pillar (Square sync, P&L, inventory, recipes, purchasing,
+  // expenses, item/menu analytics). Pro and up. See 00-decisions.md.
+  operations: boolean;
 }
 
 export const PLANS: Record<PlanTier, PlanDefinition> = {
@@ -28,6 +31,7 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
     maxItems: 15,
     sms: false,
     voiceEscalation: false,
+    operations: false,
   },
   pro: {
     tier: "pro",
@@ -38,6 +42,7 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
     maxItems: null,
     sms: true,
     voiceEscalation: true,
+    operations: true,
   },
   fleet: {
     tier: "fleet",
@@ -48,10 +53,18 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
     maxItems: null,
     sms: true,
     voiceEscalation: true,
+    operations: true,
   },
 };
 
 export const CONCIERGE_ONBOARDING_USD = 49;
+
+/**
+ * Free-trial length. Card-required trial via Stripe Checkout
+ * `trial_period_days` (no free tier — see 00-decisions.md 2026-06-25). Offered
+ * once per account; eligibility is gated on `account.trial_started_at`.
+ */
+export const TRIAL_PERIOD_DAYS = 14;
 
 export type BillingInterval = "month" | "year";
 export const PAID_TIERS = ["starter", "pro", "fleet"] as const;

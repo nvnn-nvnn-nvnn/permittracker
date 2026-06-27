@@ -32,6 +32,137 @@ These were confirmed with the owner before any code was written.
 
 ## Data-model scope decisions (not stack deviations)
 
+- **2026-06-25 — Feature roadmap: Tier A ("ops brain") IN, Tier B
+  ("POS/ordering") OUT.** Owner reviewed a broad food-truck feature wishlist.
+  Binding decision: build only features that make us the **operations/analytics
+  brain on top of Square + QuickBooks**, and **reject** anything that turns us
+  into a POS or order pipeline.
+  - **Tier B — rejected (do NOT build):** offline sales capture, basic online
+    ordering, pickup/order management, menu editing & item-availability toggles,
+    prep-timing / kitchen-display (KDS), condiment-station workflow. Rationale:
+    each makes us the cash register / order pipeline, which contradicts the
+    "don't build a POS — Square owns that" decision, re-opens the "why not just
+    use Square?" objection (as a *worse* POS), and — for online ordering — is a
+    whole separate company (storefront, payments, PCI). A deliberate ordering
+    bet (Owner.com-style) remains possible later but must be a conscious,
+    separate decision, not smuggled in on a feature list.
+  - **Tier A — accepted, in sequence:** (1) Square **line-item ingestion** →
+    item-level sales reports ✅; (2) **menu-simplification suggestions**
+    (Star/Plowhorse/Puzzle/Dog) ✅; (3) **inventory counts/snapshots** → true
+    actual COGS ✅; (4) **QuickBooks sync** (Slice 4) — to build stubbed-adapter
+    first, like Square; (5) **truck location / service-window status**
+    (customer-facing); (6) **health-dept change log** for truck modifications
+    (compliance pillar); (7) **enforce staff roles** on ops screens +
+    plan-gating. **All 7 steps done — Tier A complete.** Plan-gating uses a
+    `PLANS.operations` flag (starter off, pro/fleet on) + an `opsProcedure`
+    middleware (entitlement + viewer-read-only); **exact tier→price mapping
+    remains an owner pricing decision** (the flag makes re-tiering one line).
+    Build details per step are in
+    `01-phase-log.md`.
+
+- **2026-06-25 (later same day) — No free tier; reposition as an all-paid
+  "seamless workspace for vendors."** Reverses point 1 of the earlier
+  same-day entry (free tier = 1 truck). Owner's reasoning: with the operations
+  pillar + the features below, the product is no longer a commodity tracker you
+  could replace with a spreadsheet, so it doesn't need to be given away. **All
+  tiers paid**, including Starter (1 truck) — gating now happens *within* the
+  paid tiers (which features live in which tier), not via a free tier.
+  - **CONFIRMED (2026-06-25): a time-limited free TRIAL, not a free tier.**
+    14-day full-access trial, then convert to paid. Preserves
+    try-before-you-buy / top-of-funnel for the skeptical launch audience
+    without giving the product away forever. **Build order: trial mechanism
+    FIRST, then Slice 2 (inventory).**
+    - Reuses existing machinery: `account.plan_status` enum already has
+      `trialing`, and `effectiveTier()` already grants the full tier's features
+      while `status === "trialing"` — so a trial user gets full access with no
+      new gating logic. Trial end tracked via `current_period_end` (or a new
+      `trial_ends_at`); at expiry the account drops to the `none`/`canceled`
+      floor (locked) until they subscribe. Stripe supports
+      `trial_period_days` on the subscription, so the trial can run through the
+      same Checkout/webhook path already built in Phase 5.
+    - **OPEN param (need owner call): card-required vs no-card trial.**
+      Card-required converts far better but suppresses signups; no-card gets
+      more signups, lower conversion. Recommend **card-required via Stripe
+      Checkout `trial_period_days`** (cleanest given billing is already wired).
+  - **Expanded product vision — "seamless workspace for vendors":** metrics
+    tracking, inventory tracking, Square + QuickBooks integration (with a
+    **barebones expense/bookkeeping ledger as the QB fallback**), an
+    **automated operational checklist** spanning orders / billing / inventory
+    *and* compliance (the cross-pillar daily "what do I need to do today"
+    surface — the connective tissue + daily-engagement hook), and an **AI
+    assistant**.
+  - **AI assistant = Claude, not GPT.** Reuse the already-wired
+    `@anthropic-ai/sdk` + `ANTHROPIC_API_KEY` (OCR pipeline); no OpenAI
+    dependency. Gated as a premium / top-tier feature. Default to the latest
+    Claude model when built.
+  - **Roadmap absorbs the new asks** on top of the existing slice sequence:
+    Slice 1 (Square + weekly P&L) ✅ done; Slice 2 = inventory + recipe usage +
+    purchasing (keystone — feeds the checklist + ledger); Slice 3 = expense /
+    barebones bookkeeping ledger (QB fallback); Slice 4 = QuickBooks sync;
+    + new workstreams: automated checklist, AI assistant (premium-gated).
+  - **Build queue (in order):** (1) **trial mechanism** ✅ done (14-day,
+    card-required via Stripe Checkout `trial_period_days`); (2) **Slice 2 —
+    split into 2a/2b/2c to keep each delivery shippable end-to-end**:
+    **2a inventory (ingredients)** ✅ done; **2b recipes + usage (COGS/margin)**
+    ✅ done; **2c purchasing list** ✅ done — **Slice 2 complete**. Then, not yet
+    scheduled: `PLANS` tier re-pricing +
+    feature flags (incl. an `operations` capability flag and AI gating),
+    plan-gating enforcement on the `ops` router, **Slice 3 (expense / barebones
+    bookkeeping ledger)** ✅ done, Slice 4 (QuickBooks), automated checklist,
+    AI assistant (premium-gated), and sales→recipe attribution (to put COGS in
+    the weekly P&L).
+  - **CURRENT roadmap = the Tier A entry above (2026-06-25).** Status: trial ✅,
+    Slice 1 (Square + weekly P&L) ✅, Slice 2 (inventory/recipes/purchasing) ✅,
+    Slice 3 (expenses) ✅, P&L food cost via received purchases ✅, actual COGS
+    via inventory counts ✅, item-level sales ✅, menu analysis ✅. **Note:
+    sales→recipe attribution was deferred** in favour of purchases-based food
+    cost (P&L) + count-based actual COGS — cheaper, no Square-catalog/mapping
+    dependency. Still pending: QuickBooks, truck status, health-dept change log,
+    staff-role enforcement + `PLANS` re-pricing/feature-flags, automated
+    checklist, AI assistant.
+
+- **2026-06-25 — Second product pillar added: culinary operations
+  ("Stay profitable") alongside compliance ("Stay open"). Two pillars, one
+  app.** Trigger: a Reddit / Product Hunt launch drew a recurring complaint —
+  "$19/mo for compliance reminders I can do free in a spreadsheet / Google
+  Calendar." Read as a *value-perception* problem (a pure reminder tracker
+  reads as commodity), not just a price problem. Two-part response, confirmed
+  with the owner:
+  1. **Free tier = 1 truck. ⚠️ SUPERSEDED later same day — see the
+     2026-06-25 "No free tier" entry above.** (Original rationale kept for the
+     record: a single-truck free tier to defuse the "sneaky subscription" line.
+     Never implemented — `PLANS`/`lib/limits.ts` were not changed — and then
+     reversed once the product scope expanded past a commodity tracker.)
+  2. **Add an operations pillar, do NOT pivot away from compliance.** Owner
+     chose "two pillars, one app" over a full pivot or a separate product.
+     Story: compliance = *Stay open*; operations = *Stay profitable*. Positioned
+     as "the operating system for your food truck." Compliance code/data model
+     is untouched; ops is additive.
+
+  **Scope is sequenced — the full ops "MVP" is a 3–6 month, two-integration
+  build and will NOT ship in one round.** Agreed sequence:
+  - **Slice 1 (THIS round): Square sales sync + weekly P&L dashboard.** The
+    thinnest wedge that proves the thesis — replaces the "export Square →
+    spreadsheet every week" workflow and shows dollar-value fast.
+  - Slice 2: inventory + recipe/usage depletion + purchasing list.
+  - Slice 3: manual overhead expense tracking (feeds the P&L).
+  - Slice 4: QuickBooks export / sync.
+
+  **Explicitly OUT of scope (now and likely permanently):** full POS, payroll,
+  tax filing, full accounting. Those live in Square / QuickBooks already; the
+  app owns the *operations layer between them* (purchasing, inventory/usage,
+  waste/variance, overhead, weekly performance).
+
+  **Adapter posture (consistent with kickoff decision #1).** Square and
+  QuickBooks are external integrations and will be **stubbed behind typed
+  adapter interfaces** (local/no-op + a fixture/simulator) until live creds,
+  exactly like Stripe/Twilio/Resend/Postmark — swapping in the real SDK must
+  touch only the adapter binding, not call sites. The real Square / QuickBooks
+  SDKs are **new dependencies outside the brief's stack**; per CLAUDE.md ("Ask
+  before adding dependencies") they require owner sign-off before install, so
+  Slice 1 builds against the stubbed adapter first. Same account-scoped /
+  archive-only / audited tenant model as every other table.
+
 - **2026-06-15 — Product scope expanded: compliance tracker → compliance +
   vendor event pipeline.** Added a first-class `Event` entity (prospective
   events the vendor applies to) with an application-status pipeline
@@ -142,6 +273,20 @@ These were confirmed with the owner before any code was written.
   dashboard's RED/expired state owns that. Found while debugging "no emails"
   (the row was simply scheduled 33 min in the future at the fixed 13:00 UTC
   send time — not a bug, but it exposed this real gap).
+
+## Tooling / workflow
+
+These are local dev-environment / Claude Code settings, not product decisions.
+
+- **2026-06-26 — Claude Code runs in `bypassPermissions` mode.** Set
+  `permissions.defaultMode = "bypassPermissions"` in the global
+  `~/.claude/settings.json`, so all sessions (every project) start with
+  permission prompts disabled — Claude executes edits/bash/etc. without
+  asking. Owner-requested for speed. Trade-off: no approval gate on
+  destructive commands (`rm -rf`, force-push). Revert by removing that line
+  or setting it back to `"default"` (or via `/config`). A safer middle
+  ground if ever wanted: `"acceptEdits"` (auto-approves edits, still prompts
+  on bash).
 
 ## Known caveats / limitations (revisit later)
 

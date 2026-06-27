@@ -101,7 +101,7 @@ export default function MarketingHome() {
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/signup" className={buttonVariants({ size: "lg" })}>
-              Start free
+              Start free trial
               <ArrowRight className="size-4" />
             </Link>
             <Link
@@ -231,11 +231,11 @@ export default function MarketingHome() {
           <p className="mx-auto mt-4 max-w-xl text-pretty text-lg text-background/85">
             Track the permits, inspections, and COIs that matter, get reminded
             before they lapse, and never lose a weekend to an expired document.
-            Free to start.
+            14-day free trial.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/signup" className={buttonVariants({ size: "lg" })}>
-              Start free
+              Start free trial
               <ArrowRight className="size-4" />
             </Link>
             <Link

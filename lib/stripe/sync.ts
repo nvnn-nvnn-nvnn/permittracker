@@ -1,6 +1,6 @@
 import "server-only";
 import type Stripe from "stripe";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { account } from "@/lib/db/schema";
 import type { Account, PlanStatus, PlanTier } from "@/lib/db/schema";
@@ -62,6 +62,11 @@ export async function applySubscription(
       ...(tier ? { planTier: tier } : {}),
       planInterval: interval,
       currentPeriodEnd: periodEnd ? new Date(periodEnd * 1000) : null,
+      // Stamp the trial start exactly once, the first time we see `trialing`.
+      // coalesce keeps the original timestamp on subsequent reconciles.
+      ...(status === "trialing"
+        ? { trialStartedAt: sql`coalesce(${account.trialStartedAt}, now())` }
+        : {}),
       updatedAt: new Date(),
     })
     .where(eq(account.id, accountId));

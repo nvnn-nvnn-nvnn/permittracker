@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   createTRPCRouter,
@@ -13,8 +13,9 @@ import {
   person,
   personTruck,
   truck,
+  truckStatus,
 } from "@/lib/db/schema";
-import { truckInput } from "@/lib/validators";
+import { truckInput, truckStatusInput } from "@/lib/validators";
 
 /** A linked commissary must belong to the same account. */
 async function assertCommissaryInAccount(
@@ -223,5 +224,74 @@ export const truckRouter = createTRPCRouter({
           .returning();
         return row;
       });
+    }),
+
+  // --- Service status (location / window) — not audited (frequent updates) ---
+
+  /** All non-archived trucks with their current service status. */
+  statusList: protectedProcedure.query(async ({ ctx }) => {
+    return getDb()
+      .select({
+        truckId: truck.id,
+        name: truck.name,
+        isActive: truck.isActive,
+        serviceStatus: truckStatus.serviceStatus,
+        currentLocation: truckStatus.currentLocation,
+        serviceWindow: truckStatus.serviceWindow,
+        statusNote: truckStatus.statusNote,
+        updatedAt: truckStatus.updatedAt,
+      })
+      .from(truck)
+      .leftJoin(truckStatus, eq(truckStatus.truckId, truck.id))
+      .where(
+        and(
+          eq(truck.accountId, ctx.account.accountId),
+          isNull(truck.archivedAt),
+        ),
+      )
+      .orderBy(asc(truck.name));
+  }),
+
+  /** Set a truck's service status (open/closed, location, window). */
+  setStatus: protectedProcedure
+    .input(truckStatusInput)
+    .mutation(async ({ ctx, input }) => {
+      const [owned] = await getDb()
+        .select({ id: truck.id })
+        .from(truck)
+        .where(
+          and(
+            eq(truck.id, input.truckId),
+            eq(truck.accountId, ctx.account.accountId),
+          ),
+        )
+        .limit(1);
+      if (!owned) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const now = new Date();
+      const status = input.serviceStatus ?? "closed";
+      const [row] = await getDb()
+        .insert(truckStatus)
+        .values({
+          accountId: ctx.account.accountId,
+          truckId: input.truckId,
+          serviceStatus: status,
+          currentLocation: input.currentLocation,
+          serviceWindow: input.serviceWindow,
+          statusNote: input.statusNote,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: truckStatus.truckId,
+          set: {
+            serviceStatus: status,
+            currentLocation: input.currentLocation ?? null,
+            serviceWindow: input.serviceWindow ?? null,
+            statusNote: input.statusNote ?? null,
+            updatedAt: now,
+          },
+        })
+        .returning();
+      return row;
     }),
 });

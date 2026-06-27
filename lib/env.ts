@@ -44,6 +44,20 @@ const serverSchema = z.object({
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_FROM_NUMBER: z.string().optional(),
 
+  // --- Square (Operations pillar, Slice 1). Stubbed until a token is set;
+  // accessed via raw REST (no SDK dependency), like the Twilio adapter.
+  // QuickBooks (Slice 4) is intentionally NOT wired yet. ---
+  SQUARE_ACCESS_TOKEN: z.string().optional(),
+  SQUARE_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
+  // Optional: pin a location. When unset, the adapter uses the first location.
+  SQUARE_LOCATION_ID: z.string().optional(),
+
+  // --- QuickBooks (Operations pillar, Slice 4). Live sync stubbed until a
+  // token is set; the CSV export works with no creds. ---
+  QUICKBOOKS_ACCESS_TOKEN: z.string().optional(),
+  QUICKBOOKS_REALM_ID: z.string().optional(),
+  QUICKBOOKS_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
+
   // --- App ---
   APP_URL: z.string().url().default("http://localhost:3000"),
   REMINDER_TOKEN_SECRET: z.string().min(1).optional(),

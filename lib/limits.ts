@@ -5,6 +5,7 @@ import { getDb } from "@/lib/db";
 import { account, complianceItem, truck } from "@/lib/db/schema";
 import type { PlanStatus, PlanTier } from "@/lib/db/schema";
 import { PLANS } from "@/lib/stripe";
+import { isStripeConfigured } from "@/lib/stripe/client";
 
 /**
  * The tier whose limits actually apply. A lapsed/never-subscribed account
@@ -16,6 +17,45 @@ export function effectiveTier(
   status: PlanStatus,
 ): PlanTier {
   return status === "active" || status === "trialing" ? tier : "starter";
+}
+
+/** Whether the account's effective plan includes the Operations pillar. */
+export function operationsEnabled(
+  tier: PlanTier,
+  status: PlanStatus,
+): boolean {
+  return PLANS[effectiveTier(tier, status)].operations;
+}
+
+/**
+ * True if this account may use the Operations pillar. When Stripe isn't
+ * configured (local/preview, pre-launch), it's open so the feature is testable
+ * — billing-resilient, same posture as the rest of billing.
+ */
+export async function accountHasOperations(
+  accountId: string,
+): Promise<boolean> {
+  if (!isStripeConfigured()) return true;
+  const [acc] = await getDb()
+    .select({ tier: account.planTier, status: account.planStatus })
+    .from(account)
+    .where(eq(account.id, accountId))
+    .limit(1);
+  if (!acc) return false;
+  return operationsEnabled(acc.tier, acc.status);
+}
+
+/** Throw FORBIDDEN unless the account may use the Operations pillar. */
+export async function assertOperationsAccess(
+  accountId: string,
+): Promise<void> {
+  if (await accountHasOperations(accountId)) return;
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message:
+      "The Operations tools (sales, inventory, recipes, purchasing, P&L) are " +
+      "on the Pro plan and up. Upgrade in Settings → Billing.",
+  });
 }
 
 /**

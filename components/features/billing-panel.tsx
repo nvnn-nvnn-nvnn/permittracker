@@ -67,6 +67,17 @@ export function BillingPanel() {
   const s = status.data;
   if (!s) return null;
 
+  const trialDaysLeft =
+    s.status === "trialing" && s.currentPeriodEnd
+      ? Math.max(
+          0,
+          Math.ceil(
+            (new Date(s.currentPeriodEnd).getTime() - Date.now()) /
+              86_400_000,
+          ),
+        )
+      : null;
+
   const go = (url: string) => {
     window.location.href = url;
   };
@@ -79,17 +90,27 @@ export function BillingPanel() {
         <CardTitle className="flex items-center gap-2 text-base">
           Billing
           <Badge variant={s.status === "active" || s.status === "trialing" ? "green" : "outline"}>
-            {s.tier} · {s.status}
+            {s.tier} · {s.status === "trialing" ? "free trial" : s.status}
           </Badge>
         </CardTitle>
         <CardDescription>
-          {s.status === "active" || s.status === "trialing"
-            ? `Your ${s.tier} plan is active${
+          {s.status === "trialing"
+            ? `Free trial of ${s.tier} — ${
+                trialDaysLeft !== null
+                  ? `${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left`
+                  : "active"
+              }${
                 s.currentPeriodEnd
-                  ? ` until ${new Date(s.currentPeriodEnd).toLocaleDateString("en-US")}`
+                  ? ` (billing starts ${new Date(s.currentPeriodEnd).toLocaleDateString("en-US")})`
                   : ""
               }.`
-            : "No active subscription — limits are at the Starter floor."}
+            : s.status === "active"
+              ? `Your ${s.tier} plan is active${
+                  s.currentPeriodEnd
+                    ? ` until ${new Date(s.currentPeriodEnd).toLocaleDateString("en-US")}`
+                    : ""
+                }.`
+              : "No active subscription — limits are at the Starter floor."}
           {s.conciergePurchasedAt && " · Concierge onboarding purchased."}
         </CardDescription>
       </CardHeader>
@@ -107,6 +128,14 @@ export function BillingPanel() {
         )}
         {msg && (
           <p className="rounded-md bg-muted px-3 py-2 text-xs">{msg}</p>
+        )}
+
+        {s.trialEligible && s.stripeConfigured && (
+          <p className="rounded-md bg-status-green/10 px-3 py-2 text-xs text-foreground">
+            🎉 Start with a <strong>{s.trialDays}-day free trial</strong> on any
+            plan. Card required — cancel anytime before it ends and you won&apos;t
+            be charged.
+          </p>
         )}
 
         <div className="flex items-center gap-2">
@@ -168,7 +197,11 @@ export function BillingPanel() {
                     }
                   }}
                 >
-                  {current ? "Current plan" : `Choose ${t.label}`}
+                  {current
+                    ? "Current plan"
+                    : s.trialEligible
+                      ? `Start ${s.trialDays}-day trial`
+                      : `Choose ${t.label}`}
                 </Button>
               </div>
             );
