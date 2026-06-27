@@ -9,15 +9,30 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { fmtMoneyCents, dateInputValue } from "@/lib/format";
 
-export function InventoryCountForm() {
+export function InventoryCountForm({
+  defaultTruckId,
+}: {
+  defaultTruckId?: string;
+}) {
   const router = useRouter();
   const utils = trpc.useUtils();
-  const ingredients = trpc.inventory.list.useQuery();
+  const trucks = trpc.truck.list.useQuery();
+  const [truckId, setTruckId] = useState(defaultTruckId ?? "");
+  const ingredients = trpc.inventory.list.useQuery(
+    { truckId: truckId || undefined },
+    { enabled: Boolean(truckId) },
+  );
   const [error, setError] = useState<string | null>(null);
   const [countedOn, setCountedOn] = useState(dateInputValue(new Date()));
   const [note, setNote] = useState("");
   const [counts, setCounts] = useState<Record<string, string>>({});
   const [seeded, setSeeded] = useState(false);
+
+  // Reset when the truck changes (different ingredient set).
+  useEffect(() => {
+    setSeeded(false);
+    setCounts({});
+  }, [truckId]);
 
   // Seed counted quantities from current on-hand once ingredients load.
   useEffect(() => {
@@ -47,7 +62,12 @@ export function InventoryCountForm() {
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    if (!truckId) {
+      setError("Pick a truck to count.");
+      return;
+    }
     create.mutate({
+      truckId,
       countedOn,
       note,
       lines: rows.map((i) => ({
@@ -57,16 +77,53 @@ export function InventoryCountForm() {
     });
   }
 
+  const truckSelect = (
+    <div className="flex max-w-xs flex-col gap-2">
+      <Label htmlFor="truckId">Truck</Label>
+      <select
+        id="truckId"
+        value={truckId}
+        onChange={(e) => setTruckId(e.target.value)}
+        required
+        className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+      >
+        <option value="" disabled>
+          Select a truck…
+        </option>
+        {(trucks.data ?? []).map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  if (!truckId) {
+    return (
+      <div className="space-y-5">
+        {truckSelect}
+        <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+          Select a truck to count its stock.
+        </p>
+      </div>
+    );
+  }
+
   if (rows.length === 0 && !ingredients.isLoading) {
     return (
-      <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
-        Add ingredients in Inventory first, then take a count.
-      </p>
+      <div className="space-y-5">
+        {truckSelect}
+        <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+          This truck has no ingredients yet — add some in Inventory first.
+        </p>
+      </div>
     );
   }
 
   return (
     <form onSubmit={onSubmit} className="flex max-w-2xl flex-col gap-5">
+      {truckSelect}
       <div className="flex max-w-xs flex-col gap-2">
         <Label htmlFor="countedOn">Count date</Label>
         <Input

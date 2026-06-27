@@ -22,12 +22,24 @@ function toCents(dollars: number | undefined): number {
  */
 export const inventoryRouter = createTRPCRouter({
   list: opsProcedure
-    .input(z.object({ includeArchived: z.boolean().default(false) }).optional())
+    .input(
+      z
+        .object({
+          includeArchived: z.boolean().default(false),
+          truckId: z.string().uuid().optional(),
+        })
+        .optional(),
+    )
     .query(async ({ ctx, input }) => {
       const rows = await getDb()
         .select()
         .from(ingredient)
-        .where(eq(ingredient.accountId, ctx.account.accountId))
+        .where(
+          and(
+            eq(ingredient.accountId, ctx.account.accountId),
+            input?.truckId ? eq(ingredient.truckId, input.truckId) : undefined,
+          ),
+        )
         .orderBy(asc(ingredient.name));
       return input?.includeArchived
         ? rows
@@ -52,7 +64,9 @@ export const inventoryRouter = createTRPCRouter({
     }),
 
   /** Counts + total inventory value (cents) + low-stock count. */
-  summary: opsProcedure.query(async ({ ctx }) => {
+  summary: opsProcedure
+    .input(z.object({ truckId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
     const [row] = await getDb()
       .select({
         count: sql<number>`count(*)::int`,
@@ -65,6 +79,7 @@ export const inventoryRouter = createTRPCRouter({
         and(
           eq(ingredient.accountId, ctx.account.accountId),
           isNull(ingredient.archivedAt),
+          input?.truckId ? eq(ingredient.truckId, input.truckId) : undefined,
         ),
       );
     return {
@@ -76,7 +91,12 @@ export const inventoryRouter = createTRPCRouter({
 
   /** Theoretical ingredient usage (auto-depletion) over the last `days`. */
   usage: opsProcedure
-    .input(z.object({ days: z.number().int().min(1).max(365).default(30) }))
+    .input(
+      z.object({
+        days: z.number().int().min(1).max(365).default(30),
+        truckId: z.string().uuid().optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const since = new Date();
       since.setUTCDate(since.getUTCDate() - input.days);
@@ -94,6 +114,9 @@ export const inventoryRouter = createTRPCRouter({
           and(
             eq(inventoryUsage.accountId, ctx.account.accountId),
             gte(inventoryUsage.businessDate, since),
+            input.truckId
+              ? eq(inventoryUsage.truckId, input.truckId)
+              : undefined,
           ),
         )
         .groupBy(inventoryUsage.ingredientId, ingredient.name, ingredient.unit)
@@ -121,6 +144,7 @@ export const inventoryRouter = createTRPCRouter({
         .insert(ingredient)
         .values({
           accountId: ctx.account.accountId,
+          truckId: input.truckId,
           name: input.name,
           category: input.category,
           unit: input.unit ?? "each",
@@ -143,6 +167,7 @@ export const inventoryRouter = createTRPCRouter({
       const [row] = await getDb()
         .update(ingredient)
         .set({
+          truckId: input.data.truckId,
           name: input.data.name,
           category: input.data.category,
           unit: input.data.unit ?? "each",
@@ -198,13 +223,25 @@ export const inventoryRouter = createTRPCRouter({
   // --- Inventory counts (snapshots) ---
 
   /** Recent counts, newest first. */
-  listCounts: opsProcedure.query(async ({ ctx }) => {
-    return getDb()
-      .select()
-      .from(inventoryCount)
-      .where(eq(inventoryCount.accountId, ctx.account.accountId))
-      .orderBy(desc(inventoryCount.countedOn), desc(inventoryCount.createdAt));
-  }),
+  listCounts: opsProcedure
+    .input(z.object({ truckId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      return getDb()
+        .select()
+        .from(inventoryCount)
+        .where(
+          and(
+            eq(inventoryCount.accountId, ctx.account.accountId),
+            input?.truckId
+              ? eq(inventoryCount.truckId, input.truckId)
+              : undefined,
+          ),
+        )
+        .orderBy(
+          desc(inventoryCount.countedOn),
+          desc(inventoryCount.createdAt),
+        );
+    }),
 
   /** A count with its per-ingredient lines. */
   countById: opsProcedure
@@ -289,6 +326,7 @@ export const inventoryRouter = createTRPCRouter({
           .insert(inventoryCount)
           .values({
             accountId: ctx.account.accountId,
+            truckId: input.truckId,
             countedOn: input.countedOn,
             totalValueCents,
             note: input.note,

@@ -9,9 +9,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { ingredientUnits } from "@/lib/validators";
 import type { Ingredient } from "@/lib/db/schema";
 
-export function IngredientForm({ ingredient }: { ingredient?: Ingredient }) {
+export function IngredientForm({
+  ingredient,
+  defaultTruckId,
+}: {
+  ingredient?: Ingredient;
+  defaultTruckId?: string;
+}) {
   const router = useRouter();
   const utils = trpc.useUtils();
+  const trucks = trpc.truck.list.useQuery();
   const isEdit = Boolean(ingredient);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,6 +36,7 @@ export function IngredientForm({ ingredient }: { ingredient?: Ingredient }) {
     setError(null);
     const fd = new FormData(e.currentTarget);
     const data = {
+      truckId: String(fd.get("truckId") ?? ""),
       name: String(fd.get("name") ?? ""),
       category: String(fd.get("category") ?? ""),
       unit: String(fd.get("unit") ?? "each") || "each",
@@ -53,6 +61,25 @@ export function IngredientForm({ ingredient }: { ingredient?: Ingredient }) {
 
   return (
     <form onSubmit={onSubmit} className="flex max-w-lg flex-col gap-5">
+      <Field label="Truck" htmlFor="truckId">
+        <select
+          id="truckId"
+          name="truckId"
+          required
+          defaultValue={ingredient?.truckId ?? defaultTruckId ?? ""}
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+        >
+          <option value="" disabled>
+            Select a truck…
+          </option>
+          {(trucks.data ?? []).map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+
       <Field label="Name" htmlFor="name">
         <Input
           id="name"

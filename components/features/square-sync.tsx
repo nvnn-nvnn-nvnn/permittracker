@@ -7,20 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate } from "@/lib/format";
 
-export interface SquareConnectionView {
-  connected: boolean;
-  locationName: string | null;
-  environment: string | null;
+export interface SquareSummaryView {
+  connectedCount: number;
   lastSyncedAt: Date | string | null;
+  everConnected: boolean;
+  isSquareConfigured: boolean;
 }
 
-export function SquareSync({
-  connection,
-  isSquareConfigured,
-}: {
-  connection: SquareConnectionView | null;
-  isSquareConfigured: boolean;
-}) {
+export function SquareSync({ summary }: { summary: SquareSummaryView }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +30,7 @@ export function SquareSync({
   });
 
   const busy = sync.isPending || disconnect.isPending;
-  const isConnected = connection?.connected ?? false;
+  const connected = summary.connectedCount > 0;
 
   return (
     <div className="space-y-3">
@@ -48,47 +42,42 @@ export function SquareSync({
           <div>
             <p className="flex items-center gap-2 text-sm font-medium">
               Square
-              {isConnected ? (
+              {connected ? (
                 <Badge variant="green" className="gap-1">
-                  <CheckCircle2 className="size-3" /> Connected
+                  <CheckCircle2 className="size-3" /> {summary.connectedCount}{" "}
+                  truck{summary.connectedCount === 1 ? "" : "s"}
                 </Badge>
               ) : (
                 <Badge variant="outline">Not connected</Badge>
               )}
-              {!isSquareConfigured && (
+              {!summary.isSquareConfigured && (
                 <Badge variant="outline" className="text-muted-foreground">
                   demo data
                 </Badge>
               )}
             </p>
             <p className="text-xs text-muted-foreground">
-              {isConnected
-                ? `${connection?.locationName ?? "Location"} · last synced ${fmtDate(
-                    connection?.lastSyncedAt ?? null,
-                  )}`
-                : isSquareConfigured
-                  ? "Pull your sales to see weekly performance."
-                  : "No Square token set — connecting loads sample sales so you can preview the dashboard."}
+              {connected
+                ? `Last synced ${fmtDate(summary.lastSyncedAt)} · each active truck syncs its own sales`
+                : summary.isSquareConfigured
+                  ? "Pull sales for each active truck to see per-truck performance."
+                  : "No Square token set — syncing loads sample sales per truck so you can preview."}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={() => sync.mutate({})}
-            disabled={busy}
-          >
+          <Button size="sm" onClick={() => sync.mutate({})} disabled={busy}>
             {sync.isPending ? (
               <Loader2 className="animate-spin" />
-            ) : isConnected ? (
+            ) : connected ? (
               <RefreshCw />
             ) : (
               <Plug />
             )}
-            {isConnected ? "Sync now" : "Connect Square"}
+            {connected ? "Sync now" : "Connect Square"}
           </Button>
-          {isConnected && (
+          {connected && (
             <Button
               size="sm"
               variant="ghost"
@@ -101,13 +90,11 @@ export function SquareSync({
         </div>
       </div>
 
-      {error && (
-        <p className="text-xs text-status-red">{error}</p>
-      )}
+      {error && <p className="text-xs text-status-red">{error}</p>}
       {sync.isSuccess && !error && (
         <p className="text-xs text-muted-foreground">
-          Synced {sync.data.daysSynced} day
-          {sync.data.daysSynced === 1 ? "" : "s"} of sales.
+          Synced {sync.data.trucksSynced} truck
+          {sync.data.trucksSynced === 1 ? "" : "s"}.
         </p>
       )}
     </div>

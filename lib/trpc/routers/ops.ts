@@ -12,7 +12,7 @@ import {
 import { isSquareConfigured } from "@/lib/square";
 import {
   disconnectSquare,
-  getSquareConnection,
+  getSquareSummary,
   syncSquareSales,
 } from "@/lib/square/sync";
 import { periodPnl } from "@/lib/ops/pnl";
@@ -25,10 +25,10 @@ import { isQuickBooksConfigured } from "@/lib/quickbooks";
  * from the session — never from client input.
  */
 export const opsRouter = createTRPCRouter({
-  /** Current Square connection + whether real creds (vs. demo stub) are set. */
+  /** Account Square summary (connected truck count + last sync). */
   connection: opsProcedure.query(async ({ ctx }) => {
-    const connection = await getSquareConnection(ctx.account.accountId);
-    return { connection, isSquareConfigured: isSquareConfigured() };
+    const summary = await getSquareSummary(ctx.account.accountId);
+    return { ...summary, isSquareConfigured: isSquareConfigured() };
   }),
 
   /** Connect (first sync) or refresh: pulls daily sales and upserts them. */
@@ -57,12 +57,14 @@ export const opsRouter = createTRPCRouter({
     return { ok: true };
   }),
 
-  /** P&L by period (day/week/month), newest period first. */
+  /** P&L by period (day/week/month), newest first. `truckId` scopes to one
+   *  truck; omitted = account-wide rollup. */
   pnl: opsProcedure
     .input(
       z.object({
         granularity: z.enum(["day", "week", "month"]).default("week"),
         periods: z.number().int().min(1).max(60).optional(),
+        truckId: z.string().uuid().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -70,6 +72,7 @@ export const opsRouter = createTRPCRouter({
         ctx.account.accountId,
         input.granularity,
         input.periods,
+        input.truckId,
       );
     }),
 

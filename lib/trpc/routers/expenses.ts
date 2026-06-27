@@ -74,6 +74,7 @@ export const expensesRouter = createTRPCRouter({
         .insert(expense)
         .values({
           accountId: ctx.account.accountId,
+          truckId: input.truckId ?? null,
           description: input.description,
           category: input.category,
           amountCents: toCents(input.amount),
@@ -93,6 +94,7 @@ export const expensesRouter = createTRPCRouter({
       const [row] = await getDb()
         .update(expense)
         .set({
+          truckId: input.data.truckId ?? null,
           description: input.data.description,
           category: input.data.category,
           amountCents: toCents(input.data.amount),

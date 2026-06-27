@@ -1826,6 +1826,85 @@ food cost). Previously inventory only moved via manual edit / receiving / counts
 - **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean;
   **full `next build` passed (34/34 pages)**.
 
+## Per-truck operations — Phase 1: money/P&L (2026-06-26)
+
+Made the ops pillar per-truck (was account-wide), matching compliance. Phase 1
+covers the money side; Phase 2 (per-truck inventory) is next. See
+`00-decisions.md` (2026-06-26) for the design + owner choices.
+
+- **Schema:** `truck_id` added to `sales_day`, `sales_item_day` (nullable; in
+  the unique keys now), `expense` (nullable = business-wide), `purchase_order`
+  (nullable). `square_connection` is now **per-truck** (added `truck_id`, unique
+  on truck instead of account). Migration `0044_blue_outlaw_kid.sql` (column
+  adds only — existing RLS covers them). **Run `npm run db:migrate`.**
+- **Square sync** (`lib/square/sync.ts`): now **per-truck** — iterates the
+  account's active trucks, and for each pulls its location's sales tagged with
+  `truck_id`, upserting a connection row per truck. **Stub:** synthetic location
+  `stub-loc-{truckId}` (seeded by locationId) so each truck shows distinct demo
+  data. **Real:** every truck maps to the merchant's primary location for now —
+  a per-truck location picker is deferred to live OAuth (noted). Sales upserts
+  key on `(account, truck, source, date[, item])`. `getSquareConnection` →
+  `getSquareSummary` (connected-truck count + last sync).
+- **P&L** (`periodPnl(..., truckId?)`): optional truck filter on sales,
+  expenses, and purchases; omitted = account-wide rollup (incl. business-wide
+  expenses). `ops.pnl` takes `truckId`; `ops.connection` returns the summary.
+- **Forms:** expense + purchase-order forms get an optional **Truck** select
+  (Business-wide / Unassigned default); routers persist `truck_id`.
+- **UI:** Operations page has a **truck switcher** (All trucks | each truck) in
+  the P&L section header (URL `?truck=`), and the P&L heading shows the scope.
+  The SquareSync card now shows "N trucks connected". Other ops cards
+  (inventory/expenses snapshots, top items, actual COGS) remain account-wide in
+  Phase 1.
+- **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean;
+  **full `next build` passed (34/34)**.
+- **Phase 1 caveat:** per-truck P&L shows that truck's Square sales now; its food
+  cost/overhead populate only once expenses/purchases are tagged to it
+  (untagged = business-wide, rollup only). Per-truck *inventory* (on-hand,
+  counts, usage, depletion) is **Phase 2** — still account-wide today.
+
+## Per-truck operations — Phase 2: inventory (Option B) (2026-06-26)
+
+Completes per-truck ops. Chose **Option B (per-truck ingredients + recipes)**
+over the shared-master `truck_stock` model — far lower risk: an additive
+`truckId`+filter change (like Phase 1), on-hand stays on the per-truck
+`ingredient` row, and the depletion engine isn't re-architected. (See
+`00-decisions.md` 2026-06-26 — reverses the earlier "shared menu" choice.)
+
+- **Schema:** `truck_id` added to `ingredient`, `recipe`, `inventory_count`,
+  `inventory_usage` (nullable; legacy rows null). Migration
+  `0045_lazy_lila_cheney.sql` (column adds; existing RLS covers them). **Run
+  `npm run db:migrate`.** No `truck_stock` table.
+- **Depletion** (`lib/ops/depletion.ts`): now matches Square item sales to
+  recipes **within the same truck** (key = `truckId|normName`), and stamps
+  `truck_id` on usage rows. Since ingredient ids are truck-specific, the
+  existing (date, ingredient) keying is already per-truck; on-hand still lives
+  on the ingredient row.
+- **Validators:** `truckId` now **required** on `ingredientInput`,
+  `recipeInput`, `inventoryCountInput` (every ingredient/recipe/count belongs to
+  a truck).
+- **Routers:** inventory `list`/`summary`/`usage`/`listCounts` take an optional
+  `truckId` filter; `create`/`update`/`createCount` persist it. recipe
+  `list` filters by truck; `create`/`update` persist it.
+- **Forms:** ingredient + recipe + count forms gained a required **Truck**
+  select; the recipe + count forms **scope their ingredient picker to the
+  selected truck** (`inventory.list({ truckId })`, enabled once a truck is
+  chosen). New-item pages thread `?truck=` → `defaultTruckId`.
+- **UI:** reusable `TruckScopeTabs` (All trucks | each truck) on Inventory,
+  Recipes, Counts, and Usage pages (hidden for single-truck accounts); scopes
+  list/summary/usage/counts and carries `?truck=` onto the add/sub links.
+- **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean;
+  **full `next build` passed (34/34)**.
+- **Deferred:** "copy menu/inventory to another truck" convenience (removes
+  duplicate setup for identical multi-truck menus); per-truck Square location
+  picker for live OAuth; scoping the purchase-order ingredient picker to its
+  truck (currently shows all account ingredients — harmless, ingredient carries
+  its own truck).
+
+**Per-truck operations complete.** Each truck now has its own sales, P&L,
+expenses, purchasing, ingredients, recipes, counts, usage, and auto-depletion;
+"All trucks" everywhere gives the business rollup. Single-truck operators see no
+extra complexity.
+
 ## Tier A is complete (steps 1–7). The app is now a two-pillar workspace:
 *Stay open* (compliance) + *Stay profitable* (operations: Square sales →
 item/menu analytics, inventory + counts, recipes/COGS, purchasing, expenses,

@@ -16,6 +16,7 @@ interface Line {
 }
 export interface PurchaseOrderFormValue {
   id: string;
+  truckId: string | null;
   supplierName: string | null;
   notes: string | null;
   lines: { ingredientId: string; qty: number; unitCostCents: number }[];
@@ -32,6 +33,7 @@ export function PurchaseOrderForm({
   const [error, setError] = useState<string | null>(null);
 
   const ingredients = trpc.inventory.list.useQuery();
+  const trucks = trpc.truck.list.useQuery();
   const ingMap = useMemo(() => {
     const m = new Map<string, { unit: string; unitCostCents: number }>();
     for (const i of ingredients.data ?? [])
@@ -66,6 +68,7 @@ export function PurchaseOrderForm({
     setError(null);
     const fd = new FormData(e.currentTarget);
     const data = {
+      truckId: String(fd.get("truckId") ?? ""),
       supplierName: String(fd.get("supplierName") ?? ""),
       notes: String(fd.get("notes") ?? ""),
       lines: lines
@@ -110,14 +113,31 @@ export function PurchaseOrderForm({
 
   return (
     <form onSubmit={onSubmit} className="flex max-w-2xl flex-col gap-5">
-      <Field label="Supplier" htmlFor="supplierName">
-        <Input
-          id="supplierName"
-          name="supplierName"
-          defaultValue={order?.supplierName ?? ""}
-          placeholder="US Foods"
-        />
-      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Supplier" htmlFor="supplierName">
+          <Input
+            id="supplierName"
+            name="supplierName"
+            defaultValue={order?.supplierName ?? ""}
+            placeholder="US Foods"
+          />
+        </Field>
+        <Field label="Truck" htmlFor="truckId">
+          <select
+            id="truckId"
+            name="truckId"
+            defaultValue={order?.truckId ?? ""}
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          >
+            <option value="">Unassigned (business-wide)</option>
+            {(trucks.data ?? []).map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">

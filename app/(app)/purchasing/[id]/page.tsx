@@ -80,6 +80,7 @@ export default async function PurchaseOrderDetailPage({
         <PurchaseOrderForm
           order={{
             id: order.id,
+            truckId: order.truckId,
             supplierName: order.supplierName,
             notes: order.notes,
             lines: order.lines.map((l) => ({

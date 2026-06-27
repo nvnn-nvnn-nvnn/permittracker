@@ -8,13 +8,21 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { fmtMoneyCents } from "@/lib/format";
+import { TruckScopeTabs } from "@/components/features/truck-scope-tabs";
 
 export const metadata = { title: "Inventory usage · VendGuard" };
 export const dynamic = "force-dynamic";
 
-export default async function InventoryUsagePage() {
+export default async function InventoryUsagePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ truck?: string }>;
+}) {
+  const { truck } = await searchParams;
   const api = await serverApi();
-  const usage = await api.inventory.usage({ days: 30 });
+  const trucks = await api.truck.list();
+  const truckId = trucks.some((t) => t.id === truck) ? truck : undefined;
+  const usage = await api.inventory.usage({ days: 30, truckId });
 
   return (
     <div className="space-y-6">
@@ -27,6 +35,12 @@ export default async function InventoryUsagePage() {
           days). This is what auto-deducts from on-hand on each sync.
         </p>
       </div>
+
+      <TruckScopeTabs
+        basePath="/inventory/usage"
+        trucks={trucks}
+        selectedTruckId={truckId}
+      />
 
       {usage.items.length === 0 ? (
         <Card>

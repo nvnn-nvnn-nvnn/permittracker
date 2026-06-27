@@ -15,6 +15,7 @@ interface Line {
 }
 export interface RecipeFormValue {
   id: string;
+  truckId: string | null;
   name: string;
   category: string | null;
   sellPriceCents: number;
@@ -22,13 +23,27 @@ export interface RecipeFormValue {
   lines: Line[];
 }
 
-export function RecipeForm({ recipe }: { recipe?: RecipeFormValue }) {
+export function RecipeForm({
+  recipe,
+  defaultTruckId,
+}: {
+  recipe?: RecipeFormValue;
+  defaultTruckId?: string;
+}) {
   const router = useRouter();
   const utils = trpc.useUtils();
   const isEdit = Boolean(recipe);
   const [error, setError] = useState<string | null>(null);
+  const [truckId, setTruckId] = useState(
+    recipe?.truckId ?? defaultTruckId ?? "",
+  );
 
-  const ingredients = trpc.inventory.list.useQuery();
+  const trucks = trpc.truck.list.useQuery();
+  // Ingredients are per-truck — only load the selected truck's.
+  const ingredients = trpc.inventory.list.useQuery(
+    { truckId: truckId || undefined },
+    { enabled: Boolean(truckId) },
+  );
   const ingMap = useMemo(() => {
     const m = new Map<
       string,
@@ -71,8 +86,13 @@ export function RecipeForm({ recipe }: { recipe?: RecipeFormValue }) {
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    if (!truckId) {
+      setError("Pick a truck for this menu item.");
+      return;
+    }
     const fd = new FormData(e.currentTarget);
     const data = {
+      truckId,
       name: String(fd.get("name") ?? ""),
       category: String(fd.get("category") ?? ""),
       sellPrice: sellPrice,
@@ -94,6 +114,25 @@ export function RecipeForm({ recipe }: { recipe?: RecipeFormValue }) {
 
   return (
     <form onSubmit={onSubmit} className="flex max-w-2xl flex-col gap-5">
+      <Field label="Truck" htmlFor="truckId">
+        <select
+          id="truckId"
+          value={truckId}
+          onChange={(e) => setTruckId(e.target.value)}
+          required
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+        >
+          <option value="" disabled>
+            Select a truck…
+          </option>
+          {(trucks.data ?? []).map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+
       <Field label="Menu item name" htmlFor="name">
         <Input
           id="name"
@@ -136,16 +175,20 @@ export function RecipeForm({ recipe }: { recipe?: RecipeFormValue }) {
             size="sm"
             variant="outline"
             onClick={addLine}
-            disabled={ingredients.isLoading}
+            disabled={ingredients.isLoading || !truckId}
           >
             <Plus /> Add ingredient
           </Button>
         </div>
 
-        {(ingredients.data?.length ?? 0) === 0 && !ingredients.isLoading ? (
+        {!truckId ? (
           <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-            No ingredients yet — add some in Inventory first, then build the
-            recipe from them.
+            Select a truck above to choose its ingredients.
+          </p>
+        ) : (ingredients.data?.length ?? 0) === 0 && !ingredients.isLoading ? (
+          <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+            No ingredients for this truck yet — add some in Inventory first,
+            then build the recipe from them.
           </p>
         ) : lines.length === 0 ? (
           <p className="text-xs text-muted-foreground">

@@ -112,6 +112,8 @@ export const ingredientUnits = [
 ] as const;
 
 export const ingredientInput = z.object({
+  // Per-truck (Option B): each ingredient belongs to a truck.
+  truckId: z.string().uuid("Pick a truck"),
   name: z.string().trim().min(1, "Name is required").max(160),
   category: optionalTrimmed(80),
   unit: z.string().trim().min(1).max(20).default("each"),
@@ -134,6 +136,8 @@ export const recipeLineInput = z.object({
 });
 
 export const recipeInput = z.object({
+  // Per-truck (Option B): each recipe belongs to a truck.
+  truckId: z.string().uuid("Pick a truck"),
   name: z.string().trim().min(1, "Name is required").max(160),
   category: optionalTrimmed(80),
   // Dollars in the form → converted to integer cents at the router edge.
@@ -157,6 +161,8 @@ export const purchaseLineInput = z.object({
 });
 
 export const purchaseOrderInput = z.object({
+  // Optional truck this order restocks; omitted = unassigned/business-wide.
+  truckId: optionalUuid,
   supplierName: optionalTrimmed(160),
   notes: optionalTrimmed(2000),
   lines: z.array(purchaseLineInput).max(200).default([]),
@@ -178,6 +184,8 @@ export const expenseCategories = [
 ] as const;
 
 export const expenseInput = z.object({
+  // Optional truck; omitted = business-wide overhead.
+  truckId: optionalUuid,
   description: z.string().trim().min(1, "Description is required").max(200),
   category: optionalTrimmed(80),
   // Dollars in the form → integer cents at the router edge.
@@ -194,6 +202,7 @@ export const inventoryCountLineInput = z.object({
 });
 
 export const inventoryCountInput = z.object({
+  truckId: z.string().uuid("Pick a truck"),
   countedOn: z.coerce.date(),
   note: optionalTrimmed(500),
   lines: z.array(inventoryCountLineInput).max(2000).default([]),

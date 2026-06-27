@@ -37,8 +37,9 @@ export function SiteFooter() {
           <div className="max-w-xs">
             <Logo variant="lockup" graphicClassName="h-7" textClassName="h-5" />
             <p className="mt-4 text-sm text-muted-foreground">
-              Stay open. We track every permit, inspection, cert, and COI that
-              can shut your food truck down.
+              Stay open and stay profitable. VendGuard tracks the permits and
+              COIs that can shut your food truck down — and turns your Square
+              sales into inventory, food cost, and a weekly P&amp;L.
             </p>
           </div>
 
@@ -66,11 +67,10 @@ export function SiteFooter() {
         <div className="mt-12 flex flex-col gap-3 border-t border-border pt-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} VendGuard. All rights reserved.</p>
           <p className="text-xs">
-            A compliance tracking tool — not legal, tax, or insurance advice.
+            An operations &amp; compliance tool — not legal, tax, accounting, or
+            insurance advice.
           </p>
-          <p>
-            Beta 1.0.0
-          </p>
+          <p>1.1.0</p>
         </div>
       </div>
     </footer>

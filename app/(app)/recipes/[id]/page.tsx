@@ -39,6 +39,7 @@ export default async function RecipeDetailPage({
       <RecipeForm
         recipe={{
           id: recipe.id,
+          truckId: recipe.truckId,
           name: recipe.name,
           category: recipe.category,
           sellPriceCents: recipe.sellPriceCents,

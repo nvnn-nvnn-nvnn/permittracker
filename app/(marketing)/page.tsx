@@ -1,12 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import {
-  CalendarClock,
   ScanLine,
-  ShieldCheck,
   Bell,
-  Users,
   FileText,
+  TrendingUp,
+  Boxes,
+  Receipt,
   ArrowRight,
 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
@@ -15,15 +15,15 @@ import foodtruckQuote from "@/app/assets/foodtruck-3.jpg";
 import foodtruckCta from "@/app/assets/foodtruck-4.jpg";
 
 export const metadata = {
-  title: "VendGuard — Stay open. Never miss a permit.",
+  title: "VendGuard — Stay open. Stay profitable.",
   description:
-    "Compliance tracking for food trucks. Track every permit, inspection, cert, and COI that can shut you down — and get reminded before it lapses.",
+    "The operating system for food trucks. Track every permit, cert, and COI that can shut you down — and turn your Square sales into live inventory, food cost, and a weekly P&L. Compliance and profit in one place.",
 };
 
 const FEATURES = [
   {
     icon: FileText,
-    title: "One timeline for everything",
+    title: "One timeline for compliance",
     body: "Permits, inspections, certifications, COIs, and commissary agreements — every expiry date in one place, per truck.",
   },
   {
@@ -37,37 +37,37 @@ const FEATURES = [
     body: "Upload a permit photo and our AI reads the dates and details for you to confirm — no manual data entry.",
   },
   {
-    icon: Users,
-    title: "Staff & commissary cascades",
-    body: "An expired staff cert or a lapsed commissary permit flags every truck it affects — so nothing slips through a side door.",
+    icon: TrendingUp,
+    title: "Sales → weekly P&L",
+    body: "Connect Square and see net sales, food cost, and profit by day, week, or month — with a clear chart, not a spreadsheet.",
   },
   {
-    icon: CalendarClock,
-    title: "Inspection-prep digests",
-    body: "Monthly, jurisdiction-aware prep notes so a surprise health inspection is never actually a surprise.",
+    icon: Boxes,
+    title: "Inventory that updates itself",
+    body: "Sales auto-deplete your ingredients through recipes, so you always know what's on hand and what to reorder.",
   },
   {
-    icon: ShieldCheck,
-    title: "Audit-ready history",
-    body: "Every change is recorded in an append-only log. Prove what changed, and when, without lifting a finger.",
+    icon: Receipt,
+    title: "Know what actually makes money",
+    body: "Per-item margins, your food-cost %, and which menu items to push or drop — straight from your real sales.",
   },
 ];
 
 const STEPS = [
   {
     n: "01",
-    title: "Add your trucks",
-    body: "Create a profile for each truck, cart, or trailer you operate.",
+    title: "Add your trucks & docs",
+    body: "A profile per truck; type in permits or scan a photo and let the AI pull the dates.",
   },
   {
     n: "02",
-    title: "Add or scan your documents",
-    body: "Type them in, or upload a photo and let the AI pull the dates.",
+    title: "Connect Square",
+    body: "Sales flow in automatically, building your inventory usage, food cost, and P&L.",
   },
   {
     n: "03",
-    title: "Relax — we watch the dates",
-    body: "We remind you before anything expires, so you stay open and compliant.",
+    title: "Stay open and in the black",
+    body: "We warn you before anything expires and show you exactly where your money goes.",
   },
 ];
 
@@ -88,16 +88,18 @@ export default function MarketingHome() {
         <div className="absolute inset-0 bg-foreground/70" />
         <div className="relative mx-auto w-full max-w-3xl px-5 py-20 text-center sm:px-6 sm:py-28">
           <span className="inline-flex items-center rounded-full border border-background/25 bg-background/10 px-3 py-1 text-xs font-medium text-background/90 backdrop-blur-sm">
-            Compliance for mobile food businesses
+            The operating system for food trucks
           </span>
           <h1 className="mt-6 text-balance text-5xl font-bold tracking-tight text-background sm:text-7xl">
             Stay open.
+            <br />
+            Stay profitable.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-pretty text-lg text-background/85 sm:text-xl">
-            One organized dashboard built for food truck operators — it reads
-            your permits, certs, inspections, and COIs, knows exactly what each
-            one means and when it lapses, and keeps every truck audit-ready so a
-            missed renewal never shuts you down.
+            VendGuard keeps every truck audit-ready — permits, certs,
+            inspections, and COIs in one timeline — and turns your Square sales
+            into live inventory, food cost, and a weekly P&amp;L. The compliance
+            and the money, in one place, on top of the tools you already use.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/signup" className={buttonVariants({ size: "lg" })}>
@@ -112,7 +114,7 @@ export default function MarketingHome() {
             </Link>
           </div>
           <p className="mt-4 text-sm text-background/70">
-            No credit card required · Set up in minutes
+            14-day free trial · Cancel anytime · Set up in minutes
           </p>
         </div>
       </section>

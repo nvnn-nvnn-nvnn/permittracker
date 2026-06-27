@@ -13,6 +13,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "stripe:setup": "node scripts/stripe-setup.mjs",
+    "seed:ops": "node scripts/seed-ops.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

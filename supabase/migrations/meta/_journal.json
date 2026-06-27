@@ -309,6 +309,20 @@
       "when": 1782523352537,
       "tag": "0043_inventory_usage_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1782555822268,
+      "tag": "0044_blue_outlaw_kid",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1782561074715,
+      "tag": "0045_lazy_lila_cheney",
+      "breakpoints": true
     }
   ]
 }

@@ -13,6 +13,7 @@ import type { Expense } from "@/lib/db/schema";
 export function ExpenseForm({ expense }: { expense?: Expense }) {
   const router = useRouter();
   const utils = trpc.useUtils();
+  const trucks = trpc.truck.list.useQuery();
   const isEdit = Boolean(expense);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +31,7 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
     setError(null);
     const fd = new FormData(e.currentTarget);
     const data = {
+      truckId: String(fd.get("truckId") ?? ""),
       description: String(fd.get("description") ?? ""),
       category: String(fd.get("category") ?? ""),
       amount: String(fd.get("amount") ?? "0") || "0",
@@ -109,6 +111,22 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
           />
         </Field>
       </div>
+
+      <Field label="Truck" htmlFor="truckId">
+        <select
+          id="truckId"
+          name="truckId"
+          defaultValue={expense?.truckId ?? ""}
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+        >
+          <option value="">Business-wide (all trucks)</option>
+          {(trucks.data ?? []).map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      </Field>
 
       <Field label="Notes" htmlFor="notes">
         <Textarea id="notes" name="notes" defaultValue={expense?.notes ?? ""} />

@@ -32,6 +32,43 @@ These were confirmed with the owner before any code was written.
 
 ## Data-model scope decisions (not stack deviations)
 
+- **2026-06-26 — Per-truck operations (multi-truck P&L + inventory).** Ops
+  pillar was account-wide only; making it per-truck to match compliance (which
+  is already per-truck via `holder_truck_id`). Owner decisions:
+  - **Sales → truck:** each truck = its **own Square location**; sales
+    auto-attribute. `square_connection` becomes **per-truck** (was per-account).
+  - **Inventory/recipes — REVISED 2026-06-26 to Option B (per-truck
+    everything), reversing the earlier "shared menu, per-truck stock" choice.**
+    Each truck owns its **own ingredients AND recipes** (`truck_id` on both);
+    on-hand stays on the `ingredient` row (the row itself is per-truck). Chosen
+    over the shared-master model (`truck_stock`) because B is a **far lower-risk
+    additive change** (same `truckId`+filter pattern as the money phase — no
+    re-architecting where on-hand lives, no rewrite of the just-stabilized
+    depletion engine). Trade-off: a multi-truck operator with an identical menu
+    re-enters ingredients/recipes per truck (no single shared menu); mitigate
+    later with a **"copy menu/inventory to another truck"** convenience. Single-
+    truck operators (most users) see no difference. The shared-master model
+    stays a future option if real users demand one editable menu across trucks.
+  - **Expenses:** `expense.truck_id` **nullable** — tagged to a truck, or NULL =
+    business-wide (rollup only).
+  - **Rollup:** queries take an optional `truckId`; omitted = account-wide
+    rollup (current behaviour, kept). Pro+ sees the rollup + per-truck.
+  - **Pre-launch** (no production data) → new `truck_id` columns can be added
+    without backfill pain; kept **nullable** so existing dev rows don't break
+    (NULL sales/expenses show only in the rollup).
+
+  **Built in two coherent, build-clean phases (so v1.1 stays stable):**
+  - **Phase 1 — per-truck money/P&L:** `truck_id` on `sales_day`,
+    `sales_item_day`, `expense`, `purchase_order`; `square_connection`
+    per-truck; sync attributes sales by truck; `periodPnl(..., truckId?)`
+    filter; Operations **truck switcher** (All trucks | each truck) + per-truck
+    Square connect; expense/purchase forms get an optional truck.
+  - **Phase 2 — per-truck inventory (Option B):** `truck_id` on `ingredient`,
+    `recipe`, `inventory_count`, `inventory_usage`; inventory list/summary/
+    counts/usage + recipes + auto-depletion scoped to a truck (match item sales
+    to recipes WITHIN the same truck; on-hand stays on the per-truck ingredient
+    row); Inventory + Recipes truck switchers. No `truck_stock` table.
+
 - **2026-06-25 — v1.1: Auto-depletion bridge built (sales → recipe →
   inventory) + READY TO SHIP v1.1.** The previously-deferred bridge is now
   built. Square item sales deplete ingredient on-hand via recipes and feed a

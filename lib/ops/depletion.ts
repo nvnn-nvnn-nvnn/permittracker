@@ -52,6 +52,7 @@ export async function applyUsageDepletion(
   // 1. Active recipes → ingredient lines, grouped by normalized recipe name.
   const recipeLines = await db
     .select({
+      truckId: recipe.truckId,
       name: recipe.name,
       ingredientId: recipeIngredient.ingredientId,
       qty: recipeIngredient.qty,
@@ -60,20 +61,25 @@ export async function applyUsageDepletion(
     .innerJoin(recipeIngredient, eq(recipeIngredient.recipeId, recipe.id))
     .where(and(eq(recipe.accountId, accountId), isNull(recipe.archivedAt)));
 
-  const linesByName = new Map<
+  // Keyed by truck + normalized name — a sale only matches a recipe on its
+  // own truck (Option B: each truck owns its recipes/ingredients).
+  const linesByTruckName = new Map<
     string,
     { ingredientId: string; qty: number }[]
   >();
+  const tnKey = (truckId: string | null, name: string) =>
+    `${truckId ?? "none"}|${norm(name)}`;
   for (const r of recipeLines) {
-    const key = norm(r.name);
-    const arr = linesByName.get(key) ?? [];
+    const key = tnKey(r.truckId, r.name);
+    const arr = linesByTruckName.get(key) ?? [];
     arr.push({ ingredientId: r.ingredientId, qty: r.qty });
-    linesByName.set(key, arr);
+    linesByTruckName.set(key, arr);
   }
 
   // 2. Item sales in range.
   const items = await db
     .select({
+      truckId: salesItemDay.truckId,
       businessDate: salesItemDay.businessDate,
       itemName: salesItemDay.itemName,
       qtySold: salesItemDay.qtySold,
@@ -87,14 +93,19 @@ export async function applyUsageDepletion(
       ),
     );
 
-  // 3. Target usage per (dateKey|ingredientId).
+  // 3. Target usage per (dateKey|ingredientId). Ingredient ids are truck-
+  //    specific, so the key is implicitly per-truck; we carry truckId for the
+  //    ledger row.
   const target = new Map<string, number>();
-  const meta = new Map<string, { dateKey: string; ingredientId: string }>();
+  const meta = new Map<
+    string,
+    { dateKey: string; ingredientId: string; truckId: string | null }
+  >();
   const dateKeys = new Set<string>();
   let matchedItems = 0;
   let unmatchedItems = 0;
   for (const it of items) {
-    const lines = linesByName.get(norm(it.itemName));
+    const lines = linesByTruckName.get(tnKey(it.truckId, it.itemName));
     if (!lines) {
       unmatchedItems++;
       continue;
@@ -106,7 +117,11 @@ export async function applyUsageDepletion(
       const key = `${dateKey}|${l.ingredientId}`;
       target.set(key, (target.get(key) ?? 0) + it.qtySold * l.qty);
       if (!meta.has(key))
-        meta.set(key, { dateKey, ingredientId: l.ingredientId });
+        meta.set(key, {
+          dateKey,
+          ingredientId: l.ingredientId,
+          truckId: it.truckId,
+        });
     }
   }
 
@@ -127,7 +142,11 @@ export async function applyUsageDepletion(
     const key = `${ymd(e.businessDate)}|${e.ingredientId}`;
     priorByKey.set(key, e.qtyUsed);
     if (!meta.has(key))
-      meta.set(key, { dateKey: ymd(e.businessDate), ingredientId: e.ingredientId });
+      meta.set(key, {
+        dateKey: ymd(e.businessDate),
+        ingredientId: e.ingredientId,
+        truckId: e.truckId,
+      });
   }
 
   // 5. Ingredient unit costs (all, incl. archived).
@@ -167,6 +186,7 @@ export async function applyUsageDepletion(
         .insert(inventoryUsage)
         .values({
           accountId,
+          truckId: m.truckId,
           source: "square",
           businessDate: new Date(`${m.dateKey}T00:00:00Z`),
           ingredientId: m.ingredientId,

@@ -134,6 +134,9 @@ export async function periodPnl(
   accountId: string,
   granularity: PnlGranularity = "week",
   periods?: number,
+  /** When set, scope to one truck; omitted = account-wide rollup (all trucks
+   *  + business-wide expenses). */
+  truckId?: string,
 ): Promise<PnlResult> {
   const db = getDb();
   const count = periods ?? defaultPeriods(granularity);
@@ -151,13 +154,18 @@ export async function periodPnl(
         and(
           eq(salesDay.accountId, accountId),
           gte(salesDay.businessDate, since),
+          truckId ? eq(salesDay.truckId, truckId) : undefined,
         ),
       ),
     db
       .select({ spentOn: expense.spentOn, amountCents: expense.amountCents })
       .from(expense)
       .where(
-        and(eq(expense.accountId, accountId), gte(expense.spentOn, since)),
+        and(
+          eq(expense.accountId, accountId),
+          gte(expense.spentOn, since),
+          truckId ? eq(expense.truckId, truckId) : undefined,
+        ),
       ),
     db
       .select({
@@ -174,6 +182,7 @@ export async function periodPnl(
           eq(purchaseOrder.accountId, accountId),
           eq(purchaseOrder.status, "received"),
           gte(purchaseOrder.receivedAt, since),
+          truckId ? eq(purchaseOrder.truckId, truckId) : undefined,
         ),
       )
       .groupBy(purchaseOrder.id, purchaseOrder.receivedAt),

@@ -1,9 +1,22 @@
 # PermitKeep — Project Guide
 
-Compliance tracking SaaS for food truck operators. Tracks permits, inspections,
-certs, insurance, commissary deps; reminds before expiry.
-Positioning: "Stay open. We track every permit, inspection, cert, and COI that
-can shut you down."
+> Repo codename **PermitKeep**; public brand **VendGuard**. Full product
+> orientation: `notes/02-product-overview.md` (read it to get up to speed).
+
+The **operating system for food trucks** — a two-pillar SaaS that keeps a truck
+**legal** and **profitable**, on top of the tools operators already use (Square,
+QuickBooks) rather than replacing them.
+
+- **Stay open (compliance):** permits, inspections, certs, COIs, commissary
+  deps, truck-modification log; reminds before expiry.
+- **Stay profitable (operations, Pro+):** Square sales → daily/weekly/monthly
+  P&L, inventory (auto-depleted from sales via recipes), recipes/COGS,
+  purchasing, expenses, menu analysis, QuickBooks export, truck service status.
+
+Positioning: **"Stay open. Stay profitable."** Hard boundary: we are the brain
+on top of Square + QuickBooks, **never a POS / ordering / accounting tool**
+(see `notes/00-decisions.md` → Tier A/B decision). All paid + 14-day
+card-required trial; ops pillar gated to Pro+.
 
 ## Stack (do not deviate without logging in notes/00-decisions.md)
 

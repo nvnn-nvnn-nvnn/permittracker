@@ -8,13 +8,21 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { fmtMoneyCents } from "@/lib/format";
+import { TruckScopeTabs } from "@/components/features/truck-scope-tabs";
 
 export const metadata = { title: "Recipes · VendGuard" };
 export const dynamic = "force-dynamic";
 
-export default async function RecipesPage() {
+export default async function RecipesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ truck?: string }>;
+}) {
+  const { truck } = await searchParams;
   const api = await serverApi();
-  const recipes = await api.recipe.list();
+  const trucks = await api.truck.list();
+  const truckId = trucks.some((t) => t.id === truck) ? truck : undefined;
+  const recipes = await api.recipe.list({ truckId });
 
   return (
     <div className="space-y-6">
@@ -26,10 +34,19 @@ export default async function RecipesPage() {
             item.
           </p>
         </div>
-        <Link href="/recipes/new" className={buttonVariants({ size: "sm" })}>
+        <Link
+          href={`/recipes/new${truckId ? `?truck=${truckId}` : ""}`}
+          className={buttonVariants({ size: "sm" })}
+        >
           Add menu item
         </Link>
       </div>
+
+      <TruckScopeTabs
+        basePath="/recipes"
+        trucks={trucks}
+        selectedTruckId={truckId}
+      />
 
       {recipes.length === 0 ? (
         <Card>

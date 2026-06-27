@@ -31,9 +31,9 @@ const GRANULARITIES: { key: PnlGranularity; label: string; noun: string }[] = [
 export default async function OperationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ g?: string }>;
+  searchParams: Promise<{ g?: string; truck?: string }>;
 }) {
-  const [{ g }, ctx, api] = await Promise.all([
+  const [{ g, truck }, ctx, api] = await Promise.all([
     searchParams,
     requireAccountContext(),
     serverApi(),
@@ -66,9 +66,10 @@ export default async function OperationsPage({
     g === "day" || g === "month" ? g : "week";
   const noun =
     GRANULARITIES.find((x) => x.key === granularity)?.noun ?? "week";
+  const selectedTruckId = typeof truck === "string" ? truck : undefined;
 
   const [
-    { connection, isSquareConfigured },
+    squareSummary,
     pnl,
     inventory,
     expenses,
@@ -77,13 +78,27 @@ export default async function OperationsPage({
     truckStatuses,
   ] = await Promise.all([
     api.ops.connection(),
-    api.ops.pnl({ granularity }),
+    api.ops.pnl({ granularity, truckId: selectedTruckId }),
     api.inventory.summary(),
     api.expenses.summary({ days: 30 }),
     api.ops.itemSales({ days: 30 }),
     api.ops.actualCogs(),
     api.truck.statusList(),
   ]);
+
+  // Truck switcher options (only the ones that exist); guard the selected id.
+  const truckOptions = truckStatuses.map((t) => ({
+    id: t.truckId,
+    name: t.name,
+  }));
+  const validTruckId = truckOptions.some((t) => t.id === selectedTruckId)
+    ? selectedTruckId
+    : undefined;
+  const selectedTruckName = truckOptions.find(
+    (t) => t.id === validTruckId,
+  )?.name;
+  const qs = (truckId?: string) =>
+    `/operations?g=${granularity}${truckId ? `&truck=${truckId}` : ""}`;
 
   const latest = pnl.periods[0];
   const periodCount = pnl.periods.length;
@@ -138,19 +153,7 @@ export default async function OperationsPage({
       {/* Connection / sync */}
       <Card>
         <CardContent className="p-5">
-          <SquareSync
-            connection={
-              connection
-                ? {
-                    connected: connection.connected,
-                    locationName: connection.locationName,
-                    environment: connection.environment,
-                    lastSyncedAt: connection.lastSyncedAt,
-                  }
-                : null
-            }
-            isSquareConfigured={isSquareConfigured}
-          />
+          <SquareSync summary={squareSummary} />
         </CardContent>
       </Card>
 
@@ -349,15 +352,26 @@ export default async function OperationsPage({
             </Link>
           )}
 
-          {/* P&L — granularity toggle, chart, table */}
+          {/* P&L — truck scope, granularity toggle, chart, table */}
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-bold tracking-tight">P&amp;L</h2>
+              <h2 className="text-lg font-bold tracking-tight">
+                P&amp;L
+                {selectedTruckName ? (
+                  <span className="ml-2 text-sm font-medium text-muted-foreground">
+                    · {selectedTruckName}
+                  </span>
+                ) : (
+                  <span className="ml-2 text-sm font-medium text-muted-foreground">
+                    · all trucks
+                  </span>
+                )}
+              </h2>
               <div className="flex items-center gap-1 rounded-full border bg-background p-0.5">
                 {GRANULARITIES.map((x) => (
                   <Link
                     key={x.key}
-                    href={`/operations?g=${x.key}`}
+                    href={`/operations?g=${x.key}${validTruckId ? `&truck=${validTruckId}` : ""}`}
                     scroll={false}
                     className={`rounded-full px-3 py-1 text-xs font-medium ${
                       x.key === granularity
@@ -370,6 +384,37 @@ export default async function OperationsPage({
                 ))}
               </div>
             </div>
+
+            {/* Truck scope switcher (per-truck P&L) */}
+            {truckOptions.length > 1 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Link
+                  href={qs(undefined)}
+                  scroll={false}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                    !validTruckId
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "bg-background text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  All trucks
+                </Link>
+                {truckOptions.map((t) => (
+                  <Link
+                    key={t.id}
+                    href={qs(t.id)}
+                    scroll={false}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                      validTruckId === t.id
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "bg-background text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t.name}
+                  </Link>
+                ))}
+              </div>
+            )}
 
             <Card>
               <CardContent className="p-5">

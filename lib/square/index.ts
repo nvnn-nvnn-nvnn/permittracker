@@ -103,9 +103,9 @@ const stubSquareAdapter: SquareAdapter = {
       locationName: "Demo Truck (sandbox)",
     };
   },
-  async listDailySales({ start, end }) {
+  async listDailySales({ locationId, start, end }) {
     return eachDate(start, end).map((date) => {
-      const r = seeded(date);
+      const r = seeded(`${locationId}:${date}`);
       const dow = new Date(`${date}T00:00:00Z`).getUTCDay(); // 0=Sun
       // Weekends busier; Mondays slow. Tickets ~ $8–$14.
       const weekendBoost = dow === 5 || dow === 6 ? 1.6 : dow === 1 ? 0.6 : 1;
@@ -127,10 +127,10 @@ const stubSquareAdapter: SquareAdapter = {
       };
     });
   },
-  async listItemSales({ start, end }) {
+  async listItemSales({ locationId, start, end }) {
     const out: SquareItemSalesDay[] = [];
     for (const date of eachDate(start, end)) {
-      const r = seeded(date);
+      const r = seeded(`${locationId}:${date}`);
       const dow = new Date(`${date}T00:00:00Z`).getUTCDay();
       const weekendBoost = dow === 5 || dow === 6 ? 1.6 : dow === 1 ? 0.6 : 1;
       const transactionCount = Math.round((40 + r * 90) * weekendBoost);

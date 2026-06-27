@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { fmtMoneyCents } from "@/lib/format";
+import { TruckScopeTabs } from "@/components/features/truck-scope-tabs";
 
 export const metadata = { title: "Inventory · VendGuard" };
 export const dynamic = "force-dynamic";
@@ -19,11 +20,19 @@ function isLow(i: { parLevel: number | null; onHandQty: number }): boolean {
   return i.parLevel !== null && i.onHandQty <= i.parLevel;
 }
 
-export default async function InventoryPage() {
+export default async function InventoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ truck?: string }>;
+}) {
+  const { truck } = await searchParams;
   const api = await serverApi();
+  const trucks = await api.truck.list();
+  const truckId = trucks.some((t) => t.id === truck) ? truck : undefined;
+  const truckQs = truckId ? `?truck=${truckId}` : "";
   const [items, summary] = await Promise.all([
-    api.inventory.list(),
-    api.inventory.summary(),
+    api.inventory.list({ truckId }),
+    api.inventory.summary({ truckId }),
   ]);
 
   const tiles = [
@@ -52,25 +61,31 @@ export default async function InventoryPage() {
         </div>
         <div className="flex items-center gap-2">
           <Link
-            href="/inventory/usage"
+            href={`/inventory/usage${truckQs}`}
             className={buttonVariants({ size: "sm", variant: "outline" })}
           >
             Usage
           </Link>
           <Link
-            href="/inventory/counts"
+            href={`/inventory/counts${truckQs}`}
             className={buttonVariants({ size: "sm", variant: "outline" })}
           >
             Counts
           </Link>
           <Link
-            href="/inventory/new"
+            href={`/inventory/new${truckQs}`}
             className={buttonVariants({ size: "sm" })}
           >
             Add ingredient
           </Link>
         </div>
       </div>
+
+      <TruckScopeTabs
+        basePath="/inventory"
+        trucks={trucks}
+        selectedTruckId={truckId}
+      />
 
       {items.length === 0 ? (
         <Card>

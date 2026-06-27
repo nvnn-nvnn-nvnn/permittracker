@@ -812,6 +812,11 @@ export const squareConnection = pgTable(
     accountId: uuid("account_id")
       .notNull()
       .references(() => account.id, { onDelete: "cascade" }),
+    // Per-truck (multi-truck): each truck connects its own Square location.
+    // Nullable for legacy/account-level rows; new connects always set it.
+    truckId: uuid("truck_id").references(() => truck.id, {
+      onDelete: "cascade",
+    }),
     connected: boolean("connected").notNull().default(true),
     merchantId: text("merchant_id"),
     locationId: text("location_id"),
@@ -825,7 +830,10 @@ export const squareConnection = pgTable(
     ),
     ...timestamps,
   },
-  (t) => [uniqueIndex("square_connection_account_uniq").on(t.accountId)],
+  (t) => [
+    uniqueIndex("square_connection_truck_uniq").on(t.truckId),
+    index("square_connection_account_idx").on(t.accountId),
+  ],
 );
 
 // --- sales_day -------------------------------------------------------------
@@ -841,6 +849,10 @@ export const salesDay = pgTable(
     accountId: uuid("account_id")
       .notNull()
       .references(() => account.id, { onDelete: "cascade" }),
+    // The truck (Square location) these sales belong to. Nullable for legacy.
+    truckId: uuid("truck_id").references(() => truck.id, {
+      onDelete: "cascade",
+    }),
     source: salesSourceEnum("source").notNull().default("square"),
     businessDate: date("business_date", { mode: "date" }).notNull(),
     grossSalesCents: integer("gross_sales_cents").notNull().default(0),
@@ -854,8 +866,9 @@ export const salesDay = pgTable(
     ...timestamps,
   },
   (t) => [
-    uniqueIndex("sales_day_account_source_date_uniq").on(
+    uniqueIndex("sales_day_account_truck_source_date_uniq").on(
       t.accountId,
+      t.truckId,
       t.source,
       t.businessDate,
     ),
@@ -882,6 +895,9 @@ export const salesItemDay = pgTable(
     accountId: uuid("account_id")
       .notNull()
       .references(() => account.id, { onDelete: "cascade" }),
+    truckId: uuid("truck_id").references(() => truck.id, {
+      onDelete: "cascade",
+    }),
     source: salesSourceEnum("source").notNull().default("square"),
     businessDate: date("business_date", { mode: "date" }).notNull(),
     // Menu item name as it appears in the POS; the join key to recipes.
@@ -896,6 +912,7 @@ export const salesItemDay = pgTable(
   (t) => [
     uniqueIndex("sales_item_day_uniq").on(
       t.accountId,
+      t.truckId,
       t.source,
       t.businessDate,
       t.itemName,
@@ -925,6 +942,11 @@ export const ingredient = pgTable(
     accountId: uuid("account_id")
       .notNull()
       .references(() => account.id, { onDelete: "cascade" }),
+    // Per-truck (Option B): each truck owns its ingredients. Nullable for
+    // legacy/unassigned rows; new ingredients always set it.
+    truckId: uuid("truck_id").references(() => truck.id, {
+      onDelete: "cascade",
+    }),
     name: text("name").notNull(),
     category: text("category"),
     // Stock-keeping unit of measure, e.g. "lb", "each", "case", "gal".
@@ -969,6 +991,10 @@ export const recipe = pgTable(
     accountId: uuid("account_id")
       .notNull()
       .references(() => account.id, { onDelete: "cascade" }),
+    // Per-truck (Option B): each truck owns its recipes/menu.
+    truckId: uuid("truck_id").references(() => truck.id, {
+      onDelete: "cascade",
+    }),
     name: text("name").notNull(),
     category: text("category"),
     // Menu price, integer cents.
@@ -1040,6 +1066,10 @@ export const purchaseOrder = pgTable(
     accountId: uuid("account_id")
       .notNull()
       .references(() => account.id, { onDelete: "cascade" }),
+    // Which truck's stock this order restocks; NULL = unassigned/business-wide.
+    truckId: uuid("truck_id").references(() => truck.id, {
+      onDelete: "set null",
+    }),
     supplierName: text("supplier_name"),
     status: purchaseOrderStatusEnum("status").notNull().default("draft"),
     notes: text("notes"),
@@ -1112,6 +1142,10 @@ export const expense = pgTable(
     accountId: uuid("account_id")
       .notNull()
       .references(() => account.id, { onDelete: "cascade" }),
+    // Optional truck attribution; NULL = business-wide overhead (rollup only).
+    truckId: uuid("truck_id").references(() => truck.id, {
+      onDelete: "set null",
+    }),
     description: text("description").notNull(),
     category: text("category"),
     amountCents: integer("amount_cents").notNull().default(0),
@@ -1153,6 +1187,10 @@ export const inventoryCount = pgTable(
     accountId: uuid("account_id")
       .notNull()
       .references(() => account.id, { onDelete: "cascade" }),
+    // Which truck's stock was counted (Option B).
+    truckId: uuid("truck_id").references(() => truck.id, {
+      onDelete: "cascade",
+    }),
     countedOn: date("counted_on", { mode: "date" }).notNull(),
     // Snapshot of total inventory value (Σ counted qty × unit cost) in cents.
     totalValueCents: integer("total_value_cents").notNull().default(0),
@@ -1222,6 +1260,10 @@ export const inventoryUsage = pgTable(
     accountId: uuid("account_id")
       .notNull()
       .references(() => account.id, { onDelete: "cascade" }),
+    // The truck whose stock this usage depletes (Option B).
+    truckId: uuid("truck_id").references(() => truck.id, {
+      onDelete: "cascade",
+    }),
     source: salesSourceEnum("source").notNull().default("square"),
     businessDate: date("business_date", { mode: "date" }).notNull(),
     ingredientId: uuid("ingredient_id")

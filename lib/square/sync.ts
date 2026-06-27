@@ -1,9 +1,14 @@
 import "server-only";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
-import { salesDay, salesItemDay, squareConnection } from "@/lib/db/schema";
+import {
+  salesDay,
+  salesItemDay,
+  squareConnection,
+  truck,
+} from "@/lib/db/schema";
 import { serverEnv } from "@/lib/env";
-import { getSquareAdapter } from "@/lib/square";
+import { getSquareAdapter, isSquareConfigured } from "@/lib/square";
 import { applyUsageDepletion } from "@/lib/ops/depletion";
 
 /** YYYY-MM-DD, UTC. */
@@ -13,19 +18,21 @@ function ymd(d: Date): string {
 
 export interface SyncResult {
   merchantId: string;
-  locationName: string;
+  trucksSynced: number;
   daysSynced: number;
   start: string;
   end: string;
 }
 
 /**
- * Pull daily sales from Square (real or stub) and upsert them into sales_day,
- * (re)establishing the account's square_connection. Idempotent: re-running for
- * the same range overwrites the same (account, source, date) rows.
+ * Per-truck Square sync. Each active truck = its own Square location; we pull
+ * that location's sales and tag them with the truck. The stub fabricates
+ * distinct demo sales per location (seeded by locationId) so each truck differs.
  *
- * Writes go through the service connection (getDb) — sales_day is synced,
- * recomputable data (like reminder_dispatch), so it is not audited.
+ * Real multi-location: every truck currently maps to the merchant's primary
+ * location (a per-truck location picker is deferred until live OAuth). Writes
+ * go through the service connection (synced/recomputable data, not audited).
+ * Idempotent: re-running overwrites the same (account, truck, source, date) rows.
  */
 export async function syncSquareSales(
   accountId: string,
@@ -34,132 +41,163 @@ export async function syncSquareSales(
   const db = getDb();
   const adapter = getSquareAdapter();
   const env = serverEnv();
+  const stub = !isSquareConfigured();
 
   const merchant = await adapter.getMerchant();
 
   const end = new Date();
   const start = new Date();
   start.setUTCDate(start.getUTCDate() - (opts.days ?? 90));
-
-  const rows = await adapter.listDailySales({
-    locationId: merchant.locationId,
-    start: ymd(start),
-    end: ymd(end),
-  });
-
+  const startYmd = ymd(start);
+  const endYmd = ymd(end);
   const now = new Date();
-  if (rows.length > 0) {
+
+  const trucks = await db
+    .select({ id: truck.id, name: truck.name })
+    .from(truck)
+    .where(
+      and(
+        eq(truck.accountId, accountId),
+        isNull(truck.archivedAt),
+        eq(truck.isActive, true),
+      ),
+    );
+
+  let daysSynced = 0;
+
+  for (const t of trucks) {
+    // Stub: one synthetic location per truck so demo data differs. Real:
+    // the merchant's primary location (per-truck picker deferred).
+    const locationId = stub ? `stub-loc-${t.id}` : merchant.locationId;
+
+    const daily = await adapter.listDailySales({
+      locationId,
+      start: startYmd,
+      end: endYmd,
+    });
+    const itemRows = await adapter.listItemSales({
+      locationId,
+      start: startYmd,
+      end: endYmd,
+    });
+    daysSynced += daily.length;
+
+    if (daily.length > 0) {
+      await db
+        .insert(salesDay)
+        .values(
+          daily.map((r) => ({
+            accountId,
+            truckId: t.id,
+            source: "square" as const,
+            businessDate: new Date(`${r.date}T00:00:00Z`),
+            grossSalesCents: r.grossSalesCents,
+            refundsCents: r.refundsCents,
+            netSalesCents: r.grossSalesCents - r.refundsCents,
+            taxCents: r.taxCents,
+            tipsCents: r.tipsCents,
+            discountsCents: r.discountsCents,
+            transactionCount: r.transactionCount,
+            syncedAt: now,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: [
+            salesDay.accountId,
+            salesDay.truckId,
+            salesDay.source,
+            salesDay.businessDate,
+          ],
+          set: {
+            grossSalesCents: sql`excluded.gross_sales_cents`,
+            refundsCents: sql`excluded.refunds_cents`,
+            netSalesCents: sql`excluded.net_sales_cents`,
+            taxCents: sql`excluded.tax_cents`,
+            tipsCents: sql`excluded.tips_cents`,
+            discountsCents: sql`excluded.discounts_cents`,
+            transactionCount: sql`excluded.transaction_count`,
+            syncedAt: sql`excluded.synced_at`,
+            updatedAt: now,
+          },
+        });
+    }
+
+    if (itemRows.length > 0) {
+      await db
+        .insert(salesItemDay)
+        .values(
+          itemRows.map((r) => ({
+            accountId,
+            truckId: t.id,
+            source: "square" as const,
+            businessDate: new Date(`${r.date}T00:00:00Z`),
+            itemName: r.itemName,
+            squareItemId: r.squareItemId ?? null,
+            qtySold: r.qtySold,
+            grossSalesCents: r.grossSalesCents,
+            syncedAt: now,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: [
+            salesItemDay.accountId,
+            salesItemDay.truckId,
+            salesItemDay.source,
+            salesItemDay.businessDate,
+            salesItemDay.itemName,
+          ],
+          set: {
+            squareItemId: sql`excluded.square_item_id`,
+            qtySold: sql`excluded.qty_sold`,
+            grossSalesCents: sql`excluded.gross_sales_cents`,
+            syncedAt: sql`excluded.synced_at`,
+            updatedAt: now,
+          },
+        });
+    }
+
+    // One connection row per truck.
     await db
-      .insert(salesDay)
-      .values(
-        rows.map((r) => ({
-          accountId,
-          source: "square" as const,
-          businessDate: new Date(`${r.date}T00:00:00Z`),
-          grossSalesCents: r.grossSalesCents,
-          refundsCents: r.refundsCents,
-          netSalesCents: r.grossSalesCents - r.refundsCents,
-          taxCents: r.taxCents,
-          tipsCents: r.tipsCents,
-          discountsCents: r.discountsCents,
-          transactionCount: r.transactionCount,
-          syncedAt: now,
-        })),
-      )
-      .onConflictDoUpdate({
-        target: [salesDay.accountId, salesDay.source, salesDay.businessDate],
-        set: {
-          grossSalesCents: sql`excluded.gross_sales_cents`,
-          refundsCents: sql`excluded.refunds_cents`,
-          netSalesCents: sql`excluded.net_sales_cents`,
-          taxCents: sql`excluded.tax_cents`,
-          tipsCents: sql`excluded.tips_cents`,
-          discountsCents: sql`excluded.discounts_cents`,
-          transactionCount: sql`excluded.transaction_count`,
-          syncedAt: sql`excluded.synced_at`,
-          updatedAt: now,
-        },
-      });
-  }
-
-  // Per-item daily sales (order line items) → sales_item_day.
-  const itemRows = await adapter.listItemSales({
-    locationId: merchant.locationId,
-    start: ymd(start),
-    end: ymd(end),
-  });
-  if (itemRows.length > 0) {
-    await db
-      .insert(salesItemDay)
-      .values(
-        itemRows.map((r) => ({
-          accountId,
-          source: "square" as const,
-          businessDate: new Date(`${r.date}T00:00:00Z`),
-          itemName: r.itemName,
-          squareItemId: r.squareItemId ?? null,
-          qtySold: r.qtySold,
-          grossSalesCents: r.grossSalesCents,
-          syncedAt: now,
-        })),
-      )
-      .onConflictDoUpdate({
-        target: [
-          salesItemDay.accountId,
-          salesItemDay.source,
-          salesItemDay.businessDate,
-          salesItemDay.itemName,
-        ],
-        set: {
-          squareItemId: sql`excluded.square_item_id`,
-          qtySold: sql`excluded.qty_sold`,
-          grossSalesCents: sql`excluded.gross_sales_cents`,
-          syncedAt: sql`excluded.synced_at`,
-          updatedAt: now,
-        },
-      });
-  }
-
-  // Auto-deplete inventory from the synced item sales (idempotent). Only
-  // affects items whose Square name matches a recipe; safe no-op otherwise.
-  await applyUsageDepletion(accountId, start, end);
-
-  // Upsert the connection record (one per account).
-  await db
-    .insert(squareConnection)
-    .values({
-      accountId,
-      connected: true,
-      merchantId: merchant.merchantId,
-      locationId: merchant.locationId,
-      locationName: merchant.locationName,
-      environment: env.SQUARE_ENVIRONMENT,
-      lastSyncedAt: now,
-      connectedByUserId: opts.userId ?? null,
-    })
-    .onConflictDoUpdate({
-      target: squareConnection.accountId,
-      set: {
+      .insert(squareConnection)
+      .values({
+        accountId,
+        truckId: t.id,
         connected: true,
         merchantId: merchant.merchantId,
-        locationId: merchant.locationId,
-        locationName: merchant.locationName,
+        locationId,
+        locationName: stub ? t.name : merchant.locationName,
         environment: env.SQUARE_ENVIRONMENT,
         lastSyncedAt: now,
-        updatedAt: now,
-      },
-    });
+        connectedByUserId: opts.userId ?? null,
+      })
+      .onConflictDoUpdate({
+        target: squareConnection.truckId,
+        set: {
+          connected: true,
+          merchantId: merchant.merchantId,
+          locationId,
+          locationName: stub ? t.name : merchant.locationName,
+          environment: env.SQUARE_ENVIRONMENT,
+          lastSyncedAt: now,
+          updatedAt: now,
+        },
+      });
+  }
+
+  // Auto-deplete inventory from the synced item sales (idempotent, account-wide
+  // in Phase 1; per-truck stock arrives in Phase 2).
+  await applyUsageDepletion(accountId, start, end);
 
   return {
     merchantId: merchant.merchantId,
-    locationName: merchant.locationName,
-    daysSynced: rows.length,
-    start: ymd(start),
-    end: ymd(end),
+    trucksSynced: trucks.length,
+    daysSynced,
+    start: startYmd,
+    end: endYmd,
   };
 }
 
-/** Mark the account's Square connection disconnected (keeps synced history). */
+/** Disconnect all of the account's Square connections (keeps synced history). */
 export async function disconnectSquare(accountId: string): Promise<void> {
   const db = getDb();
   await db
@@ -168,13 +206,18 @@ export async function disconnectSquare(accountId: string): Promise<void> {
     .where(eq(squareConnection.accountId, accountId));
 }
 
-/** The account's Square connection row, or null if never connected. */
-export async function getSquareConnection(accountId: string) {
+/** Account-level Square summary: connected truck count + last sync. */
+export async function getSquareSummary(accountId: string) {
   const db = getDb();
-  const [row] = await db
+  const rows = await db
     .select()
     .from(squareConnection)
-    .where(and(eq(squareConnection.accountId, accountId)))
-    .limit(1);
-  return row ?? null;
+    .where(eq(squareConnection.accountId, accountId))
+    .orderBy(desc(squareConnection.lastSyncedAt));
+  const connected = rows.filter((r) => r.connected);
+  return {
+    connectedCount: connected.length,
+    lastSyncedAt: rows[0]?.lastSyncedAt ?? null,
+    everConnected: rows.length > 0,
+  };
 }

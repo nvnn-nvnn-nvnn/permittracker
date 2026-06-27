@@ -9,14 +9,22 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { fmtMoneyCents, fmtDate } from "@/lib/format";
+import { TruckScopeTabs } from "@/components/features/truck-scope-tabs";
 
 export const metadata = { title: "Inventory counts · VendGuard" };
 export const dynamic = "force-dynamic";
 
-export default async function InventoryCountsPage() {
+export default async function InventoryCountsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ truck?: string }>;
+}) {
+  const { truck } = await searchParams;
   const api = await serverApi();
+  const trucks = await api.truck.list();
+  const truckId = trucks.some((t) => t.id === truck) ? truck : undefined;
   const [counts, actual] = await Promise.all([
-    api.inventory.listCounts(),
+    api.inventory.listCounts({ truckId }),
     api.ops.actualCogs(),
   ]);
 
@@ -32,12 +40,18 @@ export default async function InventoryCountsPage() {
           </p>
         </div>
         <Link
-          href="/inventory/counts/new"
+          href={`/inventory/counts/new${truckId ? `?truck=${truckId}` : ""}`}
           className={buttonVariants({ size: "sm" })}
         >
           Take a count
         </Link>
       </div>
+
+      <TruckScopeTabs
+        basePath="/inventory/counts"
+        trucks={trucks}
+        selectedTruckId={truckId}
+      />
 
       {actual.available && (
         <Card>

@@ -137,6 +137,7 @@ export const purchasingRouter = createTRPCRouter({
           .insert(purchaseOrder)
           .values({
             accountId: ctx.account.accountId,
+            truckId: input.truckId ?? null,
             supplierName: input.supplierName,
             notes: input.notes,
             createdByUserId: ctx.account.userId,
@@ -177,6 +178,7 @@ export const purchasingRouter = createTRPCRouter({
         const [row] = await tx
           .update(purchaseOrder)
           .set({
+            truckId: input.data.truckId ?? null,
             supplierName: input.data.supplierName,
             notes: input.data.notes,
             updatedAt: new Date(),

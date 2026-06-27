@@ -48,7 +48,14 @@ async function assertIngredientsOwned(
 export const recipeRouter = createTRPCRouter({
   /** Recipes with computed COGS (cents) + line count. */
   list: opsProcedure
-    .input(z.object({ includeArchived: z.boolean().default(false) }).optional())
+    .input(
+      z
+        .object({
+          includeArchived: z.boolean().default(false),
+          truckId: z.string().uuid().optional(),
+        })
+        .optional(),
+    )
     .query(async ({ ctx, input }) => {
       const rows = await getDb()
         .select({
@@ -66,7 +73,12 @@ export const recipeRouter = createTRPCRouter({
           eq(recipeIngredient.recipeId, recipe.id),
         )
         .leftJoin(ingredient, eq(ingredient.id, recipeIngredient.ingredientId))
-        .where(eq(recipe.accountId, ctx.account.accountId))
+        .where(
+          and(
+            eq(recipe.accountId, ctx.account.accountId),
+            input?.truckId ? eq(recipe.truckId, input.truckId) : undefined,
+          ),
+        )
         .groupBy(recipe.id)
         .orderBy(asc(recipe.name));
 
@@ -134,6 +146,7 @@ export const recipeRouter = createTRPCRouter({
           .insert(recipe)
           .values({
             accountId: ctx.account.accountId,
+            truckId: input.truckId,
             name: input.name,
             category: input.category,
             sellPriceCents: toCents(input.sellPrice),
@@ -169,6 +182,7 @@ export const recipeRouter = createTRPCRouter({
         const [row] = await tx
           .update(recipe)
           .set({
+            truckId: input.data.truckId,
             name: input.data.name,
             category: input.data.category,
             sellPriceCents: toCents(input.data.sellPrice),
