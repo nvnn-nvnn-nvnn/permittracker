@@ -42,10 +42,21 @@ export default async function InventoryPage() {
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Inventory</h1>
           <p className="text-sm text-muted-foreground">
-            What you stock, what it costs, and what&apos;s running low.
+            What you stock, what it costs, and what&apos;s running low. On-hand
+            auto-updates from Square sales when items match a{" "}
+            <Link href="/recipes" className="text-brand-ink hover:underline">
+              recipe
+            </Link>
+            .
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/inventory/usage"
+            className={buttonVariants({ size: "sm", variant: "outline" })}
+          >
+            Usage
+          </Link>
           <Link
             href="/inventory/counts"
             className={buttonVariants({ size: "sm", variant: "outline" })}

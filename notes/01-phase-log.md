@@ -1782,6 +1782,50 @@ existing hubs Dashboard + Operations remain the "overviews").
 - **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean;
   earlier full `next build` passed (this is a refactor of those routes).
 
+## v1.1 — Auto-depletion: sales → recipe → inventory usage (2026-06-25)
+
+The "bridge" that makes inventory automatic: Square item sales deplete
+ingredient on-hand via recipes, and record a per-day usage ledger (theoretical
+food cost). Previously inventory only moved via manual edit / receiving / counts.
+
+- **Schema:** `inventory_usage` (account, source, business_date, ingredient_id,
+  qty_used, cost_cents; unique per account+source+date+ingredient). The ledger
+  is also the "usage report" source. Migrations `0042_kind_shinko_yamashiro.sql`
+  + hand-authored `0043_inventory_usage_rls.sql` (journal idx 43). **Run
+  `npm run db:migrate`.**
+- **Engine** (`lib/ops/depletion.ts` → `applyUsageDepletion(accountId, start,
+  end)`): groups active recipes by **normalized name**, matches Square
+  `sales_item_day` by name, computes target ingredient usage per (day,
+  ingredient), then **reconciles by DELTA** against the prior ledger:
+  `on_hand -= (target − prior)` and upserts the ledger to `target`. All in one
+  transaction.
+  - **Idempotent:** re-syncing identical sales → delta 0 → no change. New sales
+    deduct only the new amount; removed sales/recipes add stock back (negative
+    delta). This is the critical property — re-syncs never double-deplete.
+  - **Matching caveat (by design):** only items whose Square name == a recipe
+    name deplete. Typed-amount sales (no line item) and unmatched items are
+    skipped (counted as `unmatchedItems`). Safe no-op when no recipes match —
+    so connecting Square on a fresh account doesn't touch inventory until
+    recipes exist.
+  - **Theoretical, not actual:** usage = what recipes say. On-hand may drift
+    from physical (waste/spills) and **may go negative** (records say you used
+    more than you had) — intentionally not floored; **inventory counts remain
+    the source of truth**, and the count-vs-depletion gap is shrink/variance.
+- **Wiring:** `syncSquareSales` calls `applyUsageDepletion(accountId, start,
+  end)` after upserting item sales (same 90-day window).
+- **Report:** `inventory.usage({days})` → per-ingredient qty used + cost +
+  total (theoretical food cost). UI: `/inventory/usage` page + "Usage" link on
+  the Inventory page; Inventory header now notes on-hand auto-updates from
+  sales when items match a recipe.
+- **Relationship to the P&L (kept deliberate):** the weekly/period P&L food
+  cost still uses **received purchases** (actual cash out); usage depletion is
+  the **theoretical** lens (per recipe) and powers inventory tracking + the
+  usage report. Three honest food-cost views now coexist: purchases (P&L),
+  theoretical usage (this), actual via counts (opening+purchases−closing). Not
+  silently merged — each answers a different question.
+- **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean;
+  **full `next build` passed (34/34 pages)**.
+
 ## Tier A is complete (steps 1–7). The app is now a two-pillar workspace:
 *Stay open* (compliance) + *Stay profitable* (operations: Square sales →
 item/menu analytics, inventory + counts, recipes/COGS, purchasing, expenses,

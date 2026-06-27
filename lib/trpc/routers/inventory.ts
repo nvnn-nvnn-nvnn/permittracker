@@ -74,6 +74,46 @@ export const inventoryRouter = createTRPCRouter({
     };
   }),
 
+  /** Theoretical ingredient usage (auto-depletion) over the last `days`. */
+  usage: opsProcedure
+    .input(z.object({ days: z.number().int().min(1).max(365).default(30) }))
+    .query(async ({ ctx, input }) => {
+      const since = new Date();
+      since.setUTCDate(since.getUTCDate() - input.days);
+      const rows = await getDb()
+        .select({
+          ingredientId: inventoryUsage.ingredientId,
+          name: ingredient.name,
+          unit: ingredient.unit,
+          qtyUsed: sql<number>`sum(${inventoryUsage.qtyUsed})`,
+          costCents: sql<number>`sum(${inventoryUsage.costCents})::int`,
+        })
+        .from(inventoryUsage)
+        .innerJoin(ingredient, eq(ingredient.id, inventoryUsage.ingredientId))
+        .where(
+          and(
+            eq(inventoryUsage.accountId, ctx.account.accountId),
+            gte(inventoryUsage.businessDate, since),
+          ),
+        )
+        .groupBy(inventoryUsage.ingredientId, ingredient.name, ingredient.unit)
+        .orderBy(desc(sql`sum(${inventoryUsage.costCents})`));
+      const items = rows
+        .map((r) => ({
+          ingredientId: r.ingredientId,
+          name: r.name,
+          unit: r.unit,
+          qtyUsed: Number(r.qtyUsed),
+          costCents: Number(r.costCents),
+        }))
+        .filter((r) => r.qtyUsed > 0);
+      return {
+        days: input.days,
+        items,
+        totalCostCents: items.reduce((s, r) => s + r.costCents, 0),
+      };
+    }),
+
   create: opsProcedure
     .input(ingredientInput)
     .mutation(async ({ ctx, input }) => {

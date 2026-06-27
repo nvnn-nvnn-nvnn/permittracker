@@ -32,6 +32,36 @@ These were confirmed with the owner before any code was written.
 
 ## Data-model scope decisions (not stack deviations)
 
+- **2026-06-25 — v1.1: Auto-depletion bridge built (sales → recipe →
+  inventory) + READY TO SHIP v1.1.** The previously-deferred bridge is now
+  built. Square item sales deplete ingredient on-hand via recipes and feed a
+  per-day usage ledger (`inventory_usage`).
+  - **Idempotent reconcile chosen** (not "subtract on every sync"): the ledger
+    stores cumulative usage per (day, ingredient); each sync applies only the
+    DELTA to on-hand. This is the binding correctness decision — re-syncs can't
+    double-deplete. Implemented in `lib/ops/depletion.ts`, called from
+    `syncSquareSales`.
+  - **Name-match dependency (accepted):** only items whose Square name matches
+    a recipe deplete; typed-amount/unmatched sales are skipped. Safe no-op
+    until recipes exist. An explicit Square-item→recipe mapping table is the
+    future hardening if name-matching proves too brittle.
+  - **On-hand may go negative (accepted, not floored):** depletion is
+    *theoretical*; physical **counts remain source of truth**; the gap =
+    shrink/variance.
+  - **THREE food-cost lenses kept separate, NOT merged (binding):** (1) P&L
+    food cost = received **purchases** (actual cash out); (2) **theoretical**
+    usage = recipes × sales (this feature, drives inventory + usage report);
+    (3) **actual** COGS = counts (opening+purchases−closing). Each answers a
+    different question; merging them would mislead. P&L definition left
+    unchanged.
+  - **v1.1 ship readiness:** with this, the ops loop is automatic end-to-end.
+    Full `next build` green (34 pages), typecheck/eslint clean. **Pre-ship
+    checklist (ops/env, not code): run `npm run db:migrate` (applies 0023–0043);
+    finalize `PLANS` tier→price mapping; set live creds when ready
+    (`SQUARE_ACCESS_TOKEN`, `STRIPE_*`, `QUICKBOOKS_*` — all stubbed/optional
+    today).** Deferred post-1.1: automated checklist, food-safety/temp logs, AI
+    assistant, receipt OCR→expense, theoretical-vs-actual variance view.
+
 - **2026-06-25 — Feature roadmap: Tier A ("ops brain") IN, Tier B
   ("POS/ordering") OUT.** Owner reviewed a broad food-truck feature wishlist.
   Binding decision: build only features that make us the **operations/analytics
