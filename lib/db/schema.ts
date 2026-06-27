@@ -1203,6 +1203,56 @@ export type InventoryCount = typeof inventoryCount.$inferSelect;
 export type InventoryCountLine = typeof inventoryCountLine.$inferSelect;
 
 // ===========================================================================
+// Operations pillar — v1.1: Auto-depletion usage ledger
+// ===========================================================================
+//
+// Theoretical ingredient usage derived from Square item sales × recipes. One
+// row per (account, source, business date, ingredient) holding the cumulative
+// qty used that day. The sync engine reconciles on-hand by the DELTA between
+// this ledger and freshly-computed usage, so re-syncs never double-deplete
+// (idempotent). Doubles as the "inventory used / theoretical food cost" report.
+// Account-scoped, RLS member-select, not audited.
+
+export const inventoryUsage = pgTable(
+  "inventory_usage",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    source: salesSourceEnum("source").notNull().default("square"),
+    businessDate: date("business_date", { mode: "date" }).notNull(),
+    ingredientId: uuid("ingredient_id")
+      .notNull()
+      .references(() => ingredient.id, { onDelete: "cascade" }),
+    /** Cumulative quantity used on this day (recipe qty × items sold). */
+    qtyUsed: doublePrecision("qty_used").notNull().default(0),
+    /** qtyUsed × ingredient unit cost at compute time (theoretical COGS). */
+    costCents: integer("cost_cents").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("inventory_usage_uniq").on(
+      t.accountId,
+      t.source,
+      t.businessDate,
+      t.ingredientId,
+    ),
+    index("inventory_usage_account_date_idx").on(t.accountId, t.businessDate),
+    index("inventory_usage_ingredient_idx").on(t.ingredientId),
+  ],
+);
+
+export type InventoryUsage = typeof inventoryUsage.$inferSelect;
+
+// ===========================================================================
 // Operations pillar — Tier A step 5: Truck service status (location / window)
 // ===========================================================================
 //

@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db";
 import { salesDay, salesItemDay, squareConnection } from "@/lib/db/schema";
 import { serverEnv } from "@/lib/env";
 import { getSquareAdapter } from "@/lib/square";
+import { applyUsageDepletion } from "@/lib/ops/depletion";
 
 /** YYYY-MM-DD, UTC. */
 function ymd(d: Date): string {
@@ -118,6 +119,10 @@ export async function syncSquareSales(
         },
       });
   }
+
+  // Auto-deplete inventory from the synced item sales (idempotent). Only
+  // affects items whose Square name matches a recipe; safe no-op otherwise.
+  await applyUsageDepletion(accountId, start, end);
 
   // Upsert the connection record (one per account).
   await db

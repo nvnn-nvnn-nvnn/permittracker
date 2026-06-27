@@ -1762,6 +1762,26 @@ existing hubs Dashboard + Operations remain the "overviews").
   there as compliance-supporting entities); easy to re-bucket.
 - Verify: typecheck clean (lone pre-existing `token.test.ts`); eslint clean.
 
+## P&L granularity (day/week/month) + line chart (2026-06-25)
+
+- **`lib/ops/pnl.ts`:** generalized `weeklyPnl` → **`periodPnl(accountId,
+  granularity, periods)`** with `granularity` = day | week | month. Buckets
+  sales/expenses/purchases by period start (day = the date, week = Monday,
+  month = 1st); `defaultPeriods` = 14 days / 8 weeks / 12 months. `WeeklyPnl`
+  → **`PnlPeriod`** (now `periodStart`/`periodEnd` + a `label`); `weeks` →
+  `periods`; result carries `granularity`.
+- **Router:** `ops.weeklyPnl` → **`ops.pnl({ granularity, periods? })`**.
+- **Chart (no dependency):** `components/features/ops-line-chart.tsx` — a
+  server-rendered inline-SVG line chart (scales to include 0 so losses read
+  against a baseline; `stroke-current` + Tailwind color classes; legend + peak
+  + first/mid/last labels). Plots **Net sales** + **Operating profit**.
+- **Operations page:** added a **Daily / Weekly / Monthly toggle** (URL
+  `?g=`, server-driven — no client fetch), the line chart above the P&L table,
+  and made the hero / totals / WoW / table all period-generic (uses `label` +
+  `noun`). Heading "Weekly P&L" → "P&L".
+- **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean;
+  earlier full `next build` passed (this is a refactor of those routes).
+
 ## Tier A is complete (steps 1–7). The app is now a two-pillar workspace:
 *Stay open* (compliance) + *Stay profitable* (operations: Square sales →
 item/menu analytics, inventory + counts, recipes/COGS, purchasing, expenses,

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, opsProcedure } from "@/lib/trpc/trpc";
 import { getDb } from "@/lib/db";
@@ -7,6 +7,7 @@ import {
   ingredient,
   inventoryCount,
   inventoryCountLine,
+  inventoryUsage,
 } from "@/lib/db/schema";
 import { ingredientInput, inventoryCountInput } from "@/lib/validators";
 

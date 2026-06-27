@@ -15,7 +15,7 @@ import {
   getSquareConnection,
   syncSquareSales,
 } from "@/lib/square/sync";
-import { weeklyPnl } from "@/lib/ops/pnl";
+import { periodPnl } from "@/lib/ops/pnl";
 import { menuAnalysis } from "@/lib/ops/menu";
 import { buildFinancialCsv } from "@/lib/ops/export";
 import { isQuickBooksConfigured } from "@/lib/quickbooks";
@@ -57,11 +57,20 @@ export const opsRouter = createTRPCRouter({
     return { ok: true };
   }),
 
-  /** Weekly P&L, newest week first. */
-  weeklyPnl: opsProcedure
-    .input(z.object({ weeks: z.number().int().min(1).max(26).default(8) }))
+  /** P&L by period (day/week/month), newest period first. */
+  pnl: opsProcedure
+    .input(
+      z.object({
+        granularity: z.enum(["day", "week", "month"]).default("week"),
+        periods: z.number().int().min(1).max(60).optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
-      return weeklyPnl(ctx.account.accountId, input.weeks);
+      return periodPnl(
+        ctx.account.accountId,
+        input.granularity,
+        input.periods,
+      );
     }),
 
   /** Item-level sales over the last `days`, best-sellers first. */

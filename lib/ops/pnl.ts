@@ -9,20 +9,23 @@ import {
 } from "@/lib/db/schema";
 
 /**
- * Weekly P&L.
+ * P&L by period (day / week / month).
  *
- * Aggregates the daily Square rollups (sales_day) into Mon–Sun weeks, then
- * subtracts food cost (supplier purchases received, bucketed by receivedAt)
- * and overhead (expense ledger, bucketed by spentOn). "Food cost" here is
- * ACTUAL supplier spend, not theoretical per-recipe COGS — accurate dollars but
- * lumpy week-to-week (bulk buys), which is why the trailing food-cost % in
- * `totals` is the number to watch. True per-recipe COGS is a later layer.
+ * Aggregates the daily Square rollups (sales_day) into the chosen period, then
+ * subtracts food cost (supplier purchases received, by receivedAt) and overhead
+ * (expense ledger, by spentOn). "Food cost" is ACTUAL supplier spend, not
+ * theoretical per-recipe COGS — accurate but lumpy, so the trailing food-cost %
+ * in `totals` is the number to watch.
  */
-export interface WeeklyPnl {
-  /** Monday, YYYY-MM-DD (UTC). */
-  weekStart: string;
-  /** Sunday, YYYY-MM-DD (UTC). */
-  weekEnd: string;
+export type PnlGranularity = "day" | "week" | "month";
+
+export interface PnlPeriod {
+  /** Period start, YYYY-MM-DD (UTC). */
+  periodStart: string;
+  /** Period end, YYYY-MM-DD (UTC). */
+  periodEnd: string;
+  /** Display label, e.g. "Jun 16", "Jun 16–22", or "Jun 2026". */
+  label: string;
   grossSalesCents: number;
   refundsCents: number;
   netSalesCents: number;
@@ -31,47 +34,29 @@ export interface WeeklyPnl {
   discountsCents: number;
   transactionCount: number;
   avgTicketCents: number;
-  /** Net sales change vs. the previous week, in cents (null for first week). */
+  /** Net sales change vs. the previous period (null for the first). */
   netChangeCents: number | null;
-  // --- Expense side ---
-  /** Food cost = supplier purchases received this week (actual spend). */
   foodCostCents: number;
-  /** Overhead from the expense ledger, bucketed by spent-on date. */
   overheadCents: number;
   /** net sales − food cost − overhead. */
   operatingProfitCents: number;
 }
 
-/** Monday (UTC) of the ISO week containing `d`. */
-function weekStartUtc(d: Date): Date {
-  const x = new Date(
-    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
-  );
-  const dow = x.getUTCDay(); // 0=Sun..6=Sat
-  const diff = dow === 0 ? 6 : dow - 1; // days since Monday
-  x.setUTCDate(x.getUTCDate() - diff);
-  return x;
-}
-
-function ymd(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-export interface WeeklyPnlResult {
-  weeks: WeeklyPnl[];
+export interface PnlResult {
+  granularity: PnlGranularity;
+  /** Newest period first. */
+  periods: PnlPeriod[];
   hasData: boolean;
-  /** Trailing totals across the returned window — the headline KPIs. */
   totals: {
     netSalesCents: number;
     foodCostCents: number;
     overheadCents: number;
     operatingProfitCents: number;
-    /** food cost ÷ net sales × 100, rounded; null when no net sales. */
     foodCostPct: number | null;
   };
 }
 
-const EMPTY_TOTALS: WeeklyPnlResult["totals"] = {
+const EMPTY_TOTALS: PnlResult["totals"] = {
   netSalesCents: 0,
   foodCostCents: 0,
   overheadCents: 0,
@@ -79,17 +64,84 @@ const EMPTY_TOTALS: WeeklyPnlResult["totals"] = {
   foodCostPct: null,
 };
 
-/**
- * Most recent `weeks` complete-or-current weeks of P&L, newest first.
- */
-export async function weeklyPnl(
-  accountId: string,
-  weeks = 8,
-): Promise<WeeklyPnlResult> {
-  const db = getDb();
+export function defaultPeriods(g: PnlGranularity): number {
+  return g === "day" ? 14 : g === "month" ? 12 : 8;
+}
 
-  const since = weekStartUtc(new Date());
-  since.setUTCDate(since.getUTCDate() - (weeks - 1) * 7);
+function ymd(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/** Start of the period (UTC) containing `d`. Week = Monday. */
+function startOf(d: Date, g: PnlGranularity): Date {
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth();
+  const day = d.getUTCDate();
+  if (g === "day") return new Date(Date.UTC(y, m, day));
+  if (g === "month") return new Date(Date.UTC(y, m, 1));
+  const x = new Date(Date.UTC(y, m, day));
+  const dow = x.getUTCDay(); // 0=Sun
+  x.setUTCDate(x.getUTCDate() - (dow === 0 ? 6 : dow - 1));
+  return x;
+}
+
+function endOf(start: Date, g: PnlGranularity): Date {
+  if (g === "day") return new Date(start);
+  if (g === "month")
+    return new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0));
+  const e = new Date(start);
+  e.setUTCDate(e.getUTCDate() + 6);
+  return e;
+}
+
+/** Move a period start back by `n` periods. */
+function shiftBack(start: Date, g: PnlGranularity, n: number): Date {
+  const s = new Date(start);
+  if (g === "day") {
+    s.setUTCDate(s.getUTCDate() - n);
+    return s;
+  }
+  if (g === "month")
+    return new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth() - n, 1));
+  s.setUTCDate(s.getUTCDate() - n * 7);
+  return s;
+}
+
+function labelOf(start: Date, g: PnlGranularity): string {
+  if (g === "month")
+    return start.toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  if (g === "day")
+    return start.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+  const end = endOf(start, "week");
+  const a = start.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+  const b = end.toLocaleDateString("en-US", { day: "numeric", timeZone: "UTC" });
+  return `${a}–${b}`;
+}
+
+export async function periodPnl(
+  accountId: string,
+  granularity: PnlGranularity = "week",
+  periods?: number,
+): Promise<PnlResult> {
+  const db = getDb();
+  const count = periods ?? defaultPeriods(granularity);
+  const since = shiftBack(
+    startOf(new Date(), granularity),
+    granularity,
+    count - 1,
+  );
 
   const [salesRows, expenseRows, purchaseRows] = await Promise.all([
     db
@@ -107,7 +159,6 @@ export async function weeklyPnl(
       .where(
         and(eq(expense.accountId, accountId), gte(expense.spentOn, since)),
       ),
-    // Food cost = received purchase orders, totalled per order, by receivedAt.
     db
       .select({
         receivedAt: purchaseOrder.receivedAt,
@@ -133,21 +184,19 @@ export async function weeklyPnl(
     expenseRows.length === 0 &&
     purchaseRows.length === 0
   ) {
-    return { weeks: [], hasData: false, totals: EMPTY_TOTALS };
+    return { granularity, periods: [], hasData: false, totals: EMPTY_TOTALS };
   }
 
-  // Bucket days/expenses into their week-start key (creating weeks on demand).
-  const byWeek = new Map<string, WeeklyPnl>();
-  const ensure = (date: Date): WeeklyPnl => {
-    const ws = weekStartUtc(date);
-    const key = ymd(ws);
-    let w = byWeek.get(key);
-    if (!w) {
-      const we = new Date(ws);
-      we.setUTCDate(we.getUTCDate() + 6);
-      w = {
-        weekStart: key,
-        weekEnd: ymd(we),
+  const byPeriod = new Map<string, PnlPeriod>();
+  const ensure = (date: Date): PnlPeriod => {
+    const start = startOf(date, granularity);
+    const key = ymd(start);
+    let p = byPeriod.get(key);
+    if (!p) {
+      p = {
+        periodStart: key,
+        periodEnd: ymd(endOf(start, granularity)),
+        label: labelOf(start, granularity),
         grossSalesCents: 0,
         refundsCents: 0,
         netSalesCents: 0,
@@ -161,54 +210,52 @@ export async function weeklyPnl(
         overheadCents: 0,
         operatingProfitCents: 0,
       };
-      byWeek.set(key, w);
+      byPeriod.set(key, p);
     }
-    return w;
+    return p;
   };
 
   for (const r of salesRows) {
-    const w = ensure(r.businessDate);
-    w.grossSalesCents += r.grossSalesCents;
-    w.refundsCents += r.refundsCents;
-    w.netSalesCents += r.netSalesCents;
-    w.taxCents += r.taxCents;
-    w.tipsCents += r.tipsCents;
-    w.discountsCents += r.discountsCents;
-    w.transactionCount += r.transactionCount;
+    const p = ensure(r.businessDate);
+    p.grossSalesCents += r.grossSalesCents;
+    p.refundsCents += r.refundsCents;
+    p.netSalesCents += r.netSalesCents;
+    p.taxCents += r.taxCents;
+    p.tipsCents += r.tipsCents;
+    p.discountsCents += r.discountsCents;
+    p.transactionCount += r.transactionCount;
   }
   for (const e of expenseRows) {
     ensure(e.spentOn).overheadCents += e.amountCents;
   }
-  for (const p of purchaseRows) {
-    if (p.receivedAt) ensure(p.receivedAt).foodCostCents += Number(p.totalCents);
+  for (const pr of purchaseRows) {
+    if (pr.receivedAt)
+      ensure(pr.receivedAt).foodCostCents += Number(pr.totalCents);
   }
 
-  // Oldest → newest for week-over-week math.
-  const asc = [...byWeek.values()].sort((a, b) =>
-    a.weekStart.localeCompare(b.weekStart),
+  const asc = [...byPeriod.values()].sort((a, b) =>
+    a.periodStart.localeCompare(b.periodStart),
   );
   let prevNet: number | null = null;
-  for (const w of asc) {
-    w.avgTicketCents =
-      w.transactionCount > 0
-        ? Math.round(w.netSalesCents / w.transactionCount)
+  for (const p of asc) {
+    p.avgTicketCents =
+      p.transactionCount > 0
+        ? Math.round(p.netSalesCents / p.transactionCount)
         : 0;
-    w.netChangeCents = prevNet === null ? null : w.netSalesCents - prevNet;
-    w.operatingProfitCents =
-      w.netSalesCents - w.foodCostCents - w.overheadCents;
-    prevNet = w.netSalesCents;
+    p.netChangeCents = prevNet === null ? null : p.netSalesCents - prevNet;
+    p.operatingProfitCents =
+      p.netSalesCents - p.foodCostCents - p.overheadCents;
+    prevNet = p.netSalesCents;
   }
 
-  // Newest first for display; cap to requested count.
-  const weeksOut = asc.reverse().slice(0, weeks);
+  const periodsOut = asc.reverse().slice(0, count);
 
-  // Trailing totals across the returned window (the headline KPIs).
-  const totals = weeksOut.reduce(
-    (acc, w) => {
-      acc.netSalesCents += w.netSalesCents;
-      acc.foodCostCents += w.foodCostCents;
-      acc.overheadCents += w.overheadCents;
-      acc.operatingProfitCents += w.operatingProfitCents;
+  const totals = periodsOut.reduce(
+    (acc, p) => {
+      acc.netSalesCents += p.netSalesCents;
+      acc.foodCostCents += p.foodCostCents;
+      acc.overheadCents += p.overheadCents;
+      acc.operatingProfitCents += p.operatingProfitCents;
       return acc;
     },
     { ...EMPTY_TOTALS, foodCostPct: null as number | null },
@@ -218,5 +265,5 @@ export async function weeklyPnl(
       ? Math.round((totals.foodCostCents / totals.netSalesCents) * 100)
       : null;
 
-  return { weeks: weeksOut, hasData: true, totals };
+  return { granularity, periods: periodsOut, hasData: true, totals };
 }
