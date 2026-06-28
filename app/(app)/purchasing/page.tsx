@@ -12,7 +12,7 @@ import { GenerateFromLowStock } from "@/components/features/purchasing-actions";
 import { fmtMoneyCents, fmtDate } from "@/lib/format";
 import type { PurchaseOrderStatus } from "@/lib/db/schema";
 
-export const metadata = { title: "Purchasing · VendGuard" };
+export const metadata = { title: "Purchasing · CartLedger" };
 export const dynamic = "force-dynamic";
 
 const STATUS: Record<

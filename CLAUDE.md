@@ -1,6 +1,6 @@
 # PermitKeep — Project Guide
 
-> Repo codename **PermitKeep**; public brand **VendGuard**. Full product
+> Repo codename **PermitKeep**; public brand **CartLedger**. Full product
 > orientation: `notes/02-product-overview.md` (read it to get up to speed).
 
 The **operating system for food trucks** — a two-pillar SaaS that keeps a truck

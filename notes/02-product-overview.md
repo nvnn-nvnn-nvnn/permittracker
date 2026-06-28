@@ -1,12 +1,12 @@
-# VendGuard — Product Overview (for future Claude)
+# CartLedger — Product Overview (for future Claude)
 
-> Repo codename: **PermitKeep**. Public brand: **VendGuard**. Read this first to
+> Repo codename: **PermitKeep**. Public brand: **CartLedger**. Read this first to
 > understand what the app *is* today; `00-decisions.md` has the binding
 > decisions and the *why*, `01-phase-log.md` has the chronological build log.
 
 ## One sentence
 
-VendGuard is **the operating system for food trucks** — a two-pillar web app
+CartLedger is **the operating system for food trucks** — a two-pillar web app
 that keeps a truck **legal** and **profitable**, sitting *on top of* the tools
 operators already use (Square POS, QuickBooks) rather than replacing them.
 

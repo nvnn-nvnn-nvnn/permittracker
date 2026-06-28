@@ -15,7 +15,7 @@ import foodtruckQuote from "@/app/assets/foodtruck-3.jpg";
 import foodtruckCta from "@/app/assets/foodtruck-4.jpg";
 
 export const metadata = {
-  title: "VendGuard — Stay open. Stay profitable.",
+  title: "CartLedger — Stay open. Stay profitable.",
   description:
     "The operating system for food trucks. Track every permit, cert, and COI that can shut you down — and turn your Square sales into live inventory, food cost, and a weekly P&L. Compliance and profit in one place.",
 };
@@ -96,7 +96,7 @@ export default function MarketingHome() {
             Stay profitable.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-pretty text-lg text-background/85 sm:text-xl">
-            VendGuard keeps every truck audit-ready — permits, certs,
+            CartLedger keeps every truck audit-ready — permits, certs,
             inspections, and COIs in one timeline — and turns your Square sales
             into live inventory, food cost, and a weekly P&amp;L. The compliance
             and the money, in one place, on top of the tools you already use.
@@ -142,7 +142,7 @@ export default function MarketingHome() {
             </h2>
             <p className="mt-3 text-lg text-muted-foreground">
               Stop juggling glove-box folders, inbox reminders, and sticky
-              notes. VendGuard keeps the whole picture current.
+              notes. CartLedger keeps the whole picture current.
             </p>
           </div>
           <div className="mt-10 grid gap-x-8 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">

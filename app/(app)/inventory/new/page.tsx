@@ -1,6 +1,6 @@
 import { IngredientForm } from "@/components/features/ingredient-form";
 
-export const metadata = { title: "Add ingredient · VendGuard" };
+export const metadata = { title: "Add ingredient · CartLedger" };
 
 export default async function NewIngredientPage({
   searchParams,

@@ -37,7 +37,7 @@ export function SiteFooter() {
           <div className="max-w-xs">
             <Logo variant="lockup" graphicClassName="h-7" textClassName="h-5" />
             <p className="mt-4 text-sm text-muted-foreground">
-              Stay open and stay profitable. VendGuard tracks the permits and
+              Stay open and stay profitable. CartLedger tracks the permits and
               COIs that can shut your food truck down — and turns your Square
               sales into inventory, food cost, and a weekly P&amp;L.
             </p>
@@ -65,7 +65,7 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-12 flex flex-col gap-3 border-t border-border pt-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} VendGuard. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} CartLedger. All rights reserved.</p>
           <p className="text-xs">
             An operations &amp; compliance tool — not legal, tax, accounting, or
             insurance advice.

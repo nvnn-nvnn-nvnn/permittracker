@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { fmtMoneyCents, fmtDate } from "@/lib/format";
 
-export const metadata = { title: "Expenses · VendGuard" };
+export const metadata = { title: "Expenses · CartLedger" };
 export const dynamic = "force-dynamic";
 
 export default async function ExpensesPage() {

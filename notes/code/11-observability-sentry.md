@@ -179,7 +179,7 @@ Reproduce the capture-and-verify loop in any Next app:
 - **Events go to the project that owns the DSN — full stop.** `SENTRY_PROJECT`
   in your env only controls *source-map upload*, NOT where events land. I lost
   real time because an early DSN belonged to a stray `javascript-nextjs`
-  project while my dashboard was open on `vendguard`. Events were arriving
+  project while my dashboard was open on `cartledger`. Events were arriving
   perfectly — into a project I wasn't looking at. **If "nothing shows up":
   first confirm the DSN's project == the dashboard view**, set environment to
   *All* and the date to *Last 24h*.

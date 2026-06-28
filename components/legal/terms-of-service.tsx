@@ -14,23 +14,23 @@ export default function TermsOfService() {
       intro={
         <p>
           These Terms of Service (the &quot;Terms&quot;) govern your access to
-          and use of VendGuard (&quot;VendGuard,&quot; &quot;we,&quot;
+          and use of CartLedger (&quot;CartLedger,&quot; &quot;we,&quot;
           &quot;us,&quot; or &quot;our&quot;), a software service that helps food
           truck and mobile food operators track permits, inspections,
           certifications, insurance certificates (COIs), and commissary
           agreements, and that sends reminders before those items expire. By
-          creating an account or using VendGuard, you agree to these Terms. If
+          creating an account or using CartLedger, you agree to these Terms. If
           you do not agree, do not use the service.
         </p>
       }
     >
-      <LegalSection heading="1. What VendGuard Is">
+      <LegalSection heading="1. What CartLedger Is">
         <p>
-          VendGuard is a compliance tracking and reminder tool. You enter (or
+          CartLedger is a compliance tracking and reminder tool. You enter (or
           upload documents describing) your permits, inspections,
-          certifications, insurance, and commissary obligations, and VendGuard
+          certifications, insurance, and commissary obligations, and CartLedger
           organizes them and notifies you in advance of expiration or fee due
-          dates. VendGuard does not file, renew, issue, or guarantee any permit,
+          dates. CartLedger does not file, renew, issue, or guarantee any permit,
           license, inspection, or insurance on your behalf.
         </p>
       </LegalSection>
@@ -38,7 +38,7 @@ export default function TermsOfService() {
       <LegalSection heading="2. Not Legal, Regulatory, or Compliance Advice">
         <p>
           <Strong>
-            VendGuard is an informational tool, not a substitute for your own
+            CartLedger is an informational tool, not a substitute for your own
             judgment, your regulator, or a licensed professional.
           </Strong>{" "}
           Reminders, statuses, digests, and any guidance shown in the product
@@ -47,7 +47,7 @@ export default function TermsOfService() {
           all permitting, health, safety, insurance, and other legal
           requirements that apply to your operation. Requirements and deadlines
           vary by jurisdiction and change over time. Always confirm directly
-          with the issuing authority. Nothing in VendGuard constitutes legal,
+          with the issuing authority. Nothing in CartLedger constitutes legal,
           tax, insurance, or regulatory advice.
         </p>
       </LegalSection>
@@ -59,7 +59,7 @@ export default function TermsOfService() {
             you track.
           </li>
           <li>
-            Verify and confirm renewals yourself. VendGuard never marks an item
+            Verify and confirm renewals yourself. CartLedger never marks an item
             &quot;renewed&quot; on your behalf, and you must not treat a reminder
             (or its absence) as proof of compliance.
           </li>
@@ -74,13 +74,13 @@ export default function TermsOfService() {
 
       <LegalSection heading="4. Reminders and Notifications">
         <p>
-          VendGuard sends reminders by email and, on eligible plans, by SMS text
+          CartLedger sends reminders by email and, on eligible plans, by SMS text
           message and automated voice call. These notifications are provided on
           a <Strong>best-effort basis</Strong>. We do not guarantee that any
           reminder will be generated, delivered, received, or delivered on time,
           and delivery depends on third parties and factors outside our control
           (carriers, email providers, spam filtering, and your device). You
-          agree not to rely solely on VendGuard reminders to remain compliant.
+          agree not to rely solely on CartLedger reminders to remain compliant.
           By providing a phone number and enabling SMS or voice notifications,
           you consent to receive automated messages and calls related to your
           account; message and data rates may apply, and you can opt out as
@@ -90,11 +90,11 @@ export default function TermsOfService() {
 
       <LegalSection heading="5. Document Scanning and AI Features">
         <p>
-          VendGuard may use automated and AI-assisted processing (including
+          CartLedger may use automated and AI-assisted processing (including
           optical character recognition) to read uploaded documents and suggest
           dates or details. These suggestions are estimates and may be wrong.
           You are responsible for reviewing and confirming any extracted
-          information before relying on it. VendGuard will not treat AI-extracted
+          information before relying on it. CartLedger will not treat AI-extracted
           data as a confirmed renewal or compliance status without your
           confirmation.
         </p>
@@ -103,7 +103,7 @@ export default function TermsOfService() {
       <LegalSection heading="6. Your Content and Data">
         <p>
           You retain ownership of the documents and information you upload
-          (&quot;Your Content&quot;). You grant VendGuard a limited license to
+          (&quot;Your Content&quot;). You grant CartLedger a limited license to
           host, store, process, and display Your Content solely to provide and
           improve the service for you. You are responsible for having the rights
           to upload Your Content. Our handling of personal data is described in
@@ -113,7 +113,7 @@ export default function TermsOfService() {
 
       <LegalSection heading="7. Plans, Billing, and Cancellation">
         <p>
-          VendGuard offers paid subscription plans (such as Starter, Pro, and
+          CartLedger offers paid subscription plans (such as Starter, Pro, and
           Fleet) with different limits and features. Paid plans are billed in
           advance on a recurring basis (monthly or yearly) through our payment
           processor, and renew automatically until cancelled. You can cancel at
@@ -150,7 +150,7 @@ export default function TermsOfService() {
         <p>
           The service is provided on an &quot;as is&quot; and &quot;as
           available&quot; basis. To the fullest extent permitted by law,
-          VendGuard disclaims all warranties, express or implied, including
+          CartLedger disclaims all warranties, express or implied, including
           merchantability, fitness for a particular purpose, and
           non-infringement. We do not warrant that the service will be
           uninterrupted, error-free, or that reminders or data will be accurate,
@@ -160,7 +160,7 @@ export default function TermsOfService() {
 
       <LegalSection heading="10. Limitation of Liability">
         <p>
-          To the fullest extent permitted by law, VendGuard and its suppliers
+          To the fullest extent permitted by law, CartLedger and its suppliers
           will not be liable for any indirect, incidental, special,
           consequential, or punitive damages, or for any lost profits, lost
           data, business interruption, fines, penalties, or missed deadlines,
@@ -175,7 +175,7 @@ export default function TermsOfService() {
 
       <LegalSection heading="11. Termination">
         <p>
-          You may stop using VendGuard and close your account at any time. We
+          You may stop using CartLedger and close your account at any time. We
           may suspend or terminate your access if you violate these Terms or to
           protect the service. Upon termination, your right to use the service
           ends; we may retain or delete data as described in our{" "}
@@ -188,14 +188,14 @@ export default function TermsOfService() {
         <p>
           We may update these Terms from time to time. If we make material
           changes, we will provide reasonable notice (for example, by email or
-          in-app). Your continued use of VendGuard after the changes take effect
+          in-app). Your continued use of CartLedger after the changes take effect
           means you accept the updated Terms.
         </p>
       </LegalSection>
 
       <LegalSection heading="13. Governing Law">
         <p>
-          These Terms are governed by the laws of the state in which VendGuard
+          These Terms are governed by the laws of the state in which CartLedger
           is established, without regard to its conflict-of-laws rules. You
           agree that any dispute arising out of or relating to these Terms or
           the service will be brought exclusively in the state or federal courts
@@ -207,13 +207,13 @@ export default function TermsOfService() {
       <LegalSection heading="14. Contact Information">
         <p>Questions about these Terms? Contact us at:</p>
         <p className="text-foreground">
-          VendGuard
+          CartLedger
           <br />
           Email: raysarchive@proton.me
         </p>
         <p className="text-sm">
           These Terms are effective as of May 15, 2026 and apply to all users of
-          VendGuard.
+          CartLedger.
         </p>
       </LegalSection>
     </LegalPage>

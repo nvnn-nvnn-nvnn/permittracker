@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Activity, ClipboardList } from "lucide-react";
 import { serverApi } from "@/lib/trpc/server";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/card";
 import { fmtMoneyCents } from "@/lib/format";
 import { TruckScopeTabs } from "@/components/features/truck-scope-tabs";
+import { FoodCostExplainer } from "@/components/features/food-cost-explainer";
 
-export const metadata = { title: "Inventory · VendGuard" };
+export const metadata = { title: "Inventory · CartLedger" };
 export const dynamic = "force-dynamic";
 
 function isLow(i: { parLevel: number | null; onHandQty: number }): boolean {
@@ -64,13 +65,13 @@ export default async function InventoryPage({
             href={`/inventory/usage${truckQs}`}
             className={buttonVariants({ size: "sm", variant: "outline" })}
           >
-            Usage
+            <Activity /> Usage &amp; cost
           </Link>
           <Link
             href={`/inventory/counts${truckQs}`}
             className={buttonVariants({ size: "sm", variant: "outline" })}
           >
-            Counts
+            <ClipboardList /> Counts
           </Link>
           <Link
             href={`/inventory/new${truckQs}`}
@@ -86,6 +87,8 @@ export default async function InventoryPage({
         trucks={trucks}
         selectedTruckId={truckId}
       />
+
+      <FoodCostExplainer />
 
       {items.length === 0 ? (
         <Card>

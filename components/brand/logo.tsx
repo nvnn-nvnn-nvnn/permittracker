@@ -1,6 +1,5 @@
-/* eslint-disable @next/next/no-img-element -- static SVG logos; next/image adds no value for vectors and would force layout changes */
-import textLogo from "@/app/assets/Vendguardtextlogo.svg";
-import graphic from "@/app/assets/vendgaurdgraphic.svg";
+/* eslint-disable @next/next/no-img-element -- static SVG logo; next/image adds no value for vectors and would force layout changes */
+import logoSrc from "@/app/assets/cartledger full svg.svg";
 import { cn } from "@/lib/utils";
 
 type Variant = "graphic" | "text" | "lockup";
@@ -8,9 +7,9 @@ type Variant = "graphic" | "text" | "lockup";
 interface LogoProps {
   variant?: Variant;
   className?: string;
-  /** Width applied to the graphic mark in the lockup or graphic variant. */
+  /** Height applied to the mark in the lockup / graphic variant. */
   graphicClassName?: string;
-  /** Width applied to the wordmark in the lockup or text variant. */
+  /** Kept for call-site compatibility; the CartLedger logo is a single mark. */
   textClassName?: string;
 }
 
@@ -18,38 +17,14 @@ export function Logo({
   variant = "lockup",
   className,
   graphicClassName,
-  textClassName,
 }: LogoProps) {
-  if (variant === "graphic") {
-    return (
-      <img
-        src={graphic.src}
-        alt="VendGuard"
-        className={cn("h-8 w-auto", graphicClassName, className)}
-      />
-    );
-  }
-  if (variant === "text") {
-    return (
-      <img
-        src={textLogo.src}
-        alt="VendGuard"
-        className={cn("h-6 w-auto", textClassName, className)}
-      />
-    );
-  }
+  const height =
+    variant === "graphic" ? "h-8" : variant === "text" ? "h-6" : "h-7";
   return (
-    <span className={cn("inline-flex items-center gap-2", className)}>
-      <img
-        src={graphic.src}
-        alt=""
-        className={cn("h-7 w-auto", graphicClassName)}
-      />
-      <img
-        src={textLogo.src}
-        alt="VendGuard"
-        className={cn("h-5 w-auto", textClassName)}
-      />
-    </span>
+    <img
+      src={logoSrc.src}
+      alt="CartLedger"
+      className={cn(`${height} w-auto`, graphicClassName, className)}
+    />
   );
 }

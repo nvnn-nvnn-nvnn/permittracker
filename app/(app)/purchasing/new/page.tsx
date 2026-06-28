@@ -1,6 +1,6 @@
 import { PurchaseOrderForm } from "@/components/features/purchase-order-form";
 
-export const metadata = { title: "New purchase order · VendGuard" };
+export const metadata = { title: "New purchase order · CartLedger" };
 
 export default function NewPurchaseOrderPage() {
   return (

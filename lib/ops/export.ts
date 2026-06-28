@@ -113,7 +113,7 @@ export async function buildFinancialCsv(
   const csv = [header, ...body].join("\n");
 
   const end = ymd(new Date());
-  const filename = `vendguard-quickbooks-${ymd(since)}_to_${end}.csv`;
+  const filename = `cartledger-quickbooks-${ymd(since)}_to_${end}.csv`;
 
   return {
     filename,

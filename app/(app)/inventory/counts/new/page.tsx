@@ -1,6 +1,6 @@
 import { InventoryCountForm } from "@/components/features/inventory-count-form";
 
-export const metadata = { title: "New inventory count · VendGuard" };
+export const metadata = { title: "New inventory count · CartLedger" };
 
 export default async function NewInventoryCountPage({
   searchParams,

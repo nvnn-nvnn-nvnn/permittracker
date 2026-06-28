@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export const metadata = { title: "Check your email · VendGuard" };
+export const metadata = { title: "Check your email · CartLedger" };
 
 export default async function CheckEmailPage({
   searchParams,

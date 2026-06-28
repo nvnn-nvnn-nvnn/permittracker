@@ -1,6 +1,6 @@
 import { EventForm } from "@/components/features/event-form";
 
-export const metadata = { title: "Add event · VendGuard" };
+export const metadata = { title: "Add event · CartLedger" };
 
 export default function NewEventPage() {
   return (

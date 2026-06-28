@@ -18,7 +18,7 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between gap-6 px-5 sm:px-6">
-        <Link href="/" aria-label="VendGuard home" className="shrink-0">
+        <Link href="/" aria-label="CartLedger home" className="shrink-0">
           <Logo variant="lockup" graphicClassName="h-9" textClassName="h-6" />
         </Link>
 

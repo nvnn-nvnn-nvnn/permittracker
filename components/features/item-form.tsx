@@ -131,7 +131,7 @@ export function ItemForm({
       warning = `You typed a custom reminder ("${customDay.trim()}") but didn't add it with “Add”. It won't be saved.`;
     } else if (reminderDays.length === 0) {
       warning =
-        "No reminders set — VendGuard won't warn you before this expires.";
+        "No reminders set — CartLedger won't warn you before this expires.";
     }
     if (warning) {
       if (confirmMsg !== warning) {
@@ -366,7 +366,7 @@ export function ItemForm({
       <div className="flex flex-col gap-2">
         <Label>Reminder schedule</Label>
         <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-          🔔 These are the advance notices VendGuard sends (email/SMS) to
+          🔔 These are the advance notices CartLedger sends (email/SMS) to
           warn you about upcoming permit expiry — and other deadlines like a
           fee due — so nothing lapses while you&apos;re between services. Pick
           the standard offsets or add a custom one.

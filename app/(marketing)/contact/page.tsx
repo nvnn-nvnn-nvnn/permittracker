@@ -4,9 +4,9 @@ import { ContactForm } from "@/components/marketing/contact-form";
 import foodtruckHeader from "@/app/assets/foodtruck-1.jpg";
 
 export const metadata = {
-  title: "Contact · VendGuard",
+  title: "Contact · CartLedger",
   description:
-    "Get in touch with the VendGuard team — questions, demos, or help getting set up.",
+    "Get in touch with the CartLedger team — questions, demos, or help getting set up.",
 };
 
 const METHODS = [
@@ -55,7 +55,7 @@ export default function ContactPage() {
             Let&apos;s keep your trucks open.
           </h1>
           <p className="mt-6 text-pretty text-lg text-background/85">
-            Whether you&apos;re sizing up VendGuard for one truck or ten,
+            Whether you&apos;re sizing up CartLedger for one truck or ten,
             we&apos;re happy to help. Reach out and we&apos;ll get back to you.
           </p>
         </div>

@@ -51,8 +51,8 @@ export async function POST(req: Request): Promise<Response> {
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({
         access_key: ACCESS_KEY,
-        subject: "New VendGuard contact message",
-        from_name: "VendGuard website",
+        subject: "New CartLedger contact message",
+        from_name: "CartLedger website",
         name,
         email,
         message,

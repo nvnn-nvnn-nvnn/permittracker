@@ -10,7 +10,7 @@ import {
 import { fmtMoneyCents } from "@/lib/format";
 import { TruckScopeTabs } from "@/components/features/truck-scope-tabs";
 
-export const metadata = { title: "Recipes · VendGuard" };
+export const metadata = { title: "Recipes · CartLedger" };
 export const dynamic = "force-dynamic";
 
 export default async function RecipesPage({

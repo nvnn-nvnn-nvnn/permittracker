@@ -20,7 +20,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <div className="absolute inset-0 bg-background/85 backdrop-blur-sm" />
 
       <div className="relative z-10 flex w-full flex-col items-center">
-        <Link href="/" aria-label="VendGuard home" className="mb-8">
+        <Link href="/" aria-label="CartLedger home" className="mb-8">
           <Logo variant="lockup" graphicClassName="h-9" textClassName="h-6" />
         </Link>
         <div className="w-full max-w-sm">{children}</div>

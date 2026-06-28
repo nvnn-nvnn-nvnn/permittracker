@@ -1,6 +1,6 @@
 import { RecipeForm } from "@/components/features/recipe-form";
 
-export const metadata = { title: "Add menu item · VendGuard" };
+export const metadata = { title: "Add menu item · CartLedger" };
 
 export default async function NewRecipePage({
   searchParams,

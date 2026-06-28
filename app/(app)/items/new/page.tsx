@@ -2,7 +2,7 @@ import { serverApi } from "@/lib/trpc/server";
 import { itemTypeValues } from "@/lib/validators";
 import { NewItemChooser } from "@/components/features/new-item-chooser";
 
-export const metadata = { title: "Add item · VendGuard" };
+export const metadata = { title: "Add item · CartLedger" };
 export const dynamic = "force-dynamic";
 
 export default async function NewItemPage({

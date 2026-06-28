@@ -4,7 +4,7 @@ import { Logo } from "@/components/brand/logo";
 
 /**
  * Shared shell for public legal pages (Terms, Privacy). Styled with the
- * VendGuard warm/terracotta theme tokens so it matches the rest of the app
+ * CartLedger warm/terracotta theme tokens so it matches the rest of the app
  * instead of raw greys.
  */
 export function LegalPage({
@@ -22,7 +22,7 @@ export function LegalPage({
     <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-12 md:py-16">
       <Link
         href="/"
-        aria-label="VendGuard home"
+        aria-label="CartLedger home"
         className="inline-flex rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Logo variant="lockup" graphicClassName="h-7" textClassName="h-5" />

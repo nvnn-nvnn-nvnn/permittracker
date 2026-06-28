@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import foodtruckHeader from "@/app/assets/foodtruck-3.jpg";
 
 export const metadata = {
-  title: "Pricing · VendGuard",
+  title: "Pricing · CartLedger",
   description:
     "Simple per-business pricing for food truck compliance + operations. Start with a 14-day free trial on any plan.",
 };

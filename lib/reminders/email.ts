@@ -39,14 +39,14 @@ export function buildReminderEmail(args: {
     `Acknowledge this reminder: ${args.acknowledgeUrl}`,
     `View the item: ${args.itemUrl}`,
     "",
-    "VendGuard — stay open.",
+    "CartLedger — stay open.",
   ]
     .filter(Boolean)
     .join("\n");
 
   const html = `
   <div style="font-family:ui-sans-serif,system-ui,Arial,sans-serif;max-width:480px;margin:0 auto;color:#171717">
-    <p style="font-size:14px;color:#16a34a;font-weight:600;margin:0 0 8px">VendGuard</p>
+    <p style="font-size:14px;color:#16a34a;font-weight:600;margin:0 0 8px">CartLedger</p>
     <h1 style="font-size:18px;margin:0 0 12px">${escapeHtml(subject)}</h1>
     <p style="font-size:14px;line-height:1.5">${escapeHtml(lead)}</p>
     ${
@@ -62,9 +62,9 @@ export function buildReminderEmail(args: {
         Acknowledge reminder
       </a>
     </p>
-    <p style="font-size:13px"><a href="${args.itemUrl}" style="color:#171717">View the item in VendGuard</a></p>
+    <p style="font-size:13px"><a href="${args.itemUrl}" style="color:#171717">View the item in CartLedger</a></p>
     <p style="font-size:12px;color:#999;margin-top:24px">
-      You're receiving this because VendGuard tracks this compliance item for
+      You're receiving this because CartLedger tracks this compliance item for
       your account. Only you can acknowledge it — we never do it for you.
     </p>
   </div>`;

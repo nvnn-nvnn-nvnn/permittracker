@@ -39,7 +39,7 @@ export async function generateMetadata({
 }) {
   const { type } = await params;
   const label = TYPE_LABEL[type as ItemType] ?? "Items";
-  return { title: `${label} · VendGuard` };
+  return { title: `${label} · CartLedger` };
 }
 
 export default async function ItemCategoryPage({

@@ -11,7 +11,7 @@ import {
 import { fmtMoneyCents } from "@/lib/format";
 import type { MenuClass } from "@/lib/ops/menu";
 
-export const metadata = { title: "Menu analysis · VendGuard" };
+export const metadata = { title: "Menu analysis · CartLedger" };
 export const dynamic = "force-dynamic";
 
 const CLASS_META: Record<

@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { ForgotPasswordForm } from "@/components/features/auth-forms";
 
-export const metadata = { title: "Forgot password · VendGuard" };
+export const metadata = { title: "Forgot password · CartLedger" };
 
 export default function ForgotPasswordPage() {
   return (

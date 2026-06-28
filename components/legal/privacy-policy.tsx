@@ -13,12 +13,12 @@ export default function PrivacyPolicy() {
       lastUpdated="May 15, 2026"
       intro={
         <p>
-          This Privacy Policy explains how VendGuard (&quot;VendGuard,&quot;
+          This Privacy Policy explains how CartLedger (&quot;CartLedger,&quot;
           &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) collects, uses, and
           shares information when you use our compliance-tracking service for
           food truck and mobile food operators. It applies to our website, web
           application, and the email, SMS, and voice reminders we send. By using
-          VendGuard, you agree to this Policy. If you do not agree, do not use
+          CartLedger, you agree to this Policy. If you do not agree, do not use
           the service.
         </p>
       }
@@ -55,7 +55,7 @@ export default function PrivacyPolicy() {
           </li>
           <li>
             <Strong>Communications</Strong> — messages you send us and renewal
-            notices you forward to your VendGuard inbox address.
+            notices you forward to your CartLedger inbox address.
           </li>
         </LegalList>
       </LegalSection>
@@ -138,7 +138,7 @@ export default function PrivacyPolicy() {
         <p>
           Beyond the service providers above, we may disclose information: (a) to
           comply with law, legal process, or a lawful government request; (b) to
-          protect the rights, safety, and security of VendGuard, our users, or
+          protect the rights, safety, and security of CartLedger, our users, or
           the public; and (c) in connection with a merger, acquisition, or sale
           of assets, in which case we will continue to protect your information
           and notify you of any change in control or applicable policy.
@@ -204,7 +204,7 @@ export default function PrivacyPolicy() {
 
       <LegalSection heading="10. Data Location">
         <p>
-          VendGuard is operated in the United States and our providers may
+          CartLedger is operated in the United States and our providers may
           process and store information in the United States and other countries.
           By using the service, you understand your information may be
           transferred to and processed in those locations.
@@ -213,7 +213,7 @@ export default function PrivacyPolicy() {
 
       <LegalSection heading="11. Children's Privacy">
         <p>
-          VendGuard is a business tool intended for users 18 and older and is not
+          CartLedger is a business tool intended for users 18 and older and is not
           directed to children. We do not knowingly collect personal information
           from children. If you believe a child has provided us information,
           contact us and we will delete it.
@@ -225,7 +225,7 @@ export default function PrivacyPolicy() {
           We may update this Policy from time to time. If we make material
           changes, we will provide reasonable notice (for example, by email or
           in-app) and update the &quot;Last updated&quot; date above. Your
-          continued use of VendGuard after the changes take effect means you
+          continued use of CartLedger after the changes take effect means you
           accept the updated Policy.
         </p>
       </LegalSection>
@@ -235,7 +235,7 @@ export default function PrivacyPolicy() {
           Questions or requests about your privacy? Contact us at:
         </p>
         <p className="text-foreground">
-          VendGuard
+          CartLedger
           <br />
           Email: raysarchive@proton.me
         </p>

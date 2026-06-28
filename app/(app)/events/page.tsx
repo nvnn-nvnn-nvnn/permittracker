@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EVENT_STATUS_ORDER, EVENT_STATUS_META } from "@/lib/events";
 import type { Event } from "@/lib/db/schema";
 
-export const metadata = { title: "Events · VendGuard" };
+export const metadata = { title: "Events · CartLedger" };
 export const dynamic = "force-dynamic";
 
 function fmtDate(d: Date | string | null): string | null {

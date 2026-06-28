@@ -17,7 +17,7 @@ import { NotificationPreferences } from "@/components/features/notification-pref
 // import { NotificationsPanel } from "@/components/features/notifications-panel";
 // TODO: collect the user's ZIP code (for area-scoped digests) — not yet.
 
-export const metadata = { title: "Settings · VendGuard" };
+export const metadata = { title: "Settings · CartLedger" };
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
@@ -65,7 +65,7 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Legal</CardTitle>
           <CardDescription>
-            Policies that govern your use of VendGuard.
+            Policies that govern your use of CartLedger.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2 text-sm">

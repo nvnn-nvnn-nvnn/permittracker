@@ -27,14 +27,14 @@ export function buildDigestEmail(args: {
     "",
     ...items.map((i) => `• ${i.j}: ${i.title}\n  ${i.firstLine}`),
     "",
-    `Read it in VendGuard: ${args.appUrl}/digest`,
+    `Read it in CartLedger: ${args.appUrl}/digest`,
     "",
     "General guidance only — not legal advice.",
   ].join("\n");
 
   const html = `
   <div style="font-family:ui-sans-serif,system-ui,Arial,sans-serif;max-width:520px;margin:0 auto;color:#231a12">
-    <p style="font-size:13px;color:#b4541f;font-weight:600;margin:0 0 4px">VendGuard</p>
+    <p style="font-size:13px;color:#b4541f;font-weight:600;margin:0 0 4px">CartLedger</p>
     <h1 style="font-size:19px;margin:0 0 14px">Inspection-prep digest · ${label}</h1>
     ${items
       .map(

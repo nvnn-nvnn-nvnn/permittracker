@@ -11,7 +11,7 @@ import {
   MagicLinkForm,
 } from "@/components/features/auth-forms";
 
-export const metadata = { title: "Sign in · VendGuard" };
+export const metadata = { title: "Sign in · CartLedger" };
 
 export default function LoginPage() {
   return (

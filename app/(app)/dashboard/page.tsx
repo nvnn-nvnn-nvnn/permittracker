@@ -16,7 +16,7 @@ import { EVENT_STATUS_META } from "@/lib/events";
 
 import {serverApi} from "@/lib/trpc/server";
 
-export const metadata = { title: "Dashboard · VendGuard" };
+export const metadata = { title: "Dashboard · CartLedger" };
 export const dynamic = "force-dynamic";
 
 const STATUS = {
@@ -139,7 +139,7 @@ export default async function DashboardPage() {
               Email reminders are turned off
             </p>
             <p className="text-muted-foreground">
-              VendGuard won&apos;t email you before a permit, inspection, cert,
+              CartLedger won&apos;t email you before a permit, inspection, cert,
               or COI expires. Turn reminders back on in{" "}
               <Link
                 href="/settings"

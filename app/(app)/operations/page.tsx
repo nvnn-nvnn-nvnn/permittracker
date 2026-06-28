@@ -16,10 +16,11 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SquareSync } from "@/components/features/square-sync";
 import { OpsLineChart } from "@/components/features/ops-line-chart";
+import { FoodCostExplainer } from "@/components/features/food-cost-explainer";
 import { fmtMoneyCents, fmtDate } from "@/lib/format";
 import type { PnlGranularity } from "@/lib/ops/pnl";
 
-export const metadata = { title: "Operations · VendGuard" };
+export const metadata = { title: "Operations · CartLedger" };
 export const dynamic = "force-dynamic";
 
 const GRANULARITIES: { key: PnlGranularity; label: string; noun: string }[] = [
@@ -82,7 +83,7 @@ export default async function OperationsPage({
     api.inventory.summary(),
     api.expenses.summary({ days: 30 }),
     api.ops.itemSales({ days: 30 }),
-    api.ops.actualCogs(),
+    api.ops.actualCogs({ truckId: selectedTruckId }),
     api.truck.statusList(),
   ]);
 
@@ -327,6 +328,8 @@ export default async function OperationsPage({
               </div>
             </CardContent>
           </Card>
+
+          <FoodCostExplainer />
 
           {/* Actual food cost */}
           {actualCogs.available && (

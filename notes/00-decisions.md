@@ -32,6 +32,21 @@ These were confirmed with the owner before any code was written.
 
 ## Data-model scope decisions (not stack deviations)
 
+- **2026-06-26 — Rebrand: public brand is now "CartLedger" (was VendGuard).**
+  Find/replaced brand strings across app/components/lib/notes; logo swapped to
+  `app/assets/cartledger full svg.svg` in `components/brand/logo.tsx` (old
+  Vendguard SVGs left on disk, unreferenced). Repo codename stays "PermitKeep".
+  Internal identifiers unchanged (e.g., Stripe `permitkeep_*` price lookup keys,
+  the `permitkeep.actor_id` audit GUC) — not user-facing, renaming would break
+  resolution.
+
+- **Possible future option (NOT built): offline / PWA mode.** Today the app is
+  online-only (cloud DB; income pulled from Square's API). Offline *sales
+  capture* is Square's job (Tier B, rejected). A separate, deliberate "make
+  CartLedger itself usable with no signal" feature (PWA + local cache/queue for
+  e.g. logging an expense or viewing inventory offline) could be built later —
+  it's real work and its own decision, not current behaviour.
+
 - **2026-06-26 — Per-truck operations (multi-truck P&L + inventory).** Ops
   pillar was account-wide only; making it per-truck to match compliance (which
   is already per-truck via `holder_truck_id`). Owner decisions:
@@ -426,8 +441,8 @@ These are local dev-environment / Claude Code settings, not product decisions.
 - **Sentry event routing = DSN's project, not `SENTRY_PROJECT` (2026-06-03).**
   Events land in whichever project **owns the DSN**; `SENTRY_PROJECT` only
   controls build-time source-map upload. Cost us debugging time once (a stray
-  `javascript-nextjs` project's DSN vs. the dashboard open on `vendguard`).
-  Live project is **`vendguard`** (org + project both `vendguard`); the
+  `javascript-nextjs` project's DSN vs. the dashboard open on `cartledger`).
+  Live project is **`cartledger`** (org + project both `cartledger`); the
   `NEXT_PUBLIC_SENTRY_DSN`/`SENTRY_DSN` in env must be that project's DSN. If
   "events aren't showing up": confirm the DSN's project matches the dashboard
   view (env=All, last 24h), and remember client events can be silently dropped

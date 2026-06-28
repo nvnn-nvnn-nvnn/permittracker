@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { QuickBooksExport } from "@/components/features/quickbooks-export";
 
-export const metadata = { title: "QuickBooks export · VendGuard" };
+export const metadata = { title: "QuickBooks export · CartLedger" };
 export const dynamic = "force-dynamic";
 
 export default async function QuickBooksExportPage() {

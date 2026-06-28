@@ -18,6 +18,7 @@ import {
 import { periodPnl } from "@/lib/ops/pnl";
 import { menuAnalysis } from "@/lib/ops/menu";
 import { buildFinancialCsv } from "@/lib/ops/export";
+import { applyUsageDepletion } from "@/lib/ops/depletion";
 import { isQuickBooksConfigured } from "@/lib/quickbooks";
 
 /**
@@ -116,53 +117,78 @@ export const opsRouter = createTRPCRouter({
    * opening value + purchases received − closing value. Captures real
    * consumption incl. waste/shrink (vs. the P&L's lumpy purchases proxy).
    */
-  actualCogs: opsProcedure.query(async ({ ctx }) => {
-    const counts = await getDb()
-      .select({
-        countedOn: inventoryCount.countedOn,
-        totalValueCents: inventoryCount.totalValueCents,
-      })
-      .from(inventoryCount)
-      .where(eq(inventoryCount.accountId, ctx.account.accountId))
-      .orderBy(desc(inventoryCount.countedOn), desc(inventoryCount.createdAt))
-      .limit(2);
+  actualCogs: opsProcedure
+    .input(z.object({ truckId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const truckId = input?.truckId;
+      // Actual COGS is only meaningful per truck (counts are per-truck).
+      if (!truckId) return { available: false as const, reason: "select_truck" as const };
 
-    const [closing, opening] = counts;
-    if (!closing || !opening) return { available: false as const };
+      const counts = await getDb()
+        .select({
+          countedOn: inventoryCount.countedOn,
+          totalValueCents: inventoryCount.totalValueCents,
+        })
+        .from(inventoryCount)
+        .where(
+          and(
+            eq(inventoryCount.accountId, ctx.account.accountId),
+            eq(inventoryCount.truckId, truckId),
+          ),
+        )
+        .orderBy(desc(inventoryCount.countedOn), desc(inventoryCount.createdAt))
+        .limit(2);
 
-    // Purchases received in (opening day .. closing day inclusive).
-    const endExclusive = new Date(closing.countedOn);
-    endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
-    const [p] = await getDb()
-      .select({
-        total: sql<number>`coalesce(round(sum(${purchaseOrderItem.qty} * ${purchaseOrderItem.unitCostCents}))::int, 0)`,
-      })
-      .from(purchaseOrder)
-      .leftJoin(
-        purchaseOrderItem,
-        eq(purchaseOrderItem.purchaseOrderId, purchaseOrder.id),
-      )
-      .where(
-        and(
-          eq(purchaseOrder.accountId, ctx.account.accountId),
-          eq(purchaseOrder.status, "received"),
-          gte(purchaseOrder.receivedAt, opening.countedOn),
-          lt(purchaseOrder.receivedAt, endExclusive),
-        ),
-      );
+      const [closing, opening] = counts;
+      if (!closing || !opening)
+        return { available: false as const, reason: "need_counts" as const };
 
-    const purchasesCents = Number(p?.total ?? 0);
-    const cogsCents =
-      opening.totalValueCents + purchasesCents - closing.totalValueCents;
-    return {
-      available: true as const,
-      openingValueCents: opening.totalValueCents,
-      closingValueCents: closing.totalValueCents,
-      purchasesCents,
-      cogsCents,
-      periodStart: opening.countedOn,
-      periodEnd: closing.countedOn,
-    };
+      // Purchases received in (opening day .. closing day inclusive).
+      const endExclusive = new Date(closing.countedOn);
+      endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+      const [p] = await getDb()
+        .select({
+          total: sql<number>`coalesce(round(sum(${purchaseOrderItem.qty} * ${purchaseOrderItem.unitCostCents}))::int, 0)`,
+        })
+        .from(purchaseOrder)
+        .leftJoin(
+          purchaseOrderItem,
+          eq(purchaseOrderItem.purchaseOrderId, purchaseOrder.id),
+        )
+        .where(
+          and(
+            eq(purchaseOrder.accountId, ctx.account.accountId),
+            eq(purchaseOrder.truckId, truckId),
+            eq(purchaseOrder.status, "received"),
+            gte(purchaseOrder.receivedAt, opening.countedOn),
+            lt(purchaseOrder.receivedAt, endExclusive),
+          ),
+        );
+
+      const purchasesCents = Number(p?.total ?? 0);
+      const cogsCents =
+        opening.totalValueCents + purchasesCents - closing.totalValueCents;
+      return {
+        available: true as const,
+        openingValueCents: opening.totalValueCents,
+        closingValueCents: closing.totalValueCents,
+        purchasesCents,
+        cogsCents,
+        periodStart: opening.countedOn,
+        periodEnd: closing.countedOn,
+      };
+    }),
+
+  /**
+   * Recompute inventory usage/depletion from existing sales × recipes for the
+   * last 90 days — without re-pulling Square. Idempotent (delta reconcile);
+   * useful after adding/editing recipes so usage reflects them immediately.
+   */
+  recomputeUsage: opsProcedure.mutation(async ({ ctx }) => {
+    const end = new Date();
+    const start = new Date();
+    start.setUTCDate(start.getUTCDate() - 90);
+    return applyUsageDepletion(ctx.account.accountId, start, end);
   }),
 
   /** Whether live QuickBooks sync is configured (vs. CSV-export only). */

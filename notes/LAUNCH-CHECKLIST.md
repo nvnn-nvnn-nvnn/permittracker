@@ -150,7 +150,7 @@ Use **separate** prod keys — never reuse dev. All flow through
       deletion_log` 0019), admin Danger-zone UI, tested. Path defined in
       `notes/data-deletion-process.md` (30-day SLA, platform-admin only, 3yr
       ledger). **Pre-launch:** reconcile intake email (runbook placeholder
-      `raysarchive@proton.me` vs Privacy Policy `privacy@vendguard.app`).
+      `raysarchive@proton.me` vs Privacy Policy `privacy@cartledger.app`).
 - [—] SMS opt-in language: deferred at launch with Twilio (see §1).
       Required once A2P 10DLC is approved and SMS reminders go live.
       Adjust the UI, and fix the dashboard , seperate items checklist for each distinct item. 

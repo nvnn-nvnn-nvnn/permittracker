@@ -1,6 +1,6 @@
 import { ExpenseForm } from "@/components/features/expense-form";
 
-export const metadata = { title: "Add expense · VendGuard" };
+export const metadata = { title: "Add expense · CartLedger" };
 
 export default function NewExpensePage() {
   return (

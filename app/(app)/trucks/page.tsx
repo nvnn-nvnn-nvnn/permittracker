@@ -5,7 +5,7 @@ import { computeAccountStatus } from "@/lib/status";
 import { buttonVariants } from "@/components/ui/button";
 import { TruckRollup } from "@/components/features/truck-rollup";
 
-export const metadata = { title: "Trucks · VendGuard" };
+export const metadata = { title: "Trucks · CartLedger" };
 export const dynamic = "force-dynamic";
 
 export default async function TrucksPage() {

@@ -11,7 +11,7 @@ import {
 import { fmtMoneyCents, fmtDate } from "@/lib/format";
 import { TruckScopeTabs } from "@/components/features/truck-scope-tabs";
 
-export const metadata = { title: "Inventory counts · VendGuard" };
+export const metadata = { title: "Inventory counts · CartLedger" };
 export const dynamic = "force-dynamic";
 
 export default async function InventoryCountsPage({
@@ -25,7 +25,7 @@ export default async function InventoryCountsPage({
   const truckId = trucks.some((t) => t.id === truck) ? truck : undefined;
   const [counts, actual] = await Promise.all([
     api.inventory.listCounts({ truckId }),
-    api.ops.actualCogs(),
+    api.ops.actualCogs({ truckId }),
   ]);
 
   return (
@@ -53,24 +53,37 @@ export default async function InventoryCountsPage({
         selectedTruckId={truckId}
       />
 
-      {actual.available && (
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Actual food cost · {fmtDate(actual.periodStart)} –{" "}
-              {fmtDate(actual.periodEnd)}
+      {/* Actual food cost (#3) — always shown so it's discoverable, with a
+          clear reason when it can't be computed yet. */}
+      <Card>
+        <CardContent className="p-5">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Actual food cost
+            {actual.available
+              ? ` · ${fmtDate(actual.periodStart)} – ${fmtDate(actual.periodEnd)}`
+              : ""}
+          </p>
+          {actual.available ? (
+            <>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">
+                {fmtMoneyCents(actual.cogsCents)}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Opening {fmtMoneyCents(actual.openingValueCents)} + purchases{" "}
+                {fmtMoneyCents(actual.purchasesCents)} − closing{" "}
+                {fmtMoneyCents(actual.closingValueCents)}. This is the true
+                figure — it includes waste &amp; shrink.
+              </p>
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {actual.reason === "select_truck"
+                ? "Pick a single truck above to see its actual food cost."
+                : "Take 2 counts for this truck and we'll compute actual food cost = opening inventory + purchases received − closing inventory (the gap vs. theoretical usage is your shrink)."}
             </p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">
-              {fmtMoneyCents(actual.cogsCents)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Opening {fmtMoneyCents(actual.openingValueCents)} + purchases{" "}
-              {fmtMoneyCents(actual.purchasesCents)} − closing{" "}
-              {fmtMoneyCents(actual.closingValueCents)}. Includes waste/shrink.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       {counts.length === 0 ? (
         <Card>

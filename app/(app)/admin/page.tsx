@@ -7,7 +7,7 @@ import { AdminQueue } from "@/components/features/admin-queue";
 import { DigestAdmin } from "@/components/features/digest-admin";
 import { AccountDangerZone } from "@/components/features/account-danger-zone";
 
-export const metadata = { title: "Admin · VendGuard" };
+export const metadata = { title: "Admin · CartLedger" };
 export const dynamic = "force-dynamic";
 
 function usd(microUsd: number): string {

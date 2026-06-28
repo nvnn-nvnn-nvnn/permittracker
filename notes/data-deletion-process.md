@@ -1,4 +1,4 @@
-# VendGuard — Data Deletion & Account Closure Runbook
+# CartLedger — Data Deletion & Account Closure Runbook
 
 Internal operating procedure for fulfilling data-deletion / account-closure
 requests (GDPR Art. 17 "right to erasure" and CCPA "right to delete"). This is

@@ -1,7 +1,7 @@
 import { serverApi } from "@/lib/trpc/server";
 import { PersonForm } from "@/components/features/person-form";
 
-export const metadata = { title: "Add person · VendGuard" };
+export const metadata = { title: "Add person · CartLedger" };
 export const dynamic = "force-dynamic";
 
 export default async function NewPersonPage() {

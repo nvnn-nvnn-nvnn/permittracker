@@ -55,7 +55,7 @@ export function NotificationPreferences({ email }: { email: string }) {
         <CardHeader>
           <CardTitle>Notification preferences</CardTitle>
           <CardDescription>
-            Choose how VendGuard reaches you before a permit, inspection, cert,
+            Choose how CartLedger reaches you before a permit, inspection, cert,
             or COI expires.
           </CardDescription>
         </CardHeader>
@@ -64,7 +64,7 @@ export function NotificationPreferences({ email }: { email: string }) {
             <p className="flex items-start gap-2 rounded-lg border border-status-red/40 bg-status-red/5 px-3 py-2 text-status-red">
               <TriangleAlert className="mt-0.5 size-4 shrink-0" />
               <span>
-                All reminders are off. VendGuard won&apos;t warn you before
+                All reminders are off. CartLedger won&apos;t warn you before
                 anything expires — you&apos;ll have to track every date
                 yourself.
               </span>
@@ -232,7 +232,7 @@ function TurnOffWarningModal({
               Turn off all reminders?
             </h2>
             <p id="notif-warn-desc" className="text-sm text-muted-foreground">
-              With email and SMS both off, VendGuard can&apos;t warn you before
+              With email and SMS both off, CartLedger can&apos;t warn you before
               a permit, inspection, cert, or COI expires — and a lapse can force
               you to stop operating. You&apos;ll have to track every date
               yourself.

@@ -37,7 +37,7 @@ const serverSchema = z.object({
   // Sender for outbound email. Resend's shared test sender only delivers to
   // the Resend account owner — fine for dev. Real sending needs a verified
   // domain address here.
-  EMAIL_FROM: z.string().min(1).default("VendGuard <onboarding@resend.dev>"),
+  EMAIL_FROM: z.string().min(1).default("CartLedger <onboarding@resend.dev>"),
   POSTMARK_SERVER_TOKEN: z.string().optional(),
   POSTMARK_INBOUND_SECRET: z.string().optional(),
   TWILIO_ACCOUNT_SID: z.string().optional(),

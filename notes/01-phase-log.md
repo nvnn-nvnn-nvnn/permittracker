@@ -611,10 +611,10 @@ confirming the server SDK captures and transmits. Test routes deleted after.
 **Gotcha worth remembering:** events go to the project that **owns the DSN** —
 `SENTRY_PROJECT` only controls source-map upload, not event routing. We burned
 time because an early DSN belonged to a stray `javascript-nextjs` project while
-the dashboard was open on `vendguard`; events were landing fine, just invisible
+the dashboard was open on `cartledger`; events were landing fine, just invisible
 in the wrong project view. Fix was swapping `NEXT_PUBLIC_SENTRY_DSN`/`SENTRY_DSN`
-to the `vendguard` project's DSN. Also: client events can be silently eaten by
-ad-blockers — server-side tests bypass that. Org/project are both `vendguard`.
+to the `cartledger` project's DSN. Also: client events can be silently eaten by
+ad-blockers — server-side tests bypass that. Org/project are both `cartledger`.
 
 **Still open in §5:** PostHog (same PII-exclusion rule), `/admin` + webhook-5xx
 alerts, uptime checks on `/` and `/api/inngest`. See `LAUNCH-CHECKLIST.md`.
@@ -781,15 +781,15 @@ forwards `initialType`/`initialSubtype` to the manual `ItemForm` branch only.)
 
 Reminders weren't arriving — root cause was Resend, not the pipeline (matches
 the "Resend dev sender" caveat in `00-decisions.md`). Fix: verified the
-`vendguard.app` sending domain in Resend and set `EMAIL_FROM=VendGuard
-<reminders@vendguard.app>` (a real address on the verified domain, replacing
+`cartledger.app` sending domain in Resend and set `EMAIL_FROM=CartLedger
+<reminders@cartledger.app>` (a real address on the verified domain, replacing
 the default `onboarding@resend.dev` which only mails the Resend account owner).
 Gotcha worth remembering: the email adapter + `serverEnv()` are **memoized**,
 so changing `EMAIL_FROM`/`RESEND_API_KEY` needs a **dev-server restart** to
 take effect. Diagnostic order that works: dev terminal (`[email:stub]` = no
 key loaded), `/admin` dispatch status (sent/failed), Resend → Emails log
 (delivered/bounced). Unblocks §6 Reminders QA. Also began the PermitKeep →
-**VendGuard** rebrand (email/SMS/voice copy in `lib/reminders/`,
+**CartLedger** rebrand (email/SMS/voice copy in `lib/reminders/`,
 `lib/digest/email.ts`; `EMAIL_FROM`); Stripe product names + dashboard still
 to do for a full rebrand.
 
@@ -815,12 +815,12 @@ or `digestsForAccount` returns empty → `emailed: 0`. Digest content is
 **Claude-authored, stored in `jurisdiction_digest`**, idempotent per
 (jurisdiction, period) — re-runs reuse rows; only the email *shell*
 (`lib/digest/email.ts`) is rebuilt per send. Two gotchas worth keeping:
-(1) **Gmail spam** — new domain `vendguard.app` landed digest/reminder mail in
+(1) **Gmail spam** — new domain `cartledger.app` landed digest/reminder mail in
 Gmail spam while Proton inboxed it and Resend showed "delivered" ("delivered" =
 recipient server accepted, not inboxed). Fix = add a **DMARC** TXT record
 (`_dmarc`, `v=DMARC1; p=none; rua=…`) on top of Resend's SPF/DKIM; Gmail's 2024
 rules want all three. (2) **Sent email = frozen snapshot** — a brand/template
-edit (PermitKeep→VendGuard) only shows on *new* sends; old inbox copies never
+edit (PermitKeep→CartLedger) only shows on *new* sends; old inbox copies never
 change. §6 now complete except the deferred SMS/voice/inbound items.
 
 ### 2026-06-10 — Stripe webhook signature-verification tests
@@ -964,7 +964,7 @@ intake email, who's authorized, ledger retention) — this is the checklist §8
 `notes/data-deletion-process.md` written. Policy locked: **30-day SLA**,
 **platform-admin-only** execution, **3-year** `account_deletion_log` retention.
 Intake email is a **placeholder** (`raysarchive@proton.me`) that must be
-reconciled with the Privacy Policy's `privacy@vendguard.app` before launch.
+reconciled with the Privacy Policy's `privacy@cartledger.app` before launch.
 Runbook covers scope/legal basis, intake, identity verification, what's
 deleted vs retained (+basis: ledger 3yr, Stripe invoices for tax, backups age
 out), processor propagation, the /admin Danger-zone execution steps,
@@ -1126,7 +1126,7 @@ newline) was fixed; both on their own lines now.
 Filled every bracketed placeholder in `components/legal/privacy-policy.tsx` and
 `terms-of-service.tsx`. **Effective / Last-updated → May 15, 2026** (both, incl.
 the Terms' closing "effective as of" line). Standardized the contact email to
-`raysarchive@proton.me` (Terms had a stale `legal@vendguard.app`; now matches the
+`raysarchive@proton.me` (Terms had a stale `legal@cartledger.app`; now matches the
 Privacy + contact pages). Removed the `[Your Business Address]` line from both
 (email-only) rather than invent an address. Privacy retention → "within 90 days";
 Terms liability cap → "twelve (12) months"; Terms governing law → **Minnesota**
@@ -1157,7 +1157,7 @@ New `components/features/dashboard-onboarding.tsx`, rendered from
 `trucks.length === 0 && result.items.length === 0` (brand-new account = nothing
 tracked). 3-step vertical walkthrough enforcing the **truck-first model**:
 (1) Create your first truck — the ONLY live CTA (primary, → `/trucks/new`,
-ring-highlighted); (2) Add compliance items; (3) Let VendGuard watch the dates.
+ring-highlighted); (2) Add compliance items; (3) Let CartLedger watch the dates.
 Steps 2–3 are intentionally non-actionable (muted) because items can't exist
 without a parent truck — visually funnels the new user to create the truck first.
 All new/changed files pass tsc + eslint (pre-existing `token.test.ts` tsc error
@@ -1173,7 +1173,7 @@ specific metros so the product reads location-agnostic:
   (truck-form, item-form, digest/run, the `Jurisdiction` type).
 - Genericized: truck-form jurisdiction placeholder, the notifications-panel demo
   notice, and the AI extraction schema example → "City Health Department".
-- Terms §13 governing law: "State of Minnesota" → "the state in which VendGuard
+- Terms §13 governing law: "State of Minnesota" → "the state in which CartLedger
   is established" (venue clause kept, no named state).
 - **Left alone (flagged to user):** internal notes — `00-decisions.md` still
   records "Launch metro: Twin Cities, MN" as a binding decision, plus phase logs

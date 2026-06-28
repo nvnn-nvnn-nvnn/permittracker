@@ -9,7 +9,7 @@ import {
 import { ResetPasswordForm } from "@/components/features/auth-forms";
 import { createSupabaseServerClient } from "@/lib/auth/server";
 
-export const metadata = { title: "Set a new password · VendGuard" };
+export const metadata = { title: "Set a new password · CartLedger" };
 
 export default async function ResetPasswordPage() {
   const supabase = await createSupabaseServerClient();

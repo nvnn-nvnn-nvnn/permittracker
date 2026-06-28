@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VendGuard — Stay open. Stay profitable.",
+  title: "CartLedger — Stay open. Stay profitable.",
   description:
     "The operating system for food trucks. Track the permits and COIs that can shut you down, and turn your Square sales into inventory, food cost, and a weekly P&L.",
 };

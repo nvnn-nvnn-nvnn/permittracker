@@ -11,7 +11,7 @@ import {
 import { REINSPECTION_META } from "@/lib/modifications";
 import { fmtDate } from "@/lib/format";
 
-export const metadata = { title: "Truck change log · VendGuard" };
+export const metadata = { title: "Truck change log · CartLedger" };
 export const dynamic = "force-dynamic";
 
 export default async function ModificationsPage() {

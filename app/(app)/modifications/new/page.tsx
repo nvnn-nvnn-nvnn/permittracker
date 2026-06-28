@@ -1,6 +1,6 @@
 import { ModificationForm } from "@/components/features/modification-form";
 
-export const metadata = { title: "Log a change · VendGuard" };
+export const metadata = { title: "Log a change · CartLedger" };
 
 export default async function NewModificationPage({
   searchParams,

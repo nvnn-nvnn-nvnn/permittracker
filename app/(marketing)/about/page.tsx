@@ -6,9 +6,9 @@ import foodtruckCta from "@/app/assets/foodtruck-4.jpg";
 
 
 export const metadata = {
-  title: "About · VendGuard",
+  title: "About · CartLedger",
   description:
-    "Why VendGuard exists: keeping mobile food operators open by making compliance impossible to forget.",
+    "Why CartLedger exists: keeping mobile food operators open by making compliance impossible to forget.",
 };
 
 
@@ -60,7 +60,7 @@ export default function AboutPage() {
 
 
           <p>
-            VendGuard pulls your information into one place and makes sure a deadline never sneaks up on you again.
+            CartLedger pulls your information into one place and makes sure a deadline never sneaks up on you again.
           </p>
 
 
@@ -102,7 +102,7 @@ export default function AboutPage() {
             <p>
               Big-business compliance software is overkill and overpriced for a
               one-to-ten-truck operation. So operators end up with spreadsheets
-              and calendar reminders that quietly fall out of date. VendGuard is
+              and calendar reminders that quietly fall out of date. CartLedger is
               purpose-built for that gap: simple enough to set up in an
               afternoon, and thorough enough that nothing slips through.
             </p>

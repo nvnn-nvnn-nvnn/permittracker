@@ -16,7 +16,7 @@ const STEPS = [
   },
   {
     icon: BellRing,
-    title: "Let VendGuard watch the dates",
+    title: "Let CartLedger watch the dates",
     body: "We track every deadline and remind you by email — plus SMS and voice on eligible plans — before anything can shut you down.",
   },
 ];
@@ -36,7 +36,7 @@ export function DashboardOnboarding({ name }: { name?: string }) {
           Let&apos;s get you set up
         </span>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Welcome to VendGuard{name ? `, ${name}` : ""}
+          Welcome to CartLedger{name ? `, ${name}` : ""}
         </h1>
         <p className="text-pretty text-sm text-muted-foreground">
           Three quick steps and you&apos;ll never get blindsided by an expired

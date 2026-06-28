@@ -9,8 +9,9 @@ import {
 } from "@/components/ui/card";
 import { fmtMoneyCents } from "@/lib/format";
 import { TruckScopeTabs } from "@/components/features/truck-scope-tabs";
+import { RecomputeUsageButton } from "@/components/features/recompute-usage-button";
 
-export const metadata = { title: "Inventory usage · VendGuard" };
+export const metadata = { title: "Inventory usage · CartLedger" };
 export const dynamic = "force-dynamic";
 
 export default async function InventoryUsagePage({
@@ -26,14 +27,18 @@ export default async function InventoryUsagePage({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Inventory usage
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Theoretical ingredient usage from Square sales × recipes (last 30
-          days). This is what auto-deducts from on-hand on each sync.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Inventory usage
+          </h1>
+          <p className="max-w-xl text-sm text-muted-foreground">
+            Theoretical ingredient usage from Square sales × recipes (last 30
+            days). Auto-deducts from on-hand on each sync — or hit Recompute
+            after adding/editing recipes.
+          </p>
+        </div>
+        <RecomputeUsageButton />
       </div>
 
       <TruckScopeTabs
@@ -47,9 +52,14 @@ export default async function InventoryUsagePage({
           <CardHeader>
             <CardTitle>No usage tracked yet</CardTitle>
             <CardDescription>
-              Usage appears once you (1) sync Square sales and (2) have recipes
-              whose names match your Square menu items. Items rung up as typed
-              dollar amounts (no line item) can&apos;t be tracked.
+              Usage appears once you (1) have Square sales and (2) have recipes
+              whose names match your Square menu items.{" "}
+              <strong>
+                If you added recipes after your last sync, click “Recompute
+                usage” above
+              </strong>{" "}
+              — it deducts now without re-pulling Square. (Items rung up as typed
+              dollar amounts have no line item and can&apos;t be tracked.)
             </CardDescription>
           </CardHeader>
         </Card>

@@ -10,7 +10,7 @@ import {
 import { ItemsChecklist } from "@/components/features/items-checklist";
 import { ItemsByType } from "@/components/features/items-by-type";
 
-export const metadata = { title: "Compliance items · VendGuard" };
+export const metadata = { title: "Compliance items · CartLedger" };
 export const dynamic = "force-dynamic";
 
 export default async function ItemsPage() {
