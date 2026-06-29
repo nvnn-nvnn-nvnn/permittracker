@@ -1,9 +1,10 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plug, RefreshCw, Loader2, CheckCircle2 } from "lucide-react";
+import { Plug, RefreshCw, Loader2, CheckCircle2, MapPin } from "lucide-react";
 import { trpc } from "@/lib/trpc/react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate } from "@/lib/format";
 
@@ -12,6 +13,9 @@ export interface SquareSummaryView {
   lastSyncedAt: Date | string | null;
   everConnected: boolean;
   isSquareConfigured: boolean;
+  oauthConfigured: boolean;
+  oauthConnected: boolean;
+  merchantId: string | null;
 }
 
 export function SquareSync({ summary }: { summary: SquareSummaryView }) {
@@ -31,6 +35,11 @@ export function SquareSync({ summary }: { summary: SquareSummaryView }) {
 
   const busy = sync.isPending || disconnect.isPending;
   const connected = summary.connectedCount > 0;
+  // Needs the OAuth hand-off (app configured, but this account hasn't linked).
+  const needsConnect = summary.oauthConfigured && !summary.oauthConnected;
+  // Pure demo: no OAuth app and no static token.
+  const demo = !summary.oauthConfigured && !summary.isSquareConfigured;
+  const live = summary.oauthConnected || summary.isSquareConfigured;
 
   return (
     <div className="space-y-3">
@@ -42,7 +51,11 @@ export function SquareSync({ summary }: { summary: SquareSummaryView }) {
           <div>
             <p className="flex items-center gap-2 text-sm font-medium">
               Square
-              {connected ? (
+              {summary.oauthConnected ? (
+                <Badge variant="green" className="gap-1">
+                  <CheckCircle2 className="size-3" /> Connected
+                </Badge>
+              ) : connected ? (
                 <Badge variant="green" className="gap-1">
                   <CheckCircle2 className="size-3" /> {summary.connectedCount}{" "}
                   truck{summary.connectedCount === 1 ? "" : "s"}
@@ -50,34 +63,53 @@ export function SquareSync({ summary }: { summary: SquareSummaryView }) {
               ) : (
                 <Badge variant="outline">Not connected</Badge>
               )}
-              {!summary.isSquareConfigured && (
+              {demo && (
                 <Badge variant="outline" className="text-muted-foreground">
                   demo data
                 </Badge>
               )}
             </p>
             <p className="text-xs text-muted-foreground">
-              {connected
-                ? `Last synced ${fmtDate(summary.lastSyncedAt)} · each active truck syncs its own sales`
-                : summary.isSquareConfigured
-                  ? "Pull sales for each active truck to see per-truck performance."
-                  : "No Square token set — syncing loads sample sales per truck so you can preview."}
+              {needsConnect
+                ? "Connect your Square account, then map each location to a truck."
+                : connected
+                  ? `Last synced ${fmtDate(summary.lastSyncedAt)}${live ? " · map locations to assign trucks" : ""}`
+                  : demo
+                    ? "No Square account linked — sync loads sample sales per truck so you can preview."
+                    : "Map a Square location to each truck, then sync its sales."}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={() => sync.mutate({})} disabled={busy}>
-            {sync.isPending ? (
-              <Loader2 className="animate-spin" />
-            ) : connected ? (
-              <RefreshCw />
-            ) : (
-              <Plug />
-            )}
-            {connected ? "Sync now" : "Connect Square"}
-          </Button>
-          {connected && (
+          {needsConnect ? (
+            <a
+              href="/api/square/connect"
+              className={buttonVariants({ size: "sm" })}
+            >
+              <Plug /> Connect Square
+            </a>
+          ) : (
+            <Button size="sm" onClick={() => sync.mutate({})} disabled={busy}>
+              {sync.isPending ? (
+                <Loader2 className="animate-spin" />
+              ) : connected ? (
+                <RefreshCw />
+              ) : (
+                <Plug />
+              )}
+              {connected ? "Sync now" : demo ? "Load demo data" : "Sync now"}
+            </Button>
+          )}
+          {live && (
+            <Link
+              href="/operations/square"
+              className={buttonVariants({ size: "sm", variant: "outline" })}
+            >
+              <MapPin /> Locations
+            </Link>
+          )}
+          {(connected || summary.oauthConnected) && (
             <Button
               size="sm"
               variant="ghost"
@@ -94,7 +126,11 @@ export function SquareSync({ summary }: { summary: SquareSummaryView }) {
       {sync.isSuccess && !error && (
         <p className="text-xs text-muted-foreground">
           Synced {sync.data.trucksSynced} truck
-          {sync.data.trucksSynced === 1 ? "" : "s"}.
+          {sync.data.trucksSynced === 1 ? "" : "s"}
+          {sync.data.mode === "stub" ? " (demo data)" : ""}.
+          {sync.data.usageDeferred
+            ? " Sales saved, but inventory usage didn't update — hit “Recompute usage” to retry."
+            : ""}
         </p>
       )}
     </div>

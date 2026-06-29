@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, opsProcedure } from "@/lib/trpc/trpc";
 import { getDb } from "@/lib/db";
@@ -8,13 +8,26 @@ import {
   purchaseOrder,
   purchaseOrderItem,
   salesItemDay,
+  squareConnection,
+  truck,
 } from "@/lib/db/schema";
-import { isSquareConfigured } from "@/lib/square";
 import {
+  isSquareConfigured,
+  squareAdapterForToken,
+} from "@/lib/square";
+import {
+  assignTruckLocation,
   disconnectSquare,
   getSquareSummary,
   syncSquareSales,
 } from "@/lib/square/sync";
+import {
+  deleteSquareOauth,
+  getFreshSquareToken,
+  getSquareOauthStatus,
+  isSquareOAuthConfigured,
+} from "@/lib/square/oauth";
+import { serverEnv } from "@/lib/env";
 import { periodPnl } from "@/lib/ops/pnl";
 import { menuAnalysis } from "@/lib/ops/menu";
 import { buildFinancialCsv } from "@/lib/ops/export";
@@ -26,11 +39,90 @@ import { isQuickBooksConfigured } from "@/lib/quickbooks";
  * from the session — never from client input.
  */
 export const opsRouter = createTRPCRouter({
-  /** Account Square summary (connected truck count + last sync). */
+  /** Account Square summary: per-truck connections + OAuth status. */
   connection: opsProcedure.query(async ({ ctx }) => {
-    const summary = await getSquareSummary(ctx.account.accountId);
-    return { ...summary, isSquareConfigured: isSquareConfigured() };
+    const [summary, oauth] = await Promise.all([
+      getSquareSummary(ctx.account.accountId),
+      getSquareOauthStatus(ctx.account.accountId),
+    ]);
+    return {
+      ...summary,
+      // "configured" = a way to pull real data exists (OAuth app or static token)
+      isSquareConfigured: isSquareConfigured() || isSquareOAuthConfigured(),
+      oauthConfigured: isSquareOAuthConfigured(),
+      oauthConnected: oauth.connected,
+      merchantId: oauth.merchantId,
+    };
   }),
+
+  /** Live Square locations on the connected merchant (for the picker). */
+  squareLocations: opsProcedure.query(async ({ ctx }) => {
+    const live = await getFreshSquareToken(ctx.account.accountId);
+    const env = serverEnv();
+    const token = live?.accessToken ?? env.SQUARE_ACCESS_TOKEN;
+    if (!token) return [];
+    const adapter = squareAdapterForToken(
+      token,
+      live?.environment ?? env.SQUARE_ENVIRONMENT,
+    );
+    try {
+      return await adapter.listLocations();
+    } catch {
+      return [];
+    }
+  }),
+
+  /** Current truck → Square location mapping (for the picker). */
+  truckLocations: opsProcedure.query(async ({ ctx }) => {
+    return getDb()
+      .select({
+        truckId: truck.id,
+        truckName: truck.name,
+        locationId: squareConnection.locationId,
+        locationName: squareConnection.locationName,
+      })
+      .from(truck)
+      .leftJoin(squareConnection, eq(squareConnection.truckId, truck.id))
+      .where(
+        and(
+          eq(truck.accountId, ctx.account.accountId),
+          isNull(truck.archivedAt),
+        ),
+      )
+      .orderBy(asc(truck.name));
+  }),
+
+  /** Assign a Square location to a truck (the location→truck picker). */
+  assignLocation: opsProcedure
+    .input(
+      z.object({
+        truckId: z.string().uuid(),
+        locationId: z.string().min(1),
+        locationName: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [owned] = await getDb()
+        .select({ id: truck.id })
+        .from(truck)
+        .where(
+          and(
+            eq(truck.id, input.truckId),
+            eq(truck.accountId, ctx.account.accountId),
+          ),
+        )
+        .limit(1);
+      if (!owned) throw new TRPCError({ code: "NOT_FOUND" });
+      const { merchantId } = await getSquareOauthStatus(ctx.account.accountId);
+      await assignTruckLocation(
+        ctx.account.accountId,
+        input.truckId,
+        input.locationId,
+        input.locationName,
+        merchantId,
+      );
+      return { ok: true };
+    }),
 
   /** Connect (first sync) or refresh: pulls daily sales and upserts them. */
   sync: opsProcedure
@@ -52,9 +144,11 @@ export const opsRouter = createTRPCRouter({
       }
     }),
 
-  /** Disconnect Square (keeps already-synced history). */
+  /** Disconnect Square: drop OAuth tokens + mark connections disconnected
+   *  (keeps already-synced sales history). */
   disconnect: opsProcedure.mutation(async ({ ctx }) => {
     await disconnectSquare(ctx.account.accountId);
+    await deleteSquareOauth(ctx.account.accountId);
     return { ok: true };
   }),
 

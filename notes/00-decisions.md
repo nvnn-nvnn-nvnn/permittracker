@@ -47,6 +47,33 @@ These were confirmed with the owner before any code was written.
   e.g. logging an expense or viewing inventory offline) could be built later —
   it's real work and its own decision, not current behaviour.
 
+- **Possible future option (NOT built): spreadsheet import + AI
+  auto-categorization.** Let an operator upload an existing spreadsheet (sales /
+  expenses / inventory) and have Claude parse + auto-categorize the rows into
+  CartLedger's tables (ingredients, expenses with category, etc.). Reuses the
+  already-wired `@anthropic-ai/sdk`. Onboarding accelerant for operators coming
+  off spreadsheets. Deferred — owner flagged "later" (2026-06-26).
+
+- **Possible future option (NOT built): menu/recipe import from the Square
+  Catalog (2026-06-29, owner-requested to capture).** On connect, pull the
+  Square Catalog (`/v2/catalog/list`, scope `ITEMS_READ` — already granted) and
+  let the user **review → confirm → create** a recipe scaffold per Square item
+  (name, price, category, SKU pre-filled). **One-way only (Square → us); never
+  push back** — stays inside the "brain on top of Square, never a POS"
+  boundary, and review-gated (no auto-commit), same posture as "user confirms,
+  never OCR alone". **Idempotent on Square's `catalog_object_id`** (store it on
+  the recipe) so re-import updates instead of duplicating — and so depletion can
+  match sales→recipe **by ID instead of by name string**, retiring the brittle
+  name-match (the "explicit Square-item→recipe mapping table" hardening already
+  flagged under depletion). **Limits:** the catalog is *sellable items*, not raw
+  ingredients, so (a) it seeds the menu/recipe **list**, not the recipe
+  **composition** (ingredient breakdown stays a user task), and (b) raw
+  ingredients won't appear in the catalog. Pulling Square **inventory counts**
+  (`/v2/inventory/counts`, needs extra `INVENTORY_READ`) to seed ingredient
+  on-hand is a separate optional add-on, only as good as what the truck tracks
+  in Square. Strong onboarding accelerant; pairs with the spreadsheet-import
+  idea above.
+
 - **2026-06-26 — Per-truck operations (multi-truck P&L + inventory).** Ops
   pillar was account-wide only; making it per-truck to match compliance (which
   is already per-truck via `holder_truck_id`). Owner decisions:
@@ -548,3 +575,19 @@ These are local dev-environment / Claude Code settings, not product decisions.
 - Dev machine: Windows 11, Node v22.19.0, npm 11.6.0, git 2.46.0.
 - Repo initialized locally; no remote configured yet.
 - `.claude/` holds Claude Code memory — do not delete or commit secrets into it.
+
+## Live Square: OAuth per account, raw REST, encrypted tokens (2026-06-28)
+
+- **OAuth, not personal access tokens.** Each account links its own Square
+  merchant via authorization-code flow. Static `SQUARE_ACCESS_TOKEN` (env) is
+  kept only as a single-tenant/dev fallback; stub remains the no-config default.
+- **Raw REST, no Square SDK** — consistent with the adapter pattern (avoids a
+  heavyweight dependency; we use ~3 endpoints).
+- **Tokens encrypted at rest** (AES-256-GCM, `SQUARE_TOKEN_SECRET`) in
+  `square_oauth`, which has **RLS enabled with zero policies** → service-role
+  only, never client-reachable. Tokens/plaintext are never logged.
+- **One Square location → one truck**, mapped by the user on `/operations/square`.
+  Live sync only pulls locations a truck is mapped to; this is how multi-truck
+  fleets keep per-truck P&L/inventory clean.
+- **Scopes** kept read-only: `MERCHANT_PROFILE_READ ORDERS_READ PAYMENTS_READ
+  ITEMS_READ` — we read sales, never write to Square (reinforces "never a POS").

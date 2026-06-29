@@ -41,11 +41,18 @@ export default async function QuickBooksExportPage() {
       </Card>
 
       {!liveSyncConfigured && (
-        <p className="text-xs text-muted-foreground">
-          Live two-way sync (auto-posting sales receipts and expenses to
-          QuickBooks Online) is coming. Until then, the CSV export keeps your
-          books current with a quick monthly import.
-        </p>
+        <Card className="border-dashed bg-muted/30">
+          <CardContent className="flex items-start gap-3 p-4">
+            <Badge variant="outline" className="shrink-0">
+              Coming soon
+            </Badge>
+            <p className="text-xs text-muted-foreground">
+              Live two-way sync — auto-posting sales receipts and expenses
+              straight to QuickBooks Online. Until then, the CSV export above
+              keeps your books current with a quick monthly import.
+            </p>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

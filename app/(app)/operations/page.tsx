@@ -77,6 +77,7 @@ export default async function OperationsPage({
     topItems,
     actualCogs,
     truckStatuses,
+    truckLocations,
   ] = await Promise.all([
     api.ops.connection(),
     api.ops.pnl({ granularity, truckId: selectedTruckId }),
@@ -85,6 +86,7 @@ export default async function OperationsPage({
     api.ops.itemSales({ days: 30 }),
     api.ops.actualCogs({ truckId: selectedTruckId }),
     api.truck.statusList(),
+    api.ops.truckLocations(),
   ]);
 
   // Truck switcher options (only the ones that exist); guard the selected id.
@@ -92,6 +94,12 @@ export default async function OperationsPage({
     id: t.truckId,
     name: t.name,
   }));
+  // Which trucks have a real (non-stub) Square location mapped.
+  const connectedTruckIds = new Set(
+    truckLocations
+      .filter((t) => t.locationId && !t.locationId.startsWith("stub"))
+      .map((t) => t.truckId),
+  );
   const validTruckId = truckOptions.some((t) => t.id === selectedTruckId)
     ? selectedTruckId
     : undefined;
@@ -149,6 +157,27 @@ export default async function OperationsPage({
         >
           Export to QuickBooks →
         </Link>
+      </div>
+
+      {/* Beta / accuracy notice */}
+      <div className="flex gap-3 rounded-xl border border-status-yellow/40 bg-status-yellow/10 p-4">
+        <AlertTriangle className="size-4 shrink-0 text-status-yellow" />
+        <div className="space-y-1 text-sm">
+          <p className="font-medium">Beta — double-check your numbers.</p>
+          <p className="text-muted-foreground">
+            We don&apos;t track or sell your information. These finance tools are
+            in a beta period and aren&apos;t yet fully polished or accurate, so
+            verify figures before relying on them. Questions or ideas to improve
+            CartLedger? Email the team at{" "}
+            <a
+              href="mailto:techkage@proton.me"
+              className="font-medium text-brand-ink hover:underline"
+            >
+              techkage@proton.me
+            </a>
+            .
+          </p>
+        </div>
       </div>
 
       {/* Connection / sync */}
@@ -243,13 +272,90 @@ export default async function OperationsPage({
         </Link>
       )}
 
+      {/* P&L scope + granularity — ALWAYS visible so you can move between
+          trucks regardless of Square connection or whether a truck has sales. */}
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-bold tracking-tight">
+            P&amp;L
+            <span className="ml-2 text-sm font-medium text-muted-foreground">
+              · {selectedTruckName ?? "all trucks"}
+            </span>
+          </h2>
+          <div className="flex items-center gap-1 rounded-full border bg-background p-0.5">
+            {GRANULARITIES.map((x) => (
+              <Link
+                key={x.key}
+                href={`/operations?g=${x.key}${validTruckId ? `&truck=${validTruckId}` : ""}`}
+                scroll={false}
+                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                  x.key === granularity
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {x.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Truck scope switcher — a green dot marks Square-connected trucks. */}
+        {truckOptions.length > 1 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Link
+              href={qs(undefined)}
+              scroll={false}
+              className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                !validTruckId
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "bg-background text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              All trucks
+            </Link>
+            {truckOptions.map((t) => (
+              <Link
+                key={t.id}
+                href={qs(t.id)}
+                scroll={false}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${
+                  validTruckId === t.id
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "bg-background text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span
+                  className={`size-1.5 rounded-full ${
+                    connectedTruckIds.has(t.id)
+                      ? "bg-status-green"
+                      : "bg-muted-foreground/40"
+                  }`}
+                  title={
+                    connectedTruckIds.has(t.id)
+                      ? "Square connected"
+                      : "Not connected to Square"
+                  }
+                />
+                {t.name}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
       {!pnl.hasData ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-2 p-10 text-center">
-            <p className="text-sm font-medium">No sales yet</p>
+            <p className="text-sm font-medium">
+              No sales yet{selectedTruckName ? ` for ${selectedTruckName}` : ""}
+            </p>
             <p className="max-w-sm text-sm text-muted-foreground">
-              Connect Square (or load demo data) above to see your performance —
-              gross, refunds, net sales, food cost, and profit over time.
+              {validTruckId
+                ? connectedTruckIds.has(validTruckId)
+                  ? "This truck's Square location is connected — hit Sync above to pull its sales, or switch to another truck."
+                  : "This truck isn't connected to Square yet. Map its location in Operations → Square, or switch to another truck."
+                : "Connect Square (or load demo data) above to see your performance — gross, refunds, net sales, food cost, and profit over time."}
             </p>
           </CardContent>
         </Card>
@@ -355,70 +461,8 @@ export default async function OperationsPage({
             </Link>
           )}
 
-          {/* P&L — truck scope, granularity toggle, chart, table */}
+          {/* P&L chart + table (scope/granularity controls are above). */}
           <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-bold tracking-tight">
-                P&amp;L
-                {selectedTruckName ? (
-                  <span className="ml-2 text-sm font-medium text-muted-foreground">
-                    · {selectedTruckName}
-                  </span>
-                ) : (
-                  <span className="ml-2 text-sm font-medium text-muted-foreground">
-                    · all trucks
-                  </span>
-                )}
-              </h2>
-              <div className="flex items-center gap-1 rounded-full border bg-background p-0.5">
-                {GRANULARITIES.map((x) => (
-                  <Link
-                    key={x.key}
-                    href={`/operations?g=${x.key}${validTruckId ? `&truck=${validTruckId}` : ""}`}
-                    scroll={false}
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${
-                      x.key === granularity
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {x.label}
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* Truck scope switcher (per-truck P&L) */}
-            {truckOptions.length > 1 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Link
-                  href={qs(undefined)}
-                  scroll={false}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                    !validTruckId
-                      ? "border-primary bg-primary/10 text-foreground"
-                      : "bg-background text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  All trucks
-                </Link>
-                {truckOptions.map((t) => (
-                  <Link
-                    key={t.id}
-                    href={qs(t.id)}
-                    scroll={false}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                      validTruckId === t.id
-                        ? "border-primary bg-primary/10 text-foreground"
-                        : "bg-background text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {t.name}
-                  </Link>
-                ))}
-              </div>
-            )}
-
             <Card>
               <CardContent className="p-5">
                 <OpsLineChart

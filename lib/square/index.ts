@@ -31,6 +31,11 @@ export interface SquareMerchant {
   locationName: string;
 }
 
+export interface SquareLocation {
+  id: string;
+  name: string;
+}
+
 /** One menu item's sales on one day. */
 export interface SquareItemSalesDay {
   /** YYYY-MM-DD. */
@@ -45,6 +50,8 @@ export interface SquareItemSalesDay {
 export interface SquareAdapter {
   /** The linked merchant + the location we pull sales for. */
   getMerchant(): Promise<SquareMerchant>;
+  /** All locations on the merchant (for mapping locations → trucks). */
+  listLocations(): Promise<SquareLocation[]>;
   /** Daily sales rollups for [start, end] inclusive (YYYY-MM-DD). */
   listDailySales(input: {
     locationId: string;
@@ -102,6 +109,9 @@ const stubSquareAdapter: SquareAdapter = {
       locationId: "stub-location",
       locationName: "Demo Truck (sandbox)",
     };
+  },
+  async listLocations() {
+    return [{ id: "stub-location", name: "Demo Truck (sandbox)" }];
   },
   async listDailySales({ locationId, start, end }) {
     return eachDate(start, end).map((date) => {
@@ -203,6 +213,19 @@ function realSquareAdapter(
         locationId: loc.id,
         locationName: loc.name ?? loc.id,
       };
+    },
+
+    async listLocations() {
+      const res = await fetch(`${root}/v2/locations`, { headers });
+      if (!res.ok) {
+        throw new Error(`Square locations ${res.status}: ${await res.text()}`);
+      }
+      const json = (await res.json()) as {
+        locations?: Array<{ id: string; name?: string; status?: string }>;
+      };
+      return (json.locations ?? [])
+        .filter((l) => l.status !== "INACTIVE")
+        .map((l) => ({ id: l.id, name: l.name ?? l.id }));
     },
 
     async listDailySales({ locationId, start, end }) {
@@ -356,6 +379,20 @@ function realSquareAdapter(
   };
 }
 
+/** Build a real REST adapter for a specific access token (OAuth or static). */
+export function squareAdapterForToken(
+  token: string,
+  environment: "sandbox" | "production",
+  pinnedLocationId?: string,
+): SquareAdapter {
+  return realSquareAdapter(token, environment, pinnedLocationId);
+}
+
+/** The demo stub adapter (no credentials). */
+export function getStubSquareAdapter(): SquareAdapter {
+  return stubSquareAdapter;
+}
+
 let _adapter: SquareAdapter | null = null;
 export function getSquareAdapter(): SquareAdapter {
   if (_adapter) return _adapter;
@@ -370,7 +407,7 @@ export function getSquareAdapter(): SquareAdapter {
   return _adapter;
 }
 
-/** True when a real Square token is configured (vs. the demo stub). */
+/** True when a static Square token is configured (legacy / dev). */
 export function isSquareConfigured(): boolean {
   return Boolean(serverEnv().SQUARE_ACCESS_TOKEN);
 }

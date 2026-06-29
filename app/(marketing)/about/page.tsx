@@ -8,26 +8,26 @@ import foodtruckCta from "@/app/assets/foodtruck-4.jpg";
 export const metadata = {
   title: "About · CartLedger",
   description:
-    "Why CartLedger exists: keeping mobile food operators open by making compliance impossible to forget.",
+    "Why CartLedger exists: making the money and the paperwork automatic for food trucks, so operators can run by the numbers instead of by spreadsheet.",
 };
 
 
 const VALUES = [
   {
     title: "Operators first",
-    body: "Every decision is judged by one question: does this help a truck stay open and compliant with less effort?",
+    body: "Every decision is judged by one question: does this help a truck run with less effort — and stay open and profitable?",
   },
   {
     title: "Never lose a record",
-    body: "Compliance data is sacred. We archive instead of delete, and keep an append-only history you can stand behind.",
+    body: "Your books and compliance records are sacred. We archive instead of delete, and keep an append-only history you can stand behind.",
   },
   {
-    title: "Honest about limits",
-    body: "We track and remind — we don't file or guarantee. We tell you clearly what's a suggestion and what's confirmed.",
+    title: "Honest about the numbers",
+    body: "We track, total, and remind — we don't file or guarantee. We're clear about what's an estimate, what's actual, and what's confirmed.",
   },
   {
-    title: "Quietly reliable",
-    body: "The best compliance tool is one you forget about, because it reminds you exactly when it matters.",
+    title: "On top of your tools",
+    body: "We build on Square and QuickBooks rather than replacing them — the brain on top, never another POS or cash register.",
   },
 ];
 
@@ -43,29 +43,23 @@ export default function AboutPage() {
 
 
         <h1 className="mt-4 text-balance text-3xl font-bold tracking-tight sm:text-3xl">
-          We understand how difficult it can be to keep track of your business compliance information.
+          Running a food truck means tracking a hundred little things — the money and the paperwork.
         </h1>
 
 
         <div className="mt-6 text-pretty text-lg text-muted-foreground space-y-4">
           <p>
-            A single lapsed permit or expired COI can shut a food truck down for a weekend — or a season.
-          </p>
-
-
-          <p className="whitespace-pre-line">
-            The information isn&apos;t hard to track;
-            it&apos;s just scattered across many tedious portals, from inboxes and agency portals to physical documents, each with its own renewal date.
+            How much did you actually make this week? What&apos;s your food cost? What&apos;s running low? And which permit renews next? It&apos;s all there — just scattered across Square, spreadsheets, inboxes, and the glove box.
           </p>
 
 
           <p>
-            CartLedger pulls your information into one place and makes sure a deadline never sneaks up on you again.
+            CartLedger pulls it together automatically. Your Square sales become income, expenses, inventory, and profit — and a running checklist surfaces what needs you next, from reorders to renewals.
           </p>
 
 
           <p>
-            Keep track of your business information, all in one personalized dashboard.
+            One personalized dashboard for the numbers and the compliance, so nothing sneaks up on you again.
           </p>
 
 
@@ -93,18 +87,20 @@ export default function AboutPage() {
           <h2 className="text-4xl font-bold tracking-tight text-white">Why we built it</h2>
           <div className="mt-7 space-y-5 text-pretty text-white">
             <p>
-              Mobile food is one of the most heavily regulated small businesses
-              there is — health permits, fire and hood inspections,
-              food-handler cards, vehicle registration, insurance certificates,
-              and a commissary agreement on top. Each renews on its own clock,
-              and the penalty for missing one is steep.
+              A food truck runs on thin margins and a stack of obligations —
+              tracking sales and food cost to actually turn a profit, reordering
+              before you run out, and staying on top of health permits,
+              inspections, COIs, and a commissary agreement that each renew on
+              their own clock.
             </p>
             <p>
-              Big-business compliance software is overkill and overpriced for a
-              one-to-ten-truck operation. So operators end up with spreadsheets
-              and calendar reminders that quietly fall out of date. CartLedger is
-              purpose-built for that gap: simple enough to set up in an
-              afternoon, and thorough enough that nothing slips through.
+              The accounting and inventory tools built for big restaurants are
+              overkill and overpriced for a one-to-ten-truck operation, so
+              operators end up stitching it together with spreadsheets and
+              calendar reminders that quietly fall out of date. CartLedger is
+              purpose-built for that gap: it sits on top of Square and
+              QuickBooks, automates the tracking, and tells you what needs you
+              next — simple enough to set up in an afternoon.
             </p>
             {/* <p className="text-sm italic">
               This is placeholder copy for the marketing preview — the real
@@ -172,8 +168,9 @@ export default function AboutPage() {
         
         >
           <h2 className="mx-auto max-w-2xl text-balance text-2xl font-bold tracking-tight text-background sm:text-3xl">
-            We believe all food-service professionals should have the tools to
-            keep their compliance information organized and accessible.
+            We believe every food-service operator should be able to run their
+            business — the money and the paperwork — without living in
+            spreadsheets.
           </h2>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/signup" className={buttonVariants({ size: "lg" })}>

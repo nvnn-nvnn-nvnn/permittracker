@@ -876,6 +876,38 @@ export const salesDay = pgTable(
   ],
 );
 
+// --- square_oauth ----------------------------------------------------------
+// Per-account Square OAuth connection (one merchant per account). Access +
+// refresh tokens are stored ENCRYPTED (lib/crypto/secret). RLS denies all
+// reads to authenticated users — only the service connection touches tokens.
+// `square_connection` (per truck) maps a truck to a location within this
+// merchant.
+
+export const squareOauth = pgTable(
+  "square_oauth",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id, { onDelete: "cascade" }),
+    merchantId: text("merchant_id"),
+    environment: text("environment").notNull().default("sandbox"),
+    accessTokenEnc: text("access_token_enc").notNull(),
+    refreshTokenEnc: text("refresh_token_enc"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    scopes: text("scopes"),
+    connectedByUserId: uuid("connected_by_user_id").references(
+      () => appUser.id,
+      { onDelete: "set null" },
+    ),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("square_oauth_account_uniq").on(t.accountId)],
+);
+
+export type SquareOauth = typeof squareOauth.$inferSelect;
 export type SquareConnection = typeof squareConnection.$inferSelect;
 export type SalesDay = typeof salesDay.$inferSelect;
 export type NewSalesDay = typeof salesDay.$inferInsert;

@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CartLedger — Stay open. Stay profitable.",
+  title: "CartLedger — Automated tracking & financials for food trucks.",
   description:
-    "The operating system for food trucks. Track the permits and COIs that can shut you down, and turn your Square sales into inventory, food cost, and a weekly P&L.",
+    "CartLedger turns your Square sales into income, expenses, inventory, and profit automatically — and keeps a checklist of what needs you next, from reorders to permit renewals. The money and the paperwork, tracked in one place.",
 };
 
 export default function RootLayout({

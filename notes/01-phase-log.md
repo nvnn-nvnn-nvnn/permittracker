@@ -1911,3 +1911,125 @@ item/menu analytics, inventory + counts, recipes/COGS, purchasing, expenses,
 weekly P&L with food-cost %, QuickBooks CSV export, truck service status,
 truck change log) — gated to paid plans, viewer-read-only, all on top of Square
 + QuickBooks rather than replacing them.
+
+## Live Square integration (OAuth 2.0) — 2026-06-28
+
+The Square pillar now connects to **real merchant accounts**, not just stub
+data. Per-account OAuth with per-truck location mapping.
+
+- **Secrets:** `lib/crypto/secret.ts` — AES-256-GCM `encryptSecret`/
+  `decryptSecret`, key derived from `SQUARE_TOKEN_SECRET`. Tokens are encrypted
+  at rest; plaintext is never logged.
+- **Schema:** `square_oauth` (per-account, unique `accountId`) — merchantId,
+  environment, `accessTokenEnc`, `refreshTokenEnc`, expiresAt, scopes,
+  connectedByUserId. Migrations **0046** (table) + **0047** (RLS enabled, **no
+  policies** = service-role only; never reachable from client).
+- **OAuth flow:** `lib/square/oauth.ts` — `squareAuthorizeUrl(state)`,
+  `exchangeCode`, `getFreshSquareToken` (auto-refresh when <7 days to expiry),
+  `saveSquareTokens`, `getSquareOauthStatus`, `deleteSquareOauth`. Scopes:
+  `MERCHANT_PROFILE_READ ORDERS_READ PAYMENTS_READ ITEMS_READ`. redirectUri =
+  `${APP_URL}/api/square/callback`.
+- **Routes:** `GET /api/square/connect` (sets httpOnly `sq_oauth_state` cookie →
+  redirects to Square authorize) and `GET /api/square/callback` (verifies
+  state, exchanges code, stores tokens, → `/operations/square?connected=1`).
+- **Adapter:** `listLocations()` (GET /v2/locations, filters INACTIVE);
+  `squareAdapterForToken(token, env, pinnedLocationId?)`; `getStubSquareAdapter`
+  kept for demo.
+- **Sync (`lib/square/sync.ts`):** resolves a live token (OAuth → env static →
+  stub). **Live:** only syncs `square_connection` rows with a real (non-stub)
+  locationId set by the picker. **Stub:** synthetic `stub-loc-${truckId}` per
+  active truck. `SyncResult` carries `mode: "live" | "stub"`. New
+  `assignTruckLocation()`.
+- **Picker:** `/operations/square` page (Pro-gated) + `SquareLocationPicker`
+  client component — one `<select>` per truck → `ops.assignLocation`; live list
+  from `ops.squareLocations`, current mapping from `ops.truckLocations`. The
+  Operations Square card shows **Connect Square** (OAuth hand-off) when the app
+  is configured but the account hasn't linked, and a **Locations** link once
+  live.
+- **Verify:** typecheck clean (lone pre-existing `token.test.ts`); eslint clean;
+  **full `next build` passed** — `/operations/square` in the route manifest.
+
+**Setup required (user):** create a Square Developer app, then in `.env.local`
+set `SQUARE_CLIENT_ID`, `SQUARE_CLIENT_SECRET`, a random `SQUARE_TOKEN_SECRET`
+(≥16 chars), and `SQUARE_ENVIRONMENT=sandbox` to start. Add the OAuth redirect
+URL `${APP_URL}/api/square/callback` in the Square dashboard. Without these the
+app stays in demo/stub mode (unchanged behavior).
+
+## Fix: Square sync timeout on inventory_usage upsert — 2026-06-29
+
+**Symptom:** live Square sync failed with `canceling statement due to statement
+timeout` (PG 57014) on the `inventory_usage` upsert. Schema/index/columns were
+all correct — not a logic bug.
+
+**Root cause:** `applyUsageDepletion` ran *two awaited round-trips per
+(day × ingredient)* inside a single transaction. Over a 90-day window that's
+hundreds of sequential statements holding row locks the entire time; an
+overlapping sync (or dev-server retry) blocked on those locks until the 20s
+statement timeout fired, aborting the whole sync.
+
+**Fix (`lib/ops/depletion.ts`):**
+- Build the reconcile plan in memory, then write in a **short** transaction:
+  one `UPDATE` per touched ingredient (net delta aggregated) + a **single bulk
+  `INSERT … ON CONFLICT DO UPDATE`** for all usage rows (keys unique by
+  construction, so no "affect row twice"). Locks now held for ms, not the whole
+  loop.
+- **`pg_advisory_xact_lock(hashtext(accountId))`** at the top of the txn so
+  concurrent depletions for an account serialize instead of deadlocking.
+
+**Robustness (`lib/square/sync.ts`):** depletion is now wrapped — sales are
+already committed before it runs, so a depletion hiccup no longer discards the
+sync. Returns `usageDeferred: boolean`; the Square card tells the user to hit
+"Recompute usage" if it's ever true.
+
+Verified: typecheck + eslint clean; reproduced the original timeout via a
+direct upsert (transient lock), confirmed it clears, and that the index/columns
+matched all along.
+
+## Dev utility: ops data reset + sandbox sales seeder — 2026-06-29
+
+Two account-scoped dev scripts (not shipped to users):
+
+- **`npm run reset:ops -- <account> [--yes]`** (`scripts/reset-ops-data.mjs`):
+  zero an account's *financial* data for a clean ingest. Dry-run by default
+  (prints row counts); `--yes` executes in one transaction. WIPES sales_day,
+  sales_item_day, inventory_usage, expense, purchase_order(+items),
+  inventory_count(+lines); resets every ingredient `on_hand_qty` to 0; removes
+  stub Square connections (`location_id like 'stub%'`). KEEPS trucks,
+  ingredient definitions, recipes, the account/users, and real location→truck
+  mappings. Account selector: "admin" (default) | email | name.
+
+- **`npm run seed:square -- <account> [--orders N]`**
+  (`scripts/seed-square-sandbox.mjs`): create real COMPLETED sandbox orders so
+  live ingest can be tested. Needs a **write-capable** token
+  (`SQUARE_SEED_ACCESS_TOKEN` or `--token=`) — the app's OAuth token is
+  read-only by design (we never write to Square). Resolves a real location via
+  `/v2/locations`, warns if its merchant ≠ the connected OAuth merchant, then
+  creates orders (line-item names match the seeded stub menu) and pays each
+  with the sandbox test card `cnon:card-nonce-ok` so they close. All sales land
+  on today's date (Square sets `closed_at` = now).
+
+Used 2026-06-29 to clear the admin (devanlee2nd) demo data — sales, usage, and
+expenses all back to $0 — ahead of real Square ingest.
+
+## Per-page How-to guides (onboarding) — 2026-06-29
+
+New users get a short "how-to" on every app page.
+
+- **`lib/page-guides.ts`** — central registry: route → `{ title, intro?, steps[],
+  tip? }`. Covers all main pages + `/new` and `[id]` detail routes. Matcher
+  normalizes real UUIDs → `[id]`, handles `/items/category/[type]`, and falls
+  back to the closest section base.
+- **`components/features/page-guide.tsx`** — collapsible "How-to: <title>" panel.
+  Defaults expanded (matches SSR, no hydration flash); remembers collapsed state
+  per page in `localStorage` (`cl_guide_collapsed:<title>`) so it helps newcomers
+  without nagging regulars. Renders nothing for routes without a guide.
+- **Wired once** in `components/features/app-shell.tsx` — `<PageGuide />` above
+  `{children}`, so it auto-appears on every app page (marketing/auth excluded —
+  they don't use the shell). One insertion point; content lives in the registry.
+
+Verified: typecheck + eslint clean; full `next build` passed.
+
+Operations dashboard truck switcher (same day): lifted the truck scope + P&L
+granularity controls OUT of the `pnl.hasData` block so you can navigate
+truck→truck even with no sales / no Square connection; added a green/grey dot
+per truck (Square connected or not) and a truck-aware empty state.

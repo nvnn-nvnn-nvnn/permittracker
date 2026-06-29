@@ -13,10 +13,13 @@ QuickBooks) rather than replacing them.
   P&L, inventory (auto-depleted from sales via recipes), recipes/COGS,
   purchasing, expenses, menu analysis, QuickBooks export, truck service status.
 
-Positioning: **"Stay open. Stay profitable."** Hard boundary: we are the brain
-on top of Square + QuickBooks, **never a POS / ordering / accounting tool**
-(see `notes/00-decisions.md` → Tier A/B decision). All paid + 14-day
-card-required trial; ops pillar gated to Pro+.
+Public positioning (2026-06-26): led as **"automated tracking & financials for
+food trucks"** (marketing headline "Track everything. Automatically.") with
+compliance as one pillar — internal brand essence stays "Stay open. Stay
+profitable." Hard boundary: we are the brain on top of Square + QuickBooks,
+**never a POS / ordering / accounting tool** (see `notes/00-decisions.md` →
+Tier A/B decision). All paid + 14-day card-required trial; ops pillar gated to
+Pro+.
 
 ## Stack (do not deviate without logging in notes/00-decisions.md)
 

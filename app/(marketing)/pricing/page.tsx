@@ -8,7 +8,7 @@ import foodtruckHeader from "@/app/assets/foodtruck-3.jpg";
 export const metadata = {
   title: "Pricing · CartLedger",
   description:
-    "Simple per-business pricing for food truck compliance + operations. Start with a 14-day free trial on any plan.",
+    "Simple per-business pricing for automated food-truck tracking, financials, and compliance. Start with a 14-day free trial on any plan.",
 };
 
 const TIERS = [
@@ -17,12 +17,12 @@ const TIERS = [
     label: "Starter",
     price: 19,
     yearly: 190,
-    tagline: "For a single truck getting organized.",
+    tagline: "Compliance tracking for a single truck.",
     featured: false,
     features: [
       "1 active truck",
-      "Up to 15 compliance items",
-      "Email reminders before expiry",
+      "Permits, COIs, certs & inspections",
+      "Expiry reminders (email)",
       "AI document scanning",
       "Inspection-prep digests",
     ],
@@ -32,15 +32,15 @@ const TIERS = [
     label: "Pro",
     price: 49,
     yearly: 490,
-    tagline: "For growing operators with a few trucks.",
+    tagline: "The full financial picture, automated.",
     featured: true,
     features: [
       "Up to 3 trucks",
-      "Unlimited compliance items",
-      "Email reminders",
-      "SMS + voice escalation (Coming soon)",
-      "Staff & commissary cascades",
-      "Everything in Starter",
+      "Everything in Starter, plus:",
+      "Square sync → income, expenses & P&L",
+      "Inventory, recipes & food cost",
+      "Purchasing + QuickBooks export",
+      "Menu analysis & per-truck P&L",
     ],
   },
   {
@@ -52,11 +52,11 @@ const TIERS = [
     featured: false,
     features: [
       "Up to 10 trucks",
-      "Unlimited compliance items",
-      "Team logins",
+      "Everything in Pro",
+      "Team logins & roles",
+      "All-trucks rollup + per-truck views",
       "Commissary fleet view",
       "Priority support",
-      "Everything in Pro",
     ],
   },
 ];

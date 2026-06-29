@@ -51,6 +51,13 @@ const serverSchema = z.object({
   SQUARE_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
   // Optional: pin a location. When unset, the adapter uses the first location.
   SQUARE_LOCATION_ID: z.string().optional(),
+  // --- Square OAuth (live per-merchant connect). From the Square Developer
+  // dashboard. When set, merchants connect their own account; tokens are
+  // stored encrypted (SQUARE_TOKEN_SECRET) per account. ---
+  SQUARE_CLIENT_ID: z.string().optional(),
+  SQUARE_CLIENT_SECRET: z.string().optional(),
+  // 32+ char secret used to AES-encrypt OAuth tokens at rest.
+  SQUARE_TOKEN_SECRET: z.string().min(16).optional(),
 
   // --- QuickBooks (Operations pillar, Slice 4). Live sync stubbed until a
   // token is set; the CSV export works with no creds. ---

@@ -6,9 +6,16 @@
 
 ## One sentence
 
-CartLedger is **the operating system for food trucks** — a two-pillar web app
-that keeps a truck **legal** and **profitable**, sitting *on top of* the tools
-operators already use (Square POS, QuickBooks) rather than replacing them.
+CartLedger is **automated tracking & financials for food trucks** — it turns
+Square sales into income, expenses, inventory, and profit automatically, keeps a
+running checklist of what needs attention (reorders, fees, permit renewals), and
+tracks compliance too — all *on top of* the tools operators already use (Square
+POS, QuickBooks) rather than replacing them.
+
+> Public positioning (2026-06-26): led to be **"automated tracking & financials"**
+> first, compliance as one pillar (was "compliance tracker"). Marketing headline
+> "Track everything. Automatically." The two-pillar framing below still holds —
+> "Stay open" (compliance) + "Stay profitable" (operations).
 
 ## The two pillars
 

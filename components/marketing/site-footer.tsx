@@ -37,9 +37,9 @@ export function SiteFooter() {
           <div className="max-w-xs">
             <Logo variant="lockup" graphicClassName="h-7" textClassName="h-5" />
             <p className="mt-4 text-sm text-muted-foreground">
-              Stay open and stay profitable. CartLedger tracks the permits and
-              COIs that can shut your food truck down — and turns your Square
-              sales into inventory, food cost, and a weekly P&amp;L.
+              CartLedger automatically tracks your food truck&apos;s income,
+              expenses, inventory, and profit from Square — and keeps a checklist
+              of what needs you next, compliance included.
             </p>
           </div>
 

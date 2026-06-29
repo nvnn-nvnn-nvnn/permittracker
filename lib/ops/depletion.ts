@@ -156,44 +156,64 @@ export async function applyUsageDepletion(
     .where(eq(ingredient.accountId, accountId));
   const costById = new Map(ings.map((i) => [i.id, i.unitCostCents]));
 
-  // 6. Reconcile: apply the delta to on-hand, set the ledger to target.
+  // 6. Reconcile (batched). Build everything in memory first, then write in a
+  //    short transaction: one UPDATE per touched ingredient + a single bulk
+  //    usage upsert. Per-key round-trips inside the txn held row locks for the
+  //    whole 90-day loop, which collided with overlapping syncs and tripped the
+  //    DB statement timeout — batching keeps the locks held for milliseconds.
   const allKeys = new Set<string>([...target.keys(), ...priorByKey.keys()]);
-  const touched = new Set<string>();
   const now = new Date();
 
+  // Net on-hand delta per ingredient (delta>0 consumes; delta<0 restocks).
+  const deltaByIngredient = new Map<string, number>();
+  const usageRows: (typeof inventoryUsage.$inferInsert)[] = [];
+  for (const key of allKeys) {
+    const m = meta.get(key);
+    if (!m) continue;
+    const targetQty = target.get(key) ?? 0;
+    const priorQty = priorByKey.get(key) ?? 0;
+    const delta = targetQty - priorQty;
+    if (delta !== 0) {
+      deltaByIngredient.set(
+        m.ingredientId,
+        (deltaByIngredient.get(m.ingredientId) ?? 0) + delta,
+      );
+    }
+    const unitCost = costById.get(m.ingredientId) ?? 0;
+    usageRows.push({
+      accountId,
+      truckId: m.truckId,
+      source: "square",
+      businessDate: new Date(`${m.dateKey}T00:00:00Z`),
+      ingredientId: m.ingredientId,
+      qtyUsed: targetQty,
+      costCents: Math.round(targetQty * unitCost),
+      updatedAt: now,
+    });
+  }
+  const touched = new Set<string>(deltaByIngredient.keys());
+
   await db.transaction(async (tx) => {
-    for (const key of allKeys) {
-      const m = meta.get(key);
-      if (!m) continue;
-      const targetQty = target.get(key) ?? 0;
-      const priorQty = priorByKey.get(key) ?? 0;
-      const delta = targetQty - priorQty;
-      const unitCost = costById.get(m.ingredientId) ?? 0;
+    // Serialize concurrent depletions for this account so overlapping syncs
+    // queue instead of deadlocking on the same ingredient/usage rows.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${accountId}))`);
 
-      if (delta !== 0) {
-        // More usage → less on-hand (delta>0 subtracts; delta<0 adds back).
-        await tx
-          .update(ingredient)
-          .set({
-            onHandQty: sql`${ingredient.onHandQty} - ${delta}`,
-            updatedAt: now,
-          })
-          .where(eq(ingredient.id, m.ingredientId));
-        touched.add(m.ingredientId);
-      }
-
+    for (const [ingredientId, delta] of deltaByIngredient) {
       await tx
-        .insert(inventoryUsage)
-        .values({
-          accountId,
-          truckId: m.truckId,
-          source: "square",
-          businessDate: new Date(`${m.dateKey}T00:00:00Z`),
-          ingredientId: m.ingredientId,
-          qtyUsed: targetQty,
-          costCents: Math.round(targetQty * unitCost),
+        .update(ingredient)
+        .set({
+          onHandQty: sql`${ingredient.onHandQty} - ${delta}`,
           updatedAt: now,
         })
+        .where(eq(ingredient.id, ingredientId));
+    }
+
+    if (usageRows.length > 0) {
+      // Keys are unique by construction (target/meta are keyed by
+      // dateKey|ingredientId), so a single multi-row upsert is safe.
+      await tx
+        .insert(inventoryUsage)
+        .values(usageRows)
         .onConflictDoUpdate({
           target: [
             inventoryUsage.accountId,
@@ -202,8 +222,8 @@ export async function applyUsageDepletion(
             inventoryUsage.ingredientId,
           ],
           set: {
-            qtyUsed: targetQty,
-            costCents: Math.round(targetQty * unitCost),
+            qtyUsed: sql`excluded.qty_used`,
+            costCents: sql`excluded.cost_cents`,
             updatedAt: now,
           },
         });

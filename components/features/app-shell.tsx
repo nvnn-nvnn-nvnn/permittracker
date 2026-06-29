@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/logo";
+import { PageGuide } from "@/components/features/page-guide";
 import { signOut } from "@/lib/auth/actions";
 
 interface NavItem {
@@ -227,7 +228,10 @@ export function AppShell({
           <Logo variant="lockup" graphicClassName="h-6" textClassName="h-4" />
         </header>
         <main className="min-w-0 flex-1 px-4 py-6 md:px-10 md:py-10">
-          <div className="mx-auto w-full max-w-5xl">{children}</div>
+          <div className="mx-auto w-full max-w-5xl">
+            <PageGuide />
+            {children}
+          </div>
         </main>
       </div>
     </div>

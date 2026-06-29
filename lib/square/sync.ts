@@ -8,42 +8,58 @@ import {
   truck,
 } from "@/lib/db/schema";
 import { serverEnv } from "@/lib/env";
-import { getSquareAdapter, isSquareConfigured } from "@/lib/square";
+import {
+  getStubSquareAdapter,
+  squareAdapterForToken,
+  type SquareAdapter,
+} from "@/lib/square";
+import { getFreshSquareToken } from "@/lib/square/oauth";
 import { applyUsageDepletion } from "@/lib/ops/depletion";
 
-/** YYYY-MM-DD, UTC. */
 function ymd(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
 export interface SyncResult {
-  merchantId: string;
+  mode: "live" | "stub";
   trucksSynced: number;
   daysSynced: number;
   start: string;
   end: string;
+  /** True if sales synced but inventory depletion failed (retry via Recompute). */
+  usageDeferred: boolean;
 }
 
 /**
- * Per-truck Square sync. Each active truck = its own Square location; we pull
- * that location's sales and tag them with the truck. The stub fabricates
- * distinct demo sales per location (seeded by locationId) so each truck differs.
+ * Pull Square sales and attribute them per truck.
  *
- * Real multi-location: every truck currently maps to the merchant's primary
- * location (a per-truck location picker is deferred until live OAuth). Writes
- * go through the service connection (synced/recomputable data, not audited).
- * Idempotent: re-running overwrites the same (account, truck, source, date) rows.
+ * - **Live** (account connected via OAuth, or a static SQUARE_ACCESS_TOKEN):
+ *   syncs each truck that has a Square *location* assigned to it (via the
+ *   location→truck picker). Each `square_connection` row carries its locationId.
+ * - **Stub** (no creds): fabricates demo sales for every active truck, each on
+ *   its own synthetic location, so the dashboards work with zero setup.
+ *
+ * Idempotent: re-running overwrites the same (account, truck, source, date) rows
+ * and re-reconciles inventory via depletion.
  */
 export async function syncSquareSales(
   accountId: string,
   opts: { days?: number; userId?: string } = {},
 ): Promise<SyncResult> {
   const db = getDb();
-  const adapter = getSquareAdapter();
   const env = serverEnv();
-  const stub = !isSquareConfigured();
+  const live = await getFreshSquareToken(accountId);
+  const stub = !live && !env.SQUARE_ACCESS_TOKEN;
 
-  const merchant = await adapter.getMerchant();
+  const adapter: SquareAdapter = live
+    ? squareAdapterForToken(live.accessToken, live.environment)
+    : env.SQUARE_ACCESS_TOKEN
+      ? squareAdapterForToken(
+          env.SQUARE_ACCESS_TOKEN,
+          env.SQUARE_ENVIRONMENT,
+          env.SQUARE_LOCATION_ID,
+        )
+      : getStubSquareAdapter();
 
   const end = new Date();
   const start = new Date();
@@ -52,31 +68,57 @@ export async function syncSquareSales(
   const endYmd = ymd(end);
   const now = new Date();
 
-  const trucks = await db
-    .select({ id: truck.id, name: truck.name })
-    .from(truck)
-    .where(
-      and(
-        eq(truck.accountId, accountId),
-        isNull(truck.archivedAt),
-        eq(truck.isActive, true),
-      ),
-    );
+  // The (truck, location) pairs to sync.
+  let targets: { truckId: string; locationId: string; locationName: string }[];
+  let merchantId = "stub-merchant";
+
+  if (stub) {
+    const trucks = await db
+      .select({ id: truck.id, name: truck.name })
+      .from(truck)
+      .where(
+        and(
+          eq(truck.accountId, accountId),
+          isNull(truck.archivedAt),
+          eq(truck.isActive, true),
+        ),
+      );
+    targets = trucks.map((t) => ({
+      truckId: t.id,
+      locationId: `stub-loc-${t.id}`,
+      locationName: t.name,
+    }));
+  } else {
+    merchantId = (await adapter.getMerchant()).merchantId;
+    // Live: only trucks with a real location assigned (via the picker).
+    const conns = await db
+      .select()
+      .from(squareConnection)
+      .where(eq(squareConnection.accountId, accountId));
+    targets = conns
+      .filter(
+        (c) =>
+          c.truckId &&
+          c.locationId &&
+          !c.locationId.startsWith("stub-loc-"),
+      )
+      .map((c) => ({
+        truckId: c.truckId as string,
+        locationId: c.locationId as string,
+        locationName: c.locationName ?? c.locationId!,
+      }));
+  }
 
   let daysSynced = 0;
 
-  for (const t of trucks) {
-    // Stub: one synthetic location per truck so demo data differs. Real:
-    // the merchant's primary location (per-truck picker deferred).
-    const locationId = stub ? `stub-loc-${t.id}` : merchant.locationId;
-
+  for (const target of targets) {
     const daily = await adapter.listDailySales({
-      locationId,
+      locationId: target.locationId,
       start: startYmd,
       end: endYmd,
     });
     const itemRows = await adapter.listItemSales({
-      locationId,
+      locationId: target.locationId,
       start: startYmd,
       end: endYmd,
     });
@@ -88,7 +130,7 @@ export async function syncSquareSales(
         .values(
           daily.map((r) => ({
             accountId,
-            truckId: t.id,
+            truckId: target.truckId,
             source: "square" as const,
             businessDate: new Date(`${r.date}T00:00:00Z`),
             grossSalesCents: r.grossSalesCents,
@@ -128,7 +170,7 @@ export async function syncSquareSales(
         .values(
           itemRows.map((r) => ({
             accountId,
-            truckId: t.id,
+            truckId: target.truckId,
             source: "square" as const,
             businessDate: new Date(`${r.date}T00:00:00Z`),
             itemName: r.itemName,
@@ -156,17 +198,16 @@ export async function syncSquareSales(
         });
     }
 
-    // One connection row per truck.
     await db
       .insert(squareConnection)
       .values({
         accountId,
-        truckId: t.id,
+        truckId: target.truckId,
         connected: true,
-        merchantId: merchant.merchantId,
-        locationId,
-        locationName: stub ? t.name : merchant.locationName,
-        environment: env.SQUARE_ENVIRONMENT,
+        merchantId,
+        locationId: target.locationId,
+        locationName: target.locationName,
+        environment: live?.environment ?? env.SQUARE_ENVIRONMENT,
         lastSyncedAt: now,
         connectedByUserId: opts.userId ?? null,
       })
@@ -174,26 +215,33 @@ export async function syncSquareSales(
         target: squareConnection.truckId,
         set: {
           connected: true,
-          merchantId: merchant.merchantId,
-          locationId,
-          locationName: stub ? t.name : merchant.locationName,
-          environment: env.SQUARE_ENVIRONMENT,
+          merchantId,
+          locationName: target.locationName,
+          environment: live?.environment ?? env.SQUARE_ENVIRONMENT,
           lastSyncedAt: now,
           updatedAt: now,
         },
       });
   }
 
-  // Auto-deplete inventory from the synced item sales (idempotent, account-wide
-  // in Phase 1; per-truck stock arrives in Phase 2).
-  await applyUsageDepletion(accountId, start, end);
+  // Auto-deplete inventory from the synced item sales (idempotent). Sales are
+  // already persisted above, so a depletion hiccup must NOT discard them — the
+  // user can re-run it from "Recompute usage". Surface it as a soft flag.
+  let usageDeferred = false;
+  try {
+    await applyUsageDepletion(accountId, start, end);
+  } catch (err) {
+    usageDeferred = true;
+    console.error("[square-sync] usage depletion failed (deferred):", err);
+  }
 
   return {
-    merchantId: merchant.merchantId,
-    trucksSynced: trucks.length,
+    mode: stub ? "stub" : "live",
+    trucksSynced: targets.length,
     daysSynced,
     start: startYmd,
     end: endYmd,
+    usageDeferred,
   };
 }
 
@@ -220,4 +268,37 @@ export async function getSquareSummary(accountId: string) {
     lastSyncedAt: rows[0]?.lastSyncedAt ?? null,
     everConnected: rows.length > 0,
   };
+}
+
+/** Upsert a truck → Square location mapping (the location picker). */
+export async function assignTruckLocation(
+  accountId: string,
+  truckId: string,
+  locationId: string,
+  locationName: string,
+  merchantId: string | null,
+): Promise<void> {
+  const db = getDb();
+  const now = new Date();
+  await db
+    .insert(squareConnection)
+    .values({
+      accountId,
+      truckId,
+      connected: true,
+      merchantId,
+      locationId,
+      locationName,
+      environment: serverEnv().SQUARE_ENVIRONMENT,
+    })
+    .onConflictDoUpdate({
+      target: squareConnection.truckId,
+      set: {
+        connected: true,
+        merchantId,
+        locationId,
+        locationName,
+        updatedAt: now,
+      },
+    });
 }

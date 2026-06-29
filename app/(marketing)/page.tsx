@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ScanLine,
-  Bell,
+  ListChecks,
   FileText,
   TrendingUp,
   Boxes,
@@ -15,65 +15,71 @@ import foodtruckQuote from "@/app/assets/foodtruck-3.jpg";
 import foodtruckCta from "@/app/assets/foodtruck-4.jpg";
 
 export const metadata = {
-  title: "CartLedger — Stay open. Stay profitable.",
+  title: "CartLedger — Automated tracking & financials for food trucks.",
   description:
-    "The operating system for food trucks. Track every permit, cert, and COI that can shut you down — and turn your Square sales into live inventory, food cost, and a weekly P&L. Compliance and profit in one place.",
+    "CartLedger turns your Square sales into income, expenses, inventory, and profit automatically — and keeps a running checklist of what needs you next, from low-stock reorders to expiring permits. Your money and your paperwork, tracked in one place.",
 };
 
 const FEATURES = [
   {
-    icon: FileText,
-    title: "One timeline for compliance",
-    body: "Permits, inspections, certifications, COIs, and commissary agreements — every expiry date in one place, per truck.",
-  },
-  {
-    icon: Bell,
-    title: "Reminders before expiry",
-    body: "Get warned by email well before anything lapses, with SMS and voice escalation on higher plans. No more surprise shutdowns.",
-  },
-  {
-    icon: ScanLine,
-    title: "Scan a document, we file it",
-    body: "Upload a permit photo and our AI reads the dates and details for you to confirm — no manual data entry.",
-  },
-  {
     icon: TrendingUp,
-    title: "Sales → weekly P&L",
-    body: "Connect Square and see net sales, food cost, and profit by day, week, or month — with a clear chart, not a spreadsheet.",
+    title: "Income, expenses & profit — automatic",
+    body: "Connect Square and CartLedger builds your P&L by day, week, or month: net sales, food cost, and profit, on a clear chart — no spreadsheet.",
+  },
+  {
+    icon: ListChecks,
+    title: "A checklist that builds itself",
+    body: "CartLedger surfaces what needs you next — low stock to reorder, fees due, permits about to expire — so nothing slips, on the money side or the compliance side.",
   },
   {
     icon: Boxes,
-    title: "Inventory that updates itself",
-    body: "Sales auto-deplete your ingredients through recipes, so you always know what's on hand and what to reorder.",
+    title: "Inventory that tracks itself",
+    body: "Sales auto-deplete ingredients through your recipes, so you always know what's on hand, what it cost, and what to reorder.",
   },
   {
     icon: Receipt,
     title: "Know what actually makes money",
-    body: "Per-item margins, your food-cost %, and which menu items to push or drop — straight from your real sales.",
+    body: "Per-item margins, your food-cost %, and which menu items to push or drop — straight from your real sales. Export clean books to QuickBooks.",
+  },
+  {
+    icon: FileText,
+    title: "Compliance, tracked too",
+    body: "Permits, inspections, certs, COIs, and commissary agreements — every expiry in one timeline, per truck, so a lapse never shuts you down.",
+  },
+  {
+    icon: ScanLine,
+    title: "Scan a document, we file it",
+    body: "Snap a permit or invoice and our AI reads the dates and details for you to confirm — no manual data entry.",
   },
 ];
 
 const STEPS = [
   {
     n: "01",
-    title: "Add your trucks & docs",
-    body: "A profile per truck; type in permits or scan a photo and let the AI pull the dates.",
+    title: "Connect Square & add your trucks",
+    body: "Link your POS and create a profile per truck; scan permits or type them in.",
   },
   {
     n: "02",
-    title: "Connect Square",
-    body: "Sales flow in automatically, building your inventory usage, food cost, and P&L.",
+    title: "CartLedger tracks it automatically",
+    body: "Sales flow in and become inventory usage, food cost, and a live P&L — per truck, no spreadsheets.",
   },
   {
     n: "03",
-    title: "Stay open and in the black",
-    body: "We warn you before anything expires and show you exactly where your money goes.",
+    title: "Follow the checklist",
+    body: "It tells you what needs you next — reorders, fees, renewals — so you stay open and in the black.",
   },
 ];
 
 export default function MarketingHome() {
   return (
     <main>
+      {/* Beta ribbon */}
+      <div className="bg-brand-ink px-4 py-2 text-center text-sm font-medium text-background">
+        🚧 CartLedger is in its beta period — core functionality is currently
+        free.
+      </div>
+
       {/* Hero over a photo */}
       <section className="relative overflow-hidden border-b border-border/60">
         <Image
@@ -88,18 +94,18 @@ export default function MarketingHome() {
         <div className="absolute inset-0 bg-foreground/70" />
         <div className="relative mx-auto w-full max-w-3xl px-5 py-20 text-center sm:px-6 sm:py-28">
           <span className="inline-flex items-center rounded-full border border-background/25 bg-background/10 px-3 py-1 text-xs font-medium text-background/90 backdrop-blur-sm">
-            The operating system for food trucks
+            Automated tracking &amp; financials for food trucks
           </span>
           <h1 className="mt-6 text-balance text-5xl font-bold tracking-tight text-background sm:text-7xl">
-            Stay open.
+            Track everything.
             <br />
-            Stay profitable.
+            Automatically.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-pretty text-lg text-background/85 sm:text-xl">
-            CartLedger keeps every truck audit-ready — permits, certs,
-            inspections, and COIs in one timeline — and turns your Square sales
-            into live inventory, food cost, and a weekly P&amp;L. The compliance
-            and the money, in one place, on top of the tools you already use.
+            CartLedger turns your Square sales into income, expenses, inventory,
+            and profit — automatically — and keeps a running checklist of what
+            needs you next, from low-stock reorders to expiring permits. Your
+            money and your paperwork, tracked in one place.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/signup" className={buttonVariants({ size: "lg" })}>
@@ -123,12 +129,11 @@ export default function MarketingHome() {
       <section className="border-b border-border/60 bg-secondary/30">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-1.5 px-5 py-6 text-center sm:px-6">
           <p className="text-sm font-medium text-muted-foreground">
-            Built for the things that actually shut trucks down
+            One place for everything a truck owner juggles
           </p>
           <p className="text-pretty text-base font-medium">
-            Health permits · Fire &amp; hood inspections · Food-handler cards ·
-            General liability COIs · Commissary agreements · Vehicle
-            registration
+            Sales &amp; profit · Inventory &amp; reorders · Food cost · Expenses
+            · QuickBooks export · Permits &amp; COIs · Inspections
           </p>
         </div>
       </section>
@@ -138,11 +143,12 @@ export default function MarketingHome() {
         <div className="mx-auto w-full max-w-6xl px-5 py-14 sm:px-6 sm:py-16">
           <div className="max-w-2xl">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Everything that can close you down, in one place
+              Your whole operation, tracked and automated
             </h2>
             <p className="mt-3 text-lg text-muted-foreground">
-              Stop juggling glove-box folders, inbox reminders, and sticky
-              notes. CartLedger keeps the whole picture current.
+              Stop juggling spreadsheets, glove-box folders, and calendar
+              reminders. CartLedger tracks the money and the paperwork, and
+              tells you what to do next.
             </p>
           </div>
           <div className="mt-10 grid gap-x-8 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
@@ -228,11 +234,11 @@ export default function MarketingHome() {
         <div className="absolute inset-0 bg-foreground/80" />
         <div className="relative mx-auto max-w-3xl px-5 py-16 text-center sm:px-6 sm:py-20">
           <h2 className="text-balance text-3xl font-bold tracking-tight text-background sm:text-5xl">
-            Keep your truck open — all season long.
+            Know your numbers. Never miss a deadline.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-pretty text-lg text-background/85">
-            Track the permits, inspections, and COIs that matter, get reminded
-            before they lapse, and never lose a weekend to an expired document.
+            Connect Square and CartLedger tracks your sales, costs, profit, and
+            paperwork automatically — then tells you what needs you next.
             14-day free trial.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
