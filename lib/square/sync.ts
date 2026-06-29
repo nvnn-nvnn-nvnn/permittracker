@@ -26,6 +26,8 @@ export interface SyncResult {
   daysSynced: number;
   start: string;
   end: string;
+  /** Locations skipped due to an error mid-sync (e.g. permissions). */
+  locationsFailed: number;
   /** True if sales synced but inventory depletion failed (retry via Recompute). */
   usageDeferred: boolean;
 }
@@ -90,7 +92,12 @@ export async function syncSquareSales(
     }));
   } else {
     merchantId = (await adapter.getMerchant()).merchantId;
-    // Live: only trucks with a real location assigned (via the picker).
+    // Valid locations for THIS merchant. Guards against stale mappings left
+    // from a previous account/environment (e.g. a sandbox location): hitting a
+    // location the token doesn't own 403s, and would otherwise fail the sync.
+    const validLocationIds = new Set(
+      (await adapter.listLocations()).map((l) => l.id),
+    );
     const conns = await db
       .select()
       .from(squareConnection)
@@ -100,7 +107,8 @@ export async function syncSquareSales(
         (c) =>
           c.truckId &&
           c.locationId &&
-          !c.locationId.startsWith("stub-loc-"),
+          !c.locationId.startsWith("stub-loc-") &&
+          validLocationIds.has(c.locationId),
       )
       .map((c) => ({
         truckId: c.truckId as string,
@@ -110,8 +118,10 @@ export async function syncSquareSales(
   }
 
   let daysSynced = 0;
+  let locationsFailed = 0;
 
   for (const target of targets) {
+   try {
     const daily = await adapter.listDailySales({
       locationId: target.locationId,
       start: startYmd,
@@ -222,6 +232,15 @@ export async function syncSquareSales(
           updatedAt: now,
         },
       });
+   } catch (err) {
+      // One location failing (e.g. permissions/transient) must not abort the
+      // whole sync — other trucks still get their sales.
+      locationsFailed++;
+      console.error(
+        `[square-sync] location ${target.locationId} failed:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
   }
 
   // Auto-deplete inventory from the synced item sales (idempotent). Sales are
@@ -237,10 +256,11 @@ export async function syncSquareSales(
 
   return {
     mode: stub ? "stub" : "live",
-    trucksSynced: targets.length,
+    trucksSynced: targets.length - locationsFailed,
     daysSynced,
     start: startYmd,
     end: endYmd,
+    locationsFailed,
     usageDeferred,
   };
 }
@@ -268,6 +288,21 @@ export async function getSquareSummary(accountId: string) {
     lastSyncedAt: rows[0]?.lastSyncedAt ?? null,
     everConnected: rows.length > 0,
   };
+}
+
+/** Remove a truck's Square location mapping (the picker's "None"). */
+export async function clearTruckLocation(
+  accountId: string,
+  truckId: string,
+): Promise<void> {
+  await getDb()
+    .delete(squareConnection)
+    .where(
+      and(
+        eq(squareConnection.accountId, accountId),
+        eq(squareConnection.truckId, truckId),
+      ),
+    );
 }
 
 /** Upsert a truck → Square location mapping (the location picker). */

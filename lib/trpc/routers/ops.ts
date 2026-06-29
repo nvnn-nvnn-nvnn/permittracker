@@ -17,6 +17,7 @@ import {
 } from "@/lib/square";
 import {
   assignTruckLocation,
+  clearTruckLocation,
   disconnectSquare,
   getSquareSummary,
   syncSquareSales,
@@ -113,6 +114,26 @@ export const opsRouter = createTRPCRouter({
         )
         .limit(1);
       if (!owned) throw new TRPCError({ code: "NOT_FOUND" });
+
+      // One truck per location: reject if another truck already holds it.
+      const [taken] = await getDb()
+        .select({ truckId: squareConnection.truckId })
+        .from(squareConnection)
+        .where(
+          and(
+            eq(squareConnection.accountId, ctx.account.accountId),
+            eq(squareConnection.locationId, input.locationId),
+          ),
+        )
+        .limit(1);
+      if (taken && taken.truckId !== input.truckId) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "That Square location is already assigned to another truck. Set that truck to “None” first.",
+        });
+      }
+
       const { merchantId } = await getSquareOauthStatus(ctx.account.accountId);
       await assignTruckLocation(
         ctx.account.accountId,
@@ -121,6 +142,25 @@ export const opsRouter = createTRPCRouter({
         input.locationName,
         merchantId,
       );
+      return { ok: true };
+    }),
+
+  /** Unmap a truck from its Square location (the picker's "None"). */
+  unassignLocation: opsProcedure
+    .input(z.object({ truckId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const [owned] = await getDb()
+        .select({ id: truck.id })
+        .from(truck)
+        .where(
+          and(
+            eq(truck.id, input.truckId),
+            eq(truck.accountId, ctx.account.accountId),
+          ),
+        )
+        .limit(1);
+      if (!owned) throw new TRPCError({ code: "NOT_FOUND" });
+      await clearTruckLocation(ctx.account.accountId, input.truckId);
       return { ok: true };
     }),
 

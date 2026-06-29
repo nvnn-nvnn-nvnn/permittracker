@@ -2033,3 +2033,33 @@ Operations dashboard truck switcher (same day): lifted the truck scope + P&L
 granularity controls OUT of the `pnl.hasData` block so you can navigate
 truck→truck even with no sales / no Square connection; added a green/grey dot
 per truck (Square connected or not) and a truck-aware empty state.
+
+## Square production: 403 fix + one-truck-per-location — 2026-06-29
+
+**Symptom:** production sync failed `Square orders 403 FORBIDDEN / insufficient
+permissions`. Token was fine (token/status confirmed ORDERS_READ); the cause was
+a **stale sandbox location** (`LB3GHS4FHNWES`) still mapped to a truck — it
+doesn't belong to the production merchant, so order-search 403'd, and an
+unguarded loop let that one location fail the whole sync.
+
+**Fixes (`lib/square/sync.ts`):**
+- Live sync now intersects mapped locations with the merchant's real
+  `listLocations()` and **skips any location the token doesn't own** (kills
+  stale/foreign mappings before they 403).
+- **Per-location try/catch** — one location erroring is logged and skipped, not
+  fatal; result reports `locationsFailed` (and `trucksSynced` excludes them).
+- New `clearTruckLocation()` to unmap a truck.
+
+**One-truck-per-location enforced:**
+- `ops.assignLocation` rejects (`CONFLICT`) a location already held by another
+  truck — prevents the double-counting that two trucks on one location caused.
+- New `ops.unassignLocation` + picker "None — not connected" option; the picker
+  also disables locations already in use by another truck and shows errors.
+
+**Data:** removed the stale sandbox mapping and the duplicate so the production
+merchant's single location "cartledger" maps only to truck "Pho Real??".
+
+Diagnostic kept: `scripts/diag-square-token.mjs` (read-only — token scopes via
+Square `token/status`, merchant locations vs. mapped locations).
+
+Verified: typecheck + eslint clean; full `next build` passed.

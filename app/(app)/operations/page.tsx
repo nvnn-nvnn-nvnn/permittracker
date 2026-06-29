@@ -165,10 +165,10 @@ export default async function OperationsPage({
         <div className="space-y-1 text-sm">
           <p className="font-medium">Beta — double-check your numbers.</p>
           <p className="text-muted-foreground">
-            We don&apos;t track or sell your information. These finance tools are
-            in a beta period and aren&apos;t yet fully polished or accurate, so
-            verify figures before relying on them. Questions or ideas to improve
-            CartLedger? Email the team at{" "}
+            We don&apos;t sell your data or share your business data. These
+            finance tools are in a beta period and aren&apos;t yet fully polished
+            or accurate, so verify figures before relying on them. Questions or
+            ideas to improve CartLedger? Email the team at{" "}
             <a
               href="mailto:techkage@proton.me"
               className="font-medium text-brand-ink hover:underline"
