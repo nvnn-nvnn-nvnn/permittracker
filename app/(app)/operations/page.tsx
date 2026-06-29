@@ -17,6 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SquareSync } from "@/components/features/square-sync";
 import { OpsLineChart } from "@/components/features/ops-line-chart";
 import { FoodCostExplainer } from "@/components/features/food-cost-explainer";
+import { IncomeStatement } from "@/components/features/income-statement";
 import { fmtMoneyCents, fmtDate } from "@/lib/format";
 import type { PnlGranularity } from "@/lib/ops/pnl";
 
@@ -388,52 +389,13 @@ export default async function OperationsPage({
             </Card>
           )}
 
-          {/* Trailing totals */}
-          <Card>
-            <CardContent className="grid grid-cols-2 gap-4 p-5 sm:grid-cols-4">
-              <div>
-                <p className="text-xl font-semibold tabular-nums">
-                  {fmtMoneyCents(pnl.totals.netSalesCents)}
-                </p>
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Net sales · last {periodCount} {noun}
-                  {periodCount === 1 ? "" : "s"}
-                </p>
-              </div>
-              <div>
-                <p className="text-xl font-semibold tabular-nums">
-                  {pnl.totals.foodCostPct !== null
-                    ? `${pnl.totals.foodCostPct}%`
-                    : "—"}
-                </p>
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Food cost % · {fmtMoneyCents(pnl.totals.foodCostCents)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xl font-semibold tabular-nums">
-                  {fmtMoneyCents(pnl.totals.overheadCents)}
-                </p>
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Overhead
-                </p>
-              </div>
-              <div>
-                <p
-                  className={`text-xl font-semibold tabular-nums ${
-                    pnl.totals.operatingProfitCents < 0
-                      ? "text-status-red"
-                      : "text-status-green"
-                  }`}
-                >
-                  {fmtMoneyCents(pnl.totals.operatingProfitCents)}
-                </p>
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Operating profit
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Trailing income statement */}
+          <IncomeStatement
+            totals={pnl.totals}
+            periodCount={periodCount}
+            noun={noun}
+            scopeName={selectedTruckName ?? "All trucks"}
+          />
 
           <FoodCostExplainer />
 

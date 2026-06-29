@@ -48,8 +48,13 @@ export interface PnlResult {
   periods: PnlPeriod[];
   hasData: boolean;
   totals: {
+    grossSalesCents: number;
+    refundsCents: number;
+    discountsCents: number;
     netSalesCents: number;
     foodCostCents: number;
+    /** net sales − food cost. */
+    grossProfitCents: number;
     overheadCents: number;
     operatingProfitCents: number;
     foodCostPct: number | null;
@@ -57,8 +62,12 @@ export interface PnlResult {
 }
 
 const EMPTY_TOTALS: PnlResult["totals"] = {
+  grossSalesCents: 0,
+  refundsCents: 0,
+  discountsCents: 0,
   netSalesCents: 0,
   foodCostCents: 0,
+  grossProfitCents: 0,
   overheadCents: 0,
   operatingProfitCents: 0,
   foodCostPct: null,
@@ -261,6 +270,9 @@ export async function periodPnl(
 
   const totals = periodsOut.reduce(
     (acc, p) => {
+      acc.grossSalesCents += p.grossSalesCents;
+      acc.refundsCents += p.refundsCents;
+      acc.discountsCents += p.discountsCents;
       acc.netSalesCents += p.netSalesCents;
       acc.foodCostCents += p.foodCostCents;
       acc.overheadCents += p.overheadCents;
@@ -269,6 +281,7 @@ export async function periodPnl(
     },
     { ...EMPTY_TOTALS, foodCostPct: null as number | null },
   );
+  totals.grossProfitCents = totals.netSalesCents - totals.foodCostCents;
   totals.foodCostPct =
     totals.netSalesCents > 0
       ? Math.round((totals.foodCostCents / totals.netSalesCents) * 100)

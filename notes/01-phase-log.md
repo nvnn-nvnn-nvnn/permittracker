@@ -2063,3 +2063,35 @@ Diagnostic kept: `scripts/diag-square-token.mjs` (read-only — token scopes via
 Square `token/status`, merchant locations vs. mapped locations).
 
 Verified: typecheck + eslint clean; full `next build` passed.
+
+## Operations P&L → income-statement layout — 2026-06-29
+
+Reformatted the trailing P&L totals on the Operations dashboard into a proper
+**multi-step income statement** (revenue → COGS → gross profit → operating
+expenses → net operating income), replacing the flat 4-tile summary card.
+
+**Files:**
+- `lib/ops/pnl.ts` — extended `PnlResult.totals` with `grossSalesCents`,
+  `refundsCents`, `discountsCents`, and computed `grossProfitCents`
+  (net sales − food cost). Additive only; no caller broke.
+- `components/features/income-statement.tsx` — new presentational component;
+  accounting-paren negatives, gross-margin + operating-margin %, green/red
+  bottom line.
+- `app/(app)/operations/page.tsx` — swapped the 4-tile "Trailing totals" card
+  for `<IncomeStatement>`, scoped to selected truck (or "All trucks").
+
+**Accounting decisions (so lines reconcile to stored data):**
+- **Net sales = Gross − Refunds**, matching `lib/square/sync.ts` storage.
+- **Discounts** are already baked into gross → shown as a memo, not a deducted
+  line (avoids double-counting).
+- **Sales tax + tips** are pass-through, excluded from revenue (noted in memo).
+- COGS is still cash-style **food cost = supplier purchases received**, not
+  accrual per-recipe COGS — same data as before, just proper statement form.
+
+**Deferred:** true income statement / balance sheet / cash flow would need a
+real ledger (chart of accounts, cash/AP/AR, inventory asset, equity). Bumps the
+"never an accounting tool" boundary (see `00-decisions.md`) — left as a scoped
+decision, not built. Per-period trend table kept as-is.
+
+Verified: `tsc --noEmit` clean for changed files (one pre-existing unrelated
+error in `lib/reminders/token.test.ts`).
