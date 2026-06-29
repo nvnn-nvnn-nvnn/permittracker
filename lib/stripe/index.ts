@@ -17,21 +17,23 @@ export interface PlanDefinition {
   sms: boolean;
   voiceEscalation: boolean;
   // Operations pillar (Square sync, P&L, inventory, recipes, purchasing,
-  // expenses, item/menu analytics). Pro and up. See 00-decisions.md.
+  // expenses, item/menu analytics). Included on ALL tiers — free entry tier and
+  // up; paid tiers differ by trucks/reminders, not by ops. See 00-decisions.md.
   operations: boolean;
 }
 
 export const PLANS: Record<PlanTier, PlanDefinition> = {
+  // Free entry tier: one truck, full operations + compliance basics.
   starter: {
     tier: "starter",
-    label: "Starter",
-    monthlyUsd: 19,
-    yearlyUsd: 190,
+    label: "Free",
+    monthlyUsd: 0,
+    yearlyUsd: 0,
     maxTrucks: 1,
     maxItems: 15,
     sms: false,
     voiceEscalation: false,
-    operations: false,
+    operations: true,
   },
   pro: {
     tier: "pro",

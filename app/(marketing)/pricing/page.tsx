@@ -14,17 +14,19 @@ export const metadata = {
 const TIERS = [
   {
     tier: "starter",
-    label: "Starter",
-    price: 19,
-    yearly: 190,
-    tagline: "Compliance tracking for a single truck.",
+    label: "Free",
+    price: 0,
+    yearly: 0,
+    tagline: "One truck — money and compliance, automated.",
     featured: false,
+    cta: "Get started free",
     features: [
-      "1 active truck",
+      "1 truck",
+      "Square sync → income, expenses & P&L",
+      "Inventory, recipes & food cost",
+      "Purchasing + QuickBooks export",
       "Permits, COIs, certs & inspections",
-      "Expiry reminders (email)",
-      "AI document scanning",
-      "Inspection-prep digests",
+      "Email expiry reminders & AI scanning",
     ],
   },
   {
@@ -32,15 +34,15 @@ const TIERS = [
     label: "Pro",
     price: 49,
     yearly: 490,
-    tagline: "The full financial picture, automated.",
+    tagline: "More trucks, with SMS & voice reminders.",
     featured: true,
+    cta: "Start 14-day free trial",
     features: [
       "Up to 3 trucks",
-      "Everything in Starter, plus:",
-      "Square sync → income, expenses & P&L",
-      "Inventory, recipes & food cost",
-      "Purchasing + QuickBooks export",
-      "Menu analysis & per-truck P&L",
+      "Everything in Free, plus:",
+      "Unlimited compliance items",
+      "SMS + voice-call reminders",
+      "Per-truck & all-trucks P&L",
     ],
   },
   {
@@ -50,11 +52,11 @@ const TIERS = [
     yearly: 1290,
     tagline: "For multi-truck fleets and teams.",
     featured: false,
+    cta: "Start 14-day free trial",
     features: [
       "Up to 10 trucks",
       "Everything in Pro",
       "Team logins & roles",
-      "All-trucks rollup + per-truck views",
       "Commissary fleet view",
       "Priority support",
     ],
@@ -80,9 +82,9 @@ export default function PricingPage() {
             Pricing that scales with your fleet
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-lg text-background/85">
-            Per business, not per seat. Every plan starts with a 14-day free
-            trial — card required, cancel anytime. Two months free on annual
-            plans.
+            Per business, not per seat. Start free with one truck — no card
+            required. Upgrade any time for more trucks, SMS &amp; voice
+            reminders, and team logins. Two months free on annual plans.
           </p>
         </div>
       </section>
@@ -112,13 +114,23 @@ export default function PricingPage() {
                   {t.tagline}
                 </p>
                 <div className="mt-6 flex items-baseline gap-1">
-                  <span className="text-4xl font-bold tracking-tight">
-                    ${t.price}
-                  </span>
-                  <span className="text-sm text-muted-foreground">/month</span>
+                  {t.price === 0 ? (
+                    <span className="text-4xl font-bold tracking-tight">
+                      Free
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-4xl font-bold tracking-tight">
+                        ${t.price}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        /month
+                      </span>
+                    </>
+                  )}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  or ${t.yearly}/year
+                  {t.price === 0 ? "No card required" : `or $${t.yearly}/year`}
                 </p>
                 <Link
                   href="/signup"
@@ -129,7 +141,7 @@ export default function PricingPage() {
                     "mt-6",
                   )}
                 >
-                  Start 14-day free trial
+                  {t.cta}
                 </Link>
                 <ul className="mt-7 flex flex-col gap-3 text-sm">
                   {t.features.map((f) => (

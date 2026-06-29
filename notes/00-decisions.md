@@ -32,6 +32,22 @@ These were confirmed with the owner before any code was written.
 
 ## Data-model scope decisions (not stack deviations)
 
+- **2026-06-29 — Free tier with full Operations; trucks are the paid lever
+  (REVERSES the 2026-06-25 "no free tier, all-paid + card-required trial" and the
+  "Operations = Pro+" gating).** The lowest tier (`starter`, relabeled **"Free"**,
+  `$0`) now includes the **entire Operations pillar** (Square sync, P&L, expenses,
+  inventory, recipes, purchasing) plus compliance basics — capped at **1 truck**
+  and 15 compliance items. Paid tiers differentiate by **trucks + reminders**, not
+  by ops: **Pro** ($49, 3 trucks, unlimited items, SMS + voice reminders),
+  **Fleet** ($129, 10 trucks, team logins). Implementation: `PLANS.starter`
+  → `operations: true`, `monthlyUsd/yearlyUsd: 0`, `maxTrucks: 1`; the
+  `accountHasOperations` gate now passes on every tier (kept as infra), and the
+  1-truck cap is still enforced by `assertWithinLimit`. Pricing page + hero copy
+  updated (Free shows "Free / No card required"; paid keep the 14-day trial).
+  Rationale: aligns with the beta "core functionality is free" positioning; lets
+  single-truck operators adopt the financials with no friction and upgrade when
+  they add trucks or want SMS/voice reminders.
+
 - **2026-06-26 — Rebrand: public brand is now "CartLedger" (was VendGuard).**
   Find/replaced brand strings across app/components/lib/notes; logo swapped to
   `app/assets/cartledger full svg.svg` in `components/brand/logo.tsx` (old
